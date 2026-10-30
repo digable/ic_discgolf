@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A Genesis-style disc golf door for Synchronet BBS, playable in the browser.">
+<title>Disc Golf Door</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+/* Layout: caller's 80x25 screen on the left; the door script, the connection and live readouts on the right; key log below. Single dark look: it's a terminal. */
+:root {
+  color-scheme: dark;
+  --bg: #0c0e13;
+  --panel: #141821;
+  --line: #262c39;
+  --fg: #d5d9e2;
+  --muted: #8b93a5;
+  --accent: #55ffff;   /* CGA bright cyan */
+  --good: #55ff55;
+  --warn: #ffff55;
+  --bad: #ff5555;
+  --display: "VT323", "Courier New", monospace;
+  --ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--ui); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+header h1 { font-family: var(--display); font-weight: 400; font-size: 44px; line-height: 1; margin: 0; color: var(--accent); letter-spacing: .02em; text-wrap: balance; }
+header p { margin: 8px 0 0; color: var(--muted); max-width: 70ch; }
+kbd { font-family: var(--mono); font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; color: var(--fg); background: var(--panel); }
+code { font-family: var(--mono); font-size: 12px; color: var(--fg); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.term { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.bezel { background: #000; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; position: relative; }
+.bezel.drag { border-color: var(--accent); }
+.bezel.drag::before { content: "Drop your .js door to run it"; position: absolute; inset: 32px 0 0; display: grid; place-items: center; z-index: 2; background: rgba(0,0,0,.75); color: var(--accent); font: 32px var(--display); }
+.titlebar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.titlebar b { color: var(--fg); font-weight: 500; }
+.screen { position: relative; }
+.screen canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+.screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.22) 3px, rgba(0,0,0,0) 4px); }
+.under { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.under p { margin: 0; color: var(--muted); font-size: 13px; flex: 1 1 240px; min-width: 0; }
+.keys { display: flex; gap: 6px; flex-wrap: wrap; }
+.key { font-family: var(--display); font-size: 26px; line-height: 1; padding: 10px 14px; min-width: 44px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.key.big { padding: 10px 36px; color: var(--accent); border-color: var(--accent); }
+.key:active { background: var(--accent); color: #000; }
+
+.side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.box h2, .log h2 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.script { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.script b { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--accent); overflow-wrap: anywhere; }
+.script span { font-size: 12px; color: var(--muted); }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.err { margin: 0; padding: 10px 12px; border: 1px solid var(--bad); border-radius: 4px; color: var(--bad); font: 12px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.presets button { font: 500 12px/1.3 var(--mono); text-align: left; padding: 7px 9px; background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.presets button small { display: block; color: var(--muted); font-weight: 400; }
+.presets button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.presets button[aria-pressed="true"] small { color: var(--accent); opacity: .75; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; font-size: 13px; }
+.row output { font-family: var(--mono); font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.row input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.row select { font: 12px var(--mono); background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.check input { accent-color: var(--accent); margin-top: 3px; }
+.check span small { display: block; color: var(--muted); font-size: 12px; }
+.btn { font: 500 13px var(--ui); padding: 8px 12px; background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { border-color: var(--accent); color: var(--accent); }
+.hint { margin: 0; color: var(--muted); font-size: 12px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.readouts { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: 13px; }
+.readouts dt { color: var(--muted); }
+.readouts dd { margin: 0; font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.log { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
+.c-good { color: var(--good); } .c-warn { color: var(--warn); } .c-bad { color: var(--bad); }
+
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes div { border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; color: var(--muted); }
+.notes b { display: block; color: var(--fg); font-weight: 600; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Disc Golf Door</h1>
+    <p>A disc golf door for Synchronet, played here on an emulated 80×25 ANSI screen with the same 3-click meter. It runs the real discgolf.js file, starting at Turkey Creek in Iowa City. Pick your hand and throw, choose a disc, aim with the arrow keys and press <kbd>SPACE</kbd> to throw.</p>
+  </header>
+
+  <div class="main">
+    <section class="term" aria-label="Caller's terminal">
+      <div class="bezel" id="bezel">
+        <div class="titlebar"><span><b>Caller's screen</b> · 80×25 · ANSI · CP437</span><span id="linkLabel">telnet · 40 ms</span></div>
+        <div class="screen"><canvas id="screen" aria-label="Emulated 80 by 25 terminal"></canvas></div>
+      </div>
+      <div class="under">
+        <div class="keys" role="group" aria-label="On-screen keys">
+          <button class="key big" id="spaceBtn" type="button">SPACE</button>
+          <button class="key" id="kLeft" type="button" aria-label="Left arrow">←</button>
+          <button class="key" id="kUp" type="button" aria-label="Up arrow">↑</button>
+          <button class="key" id="kDown" type="button" aria-label="Down arrow">↓</button>
+          <button class="key" id="kRight" type="button" aria-label="Right arrow">→</button>
+          <button class="key" id="kD" type="button" aria-label="D, next disc">D</button>
+          <button class="key" id="kT" type="button" aria-label="T, backhand or forehand">T</button>
+          <button class="key" id="kH" type="button" aria-label="H, switch hand">H</button>
+          <button class="key" id="kA" type="button" aria-label="A, release angle">A</button>
+          <button class="key" id="kS" type="button" aria-label="S, scorecard">S</button>
+          <button class="key" id="qBtn" type="button" aria-label="Q key">Q</button>
+          <button class="key" id="enterBtn" type="button" aria-label="Enter key">↵</button>
+        </div>
+        <p>Keys reach the door after the same delay a caller would have, and the screen updates come back the same way.</p>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="box">
+        <h2>Door script</h2>
+        <div class="script"><b id="scriptName">discgolf.js</b><span id="scriptInfo">Built in</span></div>
+        <div class="btns">
+          <label class="btn primary" for="fileIn">Load a .js file</label>
+          <input class="vh" type="file" id="fileIn" accept=".js,.ssjs,text/javascript,text/plain">
+          <button class="btn" id="builtinBtn" type="button">Use built-in</button>
+          <button class="btn" id="reconnect" type="button">Restart</button>
+        </div>
+        <p class="err" id="err" hidden></p>
+        <p class="hint">You can also drop a file on the screen. Restart re-measures the lag.</p>
+      </div>
+
+      <div class="box">
+        <h2>Connection</h2>
+        <div class="presets" id="presets"></div>
+        <div class="row"><label for="rtt">Round-trip delay</label><output id="rttOut">40 ms</output><input id="rtt" type="range" min="0" max="400" step="5" value="40"></div>
+        <div class="row"><label for="jitter">Jitter (extra, random)</label><output id="jitterOut">0–5 ms</output><input id="jitter" type="range" min="0" max="120" step="5" value="5"></div>
+        <div class="row"><label for="baud">Line speed</label>
+          <select id="baud">
+            <option value="0">Unlimited (telnet/SSH)</option>
+            <option value="33600">33,600 bps</option>
+            <option value="14400">14,400 bps</option>
+            <option value="9600">9,600 bps</option>
+            <option value="2400">2,400 bps</option>
+            <option value="1200">1,200 bps</option>
+          </select></div>
+        <label class="check"><input type="checkbox" id="nagle"><span>Nagle's algorithm on<small>What you get without TCP_NODELAY: small writes wait for the last one to be acknowledged.</small></span></label>
+      </div>
+
+      <div class="box">
+        <h2>On the wire</h2>
+        <dl class="readouts">
+          <dt>Bytes/sec to caller</dt><dd id="rBytes">0</dd>
+          <dt>Line capacity</dt><dd id="rCap">unlimited</dd>
+          <dt>Screen updates/sec</dt><dd id="rFps">0</dd>
+          <dt>Waiting to send</dt><dd id="rBacklog">0 ms</dd>
+        </dl>
+      </div>
+    </aside>
+  </div>
+
+  <section class="notes" aria-label="Controls">
+    <div><b>Throwing</b><kbd>1</kbd>–<kbd>8</kbd> or <kbd>D</kbd> picks a disc. <kbd>T</kbd> cycles backhand, forehand and hammer. <kbd>H</kbd> switches hands (your off hand is weaker), <kbd>A</kbd> cycles flat, hyzer and anhyzer. Arrow keys aim.</div>
+    <div><b>In the trees</b>You get the view from your lie automatically. Left/Right picks a line through a gap. <kbd>P</kbd> pitches out, <kbd>R</kbd> takes PDGA optional relief (+1), <kbd>V</kbd> switches between this view and the map.</div>
+    <div><b>Putting</b>Inside 66 ft you putt with the same meter. <kbd>V</kbd> cycles side, overhead and from-the-player views. Left/Right aims off the basket to play the wind.</div>
+  </section>
+</div>
+
+<script src="vendor/acorn.js"></script>
+<script>
+"use strict";
+(function () {
+  const COLS = 80, ROWS = 25, CW = 16, CH = 32, MAX_LAG_COMP = 0.25;
+  const PAL = ["#000000","#AA0000","#00AA00","#AA5500","#0000AA","#AA00AA","#00AAAA","#AAAAAA",
+               "#555555","#FF5555","#55FF55","#FFFF55","#5555FF","#FF55FF","#55FFFF","#FFFFFF"];
+  const ABORT = { abort: true }, EXIT = { exit: true };
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Settings ----------
+  const S = { rtt: 40, jitter: 5, baud: 0, nagle: false };
+  const PRESETS = [
+    { name: "Local", sub: "same machine", rtt: 0, jitter: 0, baud: 0 },
+    { name: "Telnet, near", sub: "40 ms", rtt: 40, jitter: 5, baud: 0 },
+    { name: "Telnet, far", sub: "160 ms, jittery", rtt: 160, jitter: 40, baud: 0 },
+    { name: "Wi-Fi + far", sub: "220 ms, very jittery", rtt: 220, jitter: 90, baud: 0 },
+    { name: "14.4k modem", sub: "120 ms", rtt: 120, jitter: 10, baud: 14400 },
+    { name: "2400 baud", sub: "150 ms", rtt: 150, jitter: 10, baud: 2400 }
+  ];
+
+  // ---------- Terminal: an ANSI parser drawing CP437 cells ----------
+  const cv = $("screen"), ctx = cv.getContext("2d");
+  cv.width = COLS * CW; cv.height = ROWS * CH;
+  const chars = new Array(COLS * ROWS).fill(" ");
+  const attrs = new Uint8Array(COLS * ROWS).fill(7); // fg (0-15) | bg << 4
+  const T = { x: 0, y: 0, attr: 7, cursor: true, dirty: true, blink: true, st: 0, params: "", sx: 0, sy: 0 };
+
+  function tClear() { chars.fill(" "); attrs.fill(T.attr & 0x70); T.x = 0; T.y = 0; T.dirty = true; }
+  function tScroll() {
+    chars.copyWithin(0, COLS); attrs.copyWithin(0, COLS);
+    for (let i = (ROWS - 1) * COLS; i < ROWS * COLS; i++) { chars[i] = " "; attrs[i] = 7; }
+  }
+  function tLF() { T.y++; if (T.y >= ROWS) { tScroll(); T.y = ROWS - 1; } }
+  function tPut(ch) {
+    if (T.wrap) { T.wrap = false; T.x = 0; tLF(); }   // deferred wrap, like a real terminal
+    const i = T.y * COLS + T.x; chars[i] = ch; attrs[i] = T.attr;
+    if (T.x === COLS - 1) T.wrap = true; else T.x++;
+  }
+  function csi(final, p) {
+    const priv = p[0] === "?";
+    const n = (priv ? p.slice(1) : p).split(";").map((v) => (v === "" ? NaN : +v));
+    const a = (k, d) => (isNaN(n[k]) ? d : n[k]);
+    switch (final) {
+      case "H": case "f": T.y = Math.min(Math.max(a(0, 1) - 1, 0), ROWS - 1); T.x = Math.min(Math.max(a(1, 1) - 1, 0), COLS - 1); break;
+      case "A": T.y = Math.max(0, T.y - a(0, 1)); break;
+      case "B": T.y = Math.min(ROWS - 1, T.y + a(0, 1)); break;
+      case "C": T.x = Math.min(COLS - 1, T.x + a(0, 1)); break;
+      case "D": T.x = Math.max(0, T.x - a(0, 1)); break;
+      case "J": if (a(0, 0) === 2) { const k = T.x, l = T.y; tClear(); T.x = k; T.y = l; } else { for (let i = T.y * COLS + T.x; i < COLS * ROWS; i++) { chars[i] = " "; attrs[i] = T.attr & 0x70; } } break;
+      case "K": for (let i = T.x; i < COLS; i++) { chars[T.y * COLS + i] = " "; attrs[T.y * COLS + i] = T.attr & 0x70; } break;
+      case "s": T.sx = T.x; T.sy = T.y; break;
+      case "u": T.x = T.sx; T.y = T.sy; break;
+      case "h": case "l": if (priv && a(0) === 25) T.cursor = final === "h"; break;
+      case "n": if (a(0) === 6) sendInput({ reply: { x: T.x + 1, y: T.y + 1 } }, 8); break;
+      case "m":
+        for (let k = 0; k < Math.max(1, n.length); k++) {
+          const v = a(k, 0);
+          if (v === 0) T.attr = 7;
+          else if (v === 1) T.attr |= 8;
+          else if (v === 22) T.attr &= ~8;
+          else if (v === 4) T.attr |= 0x80;        // underline
+          else if (v === 24) T.attr &= ~0x80;
+          else if (v >= 30 && v <= 37) T.attr = (T.attr & ~7) | (v - 30);
+          else if (v === 39) T.attr = (T.attr & ~7) | 7;
+          else if (v >= 40 && v <= 47) T.attr = (T.attr & 0x8f) | ((v - 40) << 4);
+          else if (v === 49) T.attr &= 0x8f;
+        }
+        break;
+    }
+  }
+  function tFeed(s) {
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (T.st === 1) { if (ch === "[") { T.st = 2; T.params = ""; } else T.st = 0; continue; }
+      if (T.st === 2) {
+        if (/[0-9;?]/.test(ch)) { T.params += ch; continue; }
+        T.st = 0; T.wrap = false; csi(ch, T.params); continue;
+      }
+      switch (ch) {
+        case "\x1b": T.st = 1; break;
+        case "\r": T.x = 0; T.wrap = false; break;
+        case "\n": tLF(); break;
+        case "\b": if (T.wrap) T.wrap = false; else if (T.x > 0) T.x--; break;
+        case "\f": tClear(); break;
+        case "\x07": case "\0": break;
+        default: tPut(ch);
+      }
+    }
+    T.dirty = true;
+  }
+  function tLocal(s, attr) { const keep = T.attr; T.attr = attr == null ? 7 : attr; tFeed(s); T.attr = keep; }
+
+  const patCache = {};
+  function shade(color, level) {
+    const key = color + level;
+    if (patCache[key]) return patCache[key];
+    const p = document.createElement("canvas"); p.width = 4; p.height = 4;
+    const g = p.getContext("2d"); g.fillStyle = color;
+    if (level === 1) g.fillRect(0, 0, 2, 2);
+    else if (level === 2) { g.fillRect(0, 0, 2, 2); g.fillRect(2, 2, 2, 2); }
+    else { g.fillRect(0, 0, 4, 4); g.clearRect(2, 2, 2, 2); }
+    return (patCache[key] = ctx.createPattern(p, "repeat"));
+  }
+  // CP437: bytes 128-255 drawn as their DOS glyphs
+  const CP437_HI = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ";
+  const CP = {};
+  for (let i = 0; i < 128; i++) CP[String.fromCharCode(128 + i)] = CP437_HI[i];
+  const SH = { "░": 1, "▒": 2, "▓": 3 };
+  function render() {
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.font = CH + 'px "VT323", "Courier New", monospace';
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      const i = y * COLS + x, a = attrs[i], px = x * CW, py = y * CH;
+      const bg = (a >> 4) & 7;
+      if (bg) { ctx.fillStyle = PAL[bg]; ctx.fillRect(px, py, CW, CH); }
+      let ch = chars[i];
+      if (ch === " ") continue;
+      ch = CP[ch] || ch;
+      const col = PAL[a & 15];
+      if (ch === "█") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH); }
+      else if (ch === "▄") { ctx.fillStyle = col; ctx.fillRect(px, py + CH / 2, CW, CH / 2); }
+      else if (ch === "▀") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH / 2); }
+      else if (ch === "▌") { ctx.fillStyle = col; ctx.fillRect(px, py, CW / 2, CH); }
+      else if (ch === "▐") { ctx.fillStyle = col; ctx.fillRect(px + CW / 2, py, CW / 2, CH); }
+      else if (SH[ch]) { ctx.fillStyle = shade(col, SH[ch]); ctx.fillRect(px, py, CW, CH); }
+      else { ctx.fillStyle = col; ctx.fillText(ch, px + CW / 2, py + CH * 0.78); }
+      if (a & 0x80) { ctx.fillStyle = col; ctx.fillRect(px + 1, py + CH - 5, CW - 2, 3); }
+    }
+    if (T.cursor && T.blink) { ctx.fillStyle = PAL[7]; ctx.fillRect(T.x * CW, T.y * CH + CH - 6, CW, 4); }
+  }
+
+  // ---------- The wire ----------
+  let dq = [];
+  const L = { freeAt: 0, lastArrive: 0, ackAt: 0, held: [], heldTimer: 0, inFree: 0, inLast: 0 };
+  const bytesLog = [], updLog = [];
+  const cps = () => (S.baud ? S.baud / 10 : 0);
+  const oneWay = () => S.rtt / 2 + Math.random() * S.jitter;
+
+  function transmit(chunks) {
+    const c = cps();
+    for (const s of chunks) {
+      const now = performance.now();
+      const start = Math.max(now, L.freeAt);
+      const done = c ? start + (s.length / c) * 1000 : start;
+      L.freeAt = done;
+      const at = Math.max(done + oneWay(), L.lastArrive); // TCP keeps order
+      L.lastArrive = at;
+      dq.push({ at, s });
+    }
+  }
+  function flushHeld() {
+    L.heldTimer = 0;
+    if (!L.held.length) return;
+    const s = L.held.join(""); L.held = [];
+    transmit([s]);
+    L.ackAt = performance.now() + S.rtt + 40; // + delayed ACK
+  }
+  function send(s) {
+    if (!s) return;
+    bytesLog.push([performance.now(), s.length]);
+    if (!S.nagle) { transmit([s]); return; }
+    const now = performance.now();
+    if (now < L.ackAt) {
+      L.held.push(s);
+      if (!L.heldTimer) L.heldTimer = setTimeout(flushHeld, L.ackAt - now);
+      return;
+    }
+    transmit([s]);
+    L.ackAt = now + S.rtt + 40;
+  }
+  function sendInput(item, bytes) {
+    const now = performance.now(), c = cps();
+    const start = Math.max(now, L.inFree);
+    const done = c ? start + (bytes / c) * 1000 : start;
+    L.inFree = done;
+    const at = Math.max(done + oneWay(), L.inLast);
+    L.inLast = at;
+    const sid = sess.id;
+    setTimeout(() => { if (sess.id === sid && sess.env) sess.env.deliver(item); }, at - now);
+  }
+
+  // ---------- Synchronet runtime stand-in ----------
+  const K = { K_NONE: 0, K_UPPER: 1 << 0, K_UPRLWR: 1 << 1, K_NUMBER: 1 << 2, K_WRAP: 1 << 3, K_MSG: 1 << 4, K_SPIN: 1 << 5,
+    K_LINE: 1 << 6, K_EDIT: 1 << 7, K_CHAT: 1 << 8, K_NOCRLF: 1 << 9, K_ALPHA: 1 << 10, K_GETSTR: 1 << 11, K_LOWPRIO: 1 << 12,
+    K_NOEXASC: 1 << 13, K_E71DETECT: 1 << 14, K_AUTODEL: 1 << 15, K_COLD: 1 << 16, K_NOECHO: 1 << 17, K_TAB: 1 << 18,
+    K_LEFTEXIT: 1 << 19, K_USEOFFSET: 1 << 20, K_NOSPIN: 1 << 21, K_ANSI_CPR: 1 << 22, K_TRIM: 1 << 23,
+    KEY_UP: "\x1e", KEY_DOWN: "\x0a", KEY_LEFT: "\x1d", KEY_RIGHT: "\x06", KEY_HOME: "\x02", KEY_END: "\x05",
+    BLACK: 0, RED: 1, GREEN: 2, BROWN: 3, BLUE: 4, MAGENTA: 5, CYAN: 6, LIGHTGRAY: 7, DARKGRAY: 8, LIGHTRED: 9, LIGHTGREEN: 10, YELLOW: 11, LIGHTBLUE: 12, LIGHTMAGENTA: 13, LIGHTCYAN: 14, WHITE: 15, HIGH: 8, BLINK: 0x80,
+    BG_BLACK: 0, BG_RED: 0x10, BG_GREEN: 0x20, BG_BROWN: 0x30, BG_BLUE: 0x40, BG_MAGENTA: 0x50, BG_CYAN: 0x60, BG_LIGHTGRAY: 0x70 };
+
+  function sgr(from, to) {
+    const p = []; let f = from;
+    if (f < 0 || ((f & 8) && !(to & 8)) || (((f >> 4) & 7) && !((to >> 4) & 7))) { p.push(0); f = 7; }
+    if (!(f & 8) && (to & 8)) p.push(1);
+    if ((f & 7) !== (to & 7)) p.push(30 + (to & 7));
+    if (((f >> 4) & 7) !== ((to >> 4) & 7)) p.push(40 + ((to >> 4) & 7));
+    return p.length ? "\x1b[" + p.join(";") + "m" : "";
+  }
+  const stripCtrlA = (s) => String(s).replace(/\x01./g, "");
+
+  function cfmt(fmt) {
+    const args = Array.prototype.slice.call(arguments, 1); let ai = 0;
+    return String(fmt).replace(/%([-+ 0#]*)(\*|\d+)?(?:\.(\d+))?([sdiufxXcoeg%])/g, (m, fl, w, pr, t) => {
+      if (t === "%") return "%";
+      if (w === "*") w = args[ai++];
+      let v = args[ai++], s;
+      switch (t) {
+        case "s": s = String(v); if (pr != null) s = s.slice(0, +pr); break;
+        case "d": case "i": case "u": s = String(Math.trunc(Number(v)) || 0); break;
+        case "f": s = Number(v).toFixed(pr != null ? +pr : 6); break;
+        case "e": s = Number(v).toExponential(pr != null ? +pr : 6); break;
+        case "g": s = String(Number(v)); break;
+        case "x": s = (Number(v) >>> 0).toString(16); break;
+        case "X": s = (Number(v) >>> 0).toString(16).toUpperCase(); break;
+        case "o": s = (Number(v) >>> 0).toString(8); break;
+        case "c": s = typeof v === "number" ? String.fromCharCode(v) : String(v).charAt(0); break;
+      }
+      if (fl.indexOf("+") >= 0 && /[dif]/.test(t) && Number(v) >= 0) s = "+" + s;
+      const width = w ? +w : 0;
+      if (s.length < width) {
+        if (fl.indexOf("-") >= 0) s = s + " ".repeat(width - s.length);
+        else if (fl.indexOf("0") >= 0 && /[diufxX]/.test(t)) s = (s[0] === "-" ? "-" + "0".repeat(width - s.length) + s.slice(1) : "0".repeat(width - s.length) + s);
+        else s = " ".repeat(width - s.length) + s;
+      }
+      return s;
+    });
+  }
+
+  function makeEnv(session) {
+    const st = { dead: false, keys: [], replies: [], waiter: null, rwaiter: null, pend: 7, sentA: 7 };
+    const sleep = (ms) => new Promise((res, rej) => setTimeout(() => (st.dead ? rej(ABORT) : res()), Math.max(0, ms)));
+    function out(s) { if (st.dead) throw ABORT; send(s); }
+    function flushAttr() { if (st.pend !== st.sentA) { out(sgr(st.sentA, st.pend)); st.sentA = st.pend; } }
+    function text(s) { if (s) { flushAttr(); out(s); } }
+    function ctrl(k) {
+      const lk = k.toLowerCase(), fg = st.pend & 7, br = st.pend & 8, bg = st.pend & 0x70;
+      const ci = "krgybmcw".indexOf(lk);
+      if (lk === "n") st.pend = 7;
+      else if (lk === "h") st.pend = st.pend | 8;
+      else if (lk === "-" || lk === "_") st.pend = 7;
+      else if (ci >= 0) st.pend = ci | br | bg;
+      else if (k >= "0" && k <= "7") st.pend = fg | br | ((+k) << 4);
+      else if (lk === "l") { out("\x1b[2J\x1b[H"); }
+      else if (k === ">") out("\x1b[K");
+      else if (k === "[") out("\r");
+      else if (k === "]") out("\n");
+    }
+    function print(s) {
+      s = String(s); let buf = "";
+      for (let i = 0; i < s.length; i++) {
+        if (s[i] === "\x01" && i + 1 < s.length) { text(buf); buf = ""; ctrl(s[++i]); continue; }
+        buf += s[i];
+      }
+      text(buf);
+    }
+    function wait(queue, slot, ms) {
+      if (st.dead) return Promise.reject(ABORT);
+      if (st[queue].length) return Promise.resolve(st[queue].shift());
+      return new Promise((res, rej) => {
+        let to = null;
+        st[slot] = () => { if (to) clearTimeout(to); st[slot] = null; if (st.dead) rej(ABORT); else res(st[queue].shift()); };
+        if (ms != null) to = setTimeout(() => { st[slot] = null; st.dead ? rej(ABORT) : res(null); }, Math.max(0, ms));
+      });
+    }
+    const keyOf = (m, mode) => { let k = m.ch; if (mode & K.K_UPPER) k = k.toUpperCase(); return k; };
+    let lastYield = performance.now();
+
+    const con = {
+      get screen_columns() { return COLS; }, get screen_rows() { return ROWS; },
+      get attributes() { return st.pend; }, set attributes(v) { st.pend = Number(v) & 0x7f; },
+      aborted: false, line_counter: 0, ctrlkey_passthru: 0, autoterm: 1, terminal: "ANSI",
+      print, putmsg: (s) => print(s), write: (s) => { s = String(s); if (/\x1b\[[0-9;]*m/.test(s)) st.sentA = -1; out(s); },
+      writeln: (s) => print((s == null ? "" : s) + "\r\n"), crlf: () => out("\r\n"),
+      center: (s) => { const n = stripCtrlA(s).length; print(" ".repeat(Math.max(0, Math.floor((COLS - n) / 2))) + s + "\r\n"); },
+      strlen: (s) => stripCtrlA(s).length,
+      gotoxy: (x, y) => { if (typeof x === "object" && x) { y = x.y; x = x.x; } out("\x1b[" + y + ";" + x + "H"); },
+      home: () => out("\x1b[H"), up: (n) => out("\x1b[" + (n || 1) + "A"), down: (n) => out("\x1b[" + (n || 1) + "B"),
+      right: (n) => out("\x1b[" + (n || 1) + "C"), left: (n) => out("\x1b[" + (n || 1) + "D"),
+      cleartoeol: (a) => { if (a != null) st.pend = a; flushAttr(); out("\x1b[K"); },
+      clear: (a) => { if (a != null) st.pend = a; flushAttr(); out("\x1b[2J\x1b[H"); },
+      beep: () => out("\x07"), flush: () => {}, clearkeybuffer: () => { st.keys.length = 0; },
+      async getkey(mode) { const m = await wait("keys", "waiter", null); return keyOf(m, mode || 0); },
+      async inkey(mode, ms) {
+        const m = await wait("keys", "waiter", ms || 0);
+        if (!m) { if (performance.now() - lastYield > 30) { lastYield = performance.now(); await sleep(0); } return ""; }
+        return keyOf(m, mode || 0);
+      },
+      async getxy() { out("\x1b[6n"); return await wait("replies", "rwaiter", 1000); },
+      async getstr(def, max, mode) {
+        if (typeof def === "number") { mode = max; max = def; def = ""; }
+        max = max || 80; let s = def ? String(def) : ""; if (s) print(s);
+        for (;;) {
+          const m = await wait("keys", "waiter", null); let k = m.ch;
+          if (k === "\r") { if (!((mode || 0) & K.K_NOCRLF)) out("\r\n"); return s; }
+          if (k === "\b" || k === "\x7f") { if (s.length) { s = s.slice(0, -1); out("\b \b"); } continue; }
+          if (k < " " || s.length >= max) continue;
+          if ((mode || 0) & K.K_UPPER) k = k.toUpperCase();
+          s += k; out(k);
+        }
+      },
+      async getnum(max) { const s = await con.getstr(String(max || 0).length || 5, K.K_NUMBER); const n = parseInt(s, 10); return isNaN(n) ? -1 : n; },
+      async pause() { print("\x01n\x01h[Hit a key]"); await wait("keys", "waiter", null); out("\r\x1b[K"); },
+      async yesno(q) { print("\x01n\x01h" + q + "? [Y/n] "); for (;;) { const m = await wait("keys", "waiter", null); const k = m.ch.toUpperCase(); if (k === "Y" || k === "\r") { out("Yes\r\n"); return true; } if (k === "N") { out("No\r\n"); return false; } } },
+      async noyes(q) { print("\x01n\x01h" + q + "? [y/N] "); for (;;) { const m = await wait("keys", "waiter", null); const k = m.ch.toUpperCase(); if (k === "N" || k === "\r") { out("No\r\n"); return true; } if (k === "Y") { out("Yes\r\n"); return false; } } }
+    };
+    const bbs = { get online() { return !st.dead; }, sys_status: 0, node_num: 1, get time_left() { return 3600; }, nodesync() {}, log_str() {} };
+    const system = { get timer() { return performance.now() / 1000; }, name: "Emulator BBS", operator: "Sysop", node_list: [], get secondary_timer() { return performance.now() / 1000; } };
+    const user = { alias: "Tester", name: "Test Caller", number: 1, handle: "Tester", security: { level: 50 }, settings: 0 };
+    const js = { get terminated() { return st.dead; }, auto_terminate: true, exec_dir: "./", on_exit() {}, global: null, gc() {} };
+
+    return {
+      st,
+      deliver(item) {
+        if (item.reply) { st.replies.push(item.reply); if (st.rwaiter) st.rwaiter(); return; }
+        logKey(item, performance.now() - item.t0);
+        st.keys.push(item); if (st.waiter) st.waiter();
+      },
+      kill() { st.dead = true; if (st.waiter) st.waiter(); if (st.rwaiter) st.rwaiter(); },
+      reset() { out("\x1b[0m\x1b[?25h"); st.sentA = 7; },
+      globals: Object.assign({}, K, {
+        console: con, bbs, system, user, js, argv: [], client: { protocol: "Telnet", socket: {} }, server: { version: "emulated" },
+        format: cfmt, printf: (...a) => print(cfmt(...a)), print: (s) => print(String(s) + "\r\n"), write: (s) => print(s), writeln: (s) => print((s == null ? "" : s) + "\r\n"),
+        log: (...a) => window.console.log("[door]", ...a), alert: (s) => print("\x01n\x01h\x01r" + s + "\x01n\r\n"),
+        mswait: (ms) => sleep(ms), sleep: (ms) => sleep(ms),
+        require: () => ({}), load: () => ({}), exit: () => { throw EXIT; },
+        ascii: (v) => (typeof v === "number" ? String.fromCharCode(v) : String(v).charCodeAt(0)),
+        strip_ctrl: stripCtrlA, truncsp: (s) => String(s).replace(/\s+$/, ""), random: (n) => Math.floor(Math.random() * n),
+        time: () => Math.floor(Date.now() / 1000), file_exists: () => false
+      })
+    };
+  }
+
+  // ---------- Make the synchronous door script awaitable ----------
+  // Every function in the script becomes async and every call is awaited, so console.getkey()
+  // and friends can wait for the caller's key wherever they appear. Array and string methods
+  // that take a callback (forEach, map, filter, sort, reduce, replace...) are routed through
+  // __cb, which runs the callback one item at a time and waits for it.
+  // Constructors, getters and setters stay synchronous because JavaScript requires it.
+  const CB_METHODS = new Set(["forEach", "map", "filter", "some", "every", "find", "findIndex", "findLast", "findLastIndex",
+    "reduce", "reduceRight", "flatMap", "sort", "replace", "replaceAll"]);
+  function transform(src) {
+    src = src.replace(/^#!.*/, "");
+    const ast = acorn.parse(src, { ecmaVersion: 2020, sourceType: "script", allowReturnOutsideFunction: true, locations: true });
+    const ed = [];
+    const isFn = (n) => n && (n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression" || n.type === "FunctionDeclaration");
+    const ctors = new Set();
+    (function scan(n) {
+      if (!n || typeof n.type !== "string") return;
+      if (n.type === "NewExpression" && n.callee.type === "Identifier") ctors.add(n.callee.name);
+      for (const k in n) { if (k === "loc") continue; const v = n[k]; if (Array.isArray(v)) v.forEach(scan); else if (v && typeof v.type === "string") scan(v); }
+    })(ast);
+    function walk(node, ctx) {
+      if (!node || typeof node.type !== "string") return;
+      if (node.type === "FunctionDeclaration" && node.id && ctors.has(node.id.name)) node._sync = true;
+      if (node.type === "VariableDeclarator" && node.id.type === "Identifier" && ctors.has(node.id.name) && isFn(node.init)) node.init._sync = true;
+      if (node.type === "AssignmentExpression" && node.left.type === "Identifier" && ctors.has(node.left.name) && isFn(node.right)) node.right._sync = true;
+      if (node.type === "Property" && (node.kind === "get" || node.kind === "set") && isFn(node.value)) node.value._sync = true;
+      if (node.type === "MethodDefinition" && node.kind !== "method" && isFn(node.value)) node.value._sync = true;
+      if (isFn(node)) {
+        if (node._sync || node.generator) ctx = false;
+        else { if (!node.async) ed.push({ pos: node.start, text: "async ", open: true, span: node.end - node.start }); ctx = true; }
+      }
+      if (node.type === "CallExpression" && ctx && node.callee.type !== "Super") {
+        const span = node.end - node.start, c = node.callee;
+        ed.push({ pos: node.start, text: "(await ", open: true, span });
+        ed.push({ pos: node.end, text: ")", open: false, span: 0 });
+        if (c.type === "MemberExpression" && !c.computed && !c.optional && !node.optional && c.property.type === "Identifier" &&
+            CB_METHODS.has(c.property.name) && node.arguments.length && node.arguments.every((a) => a.type !== "SpreadElement")) {
+          const lp = src.indexOf("(", c.property.end);
+          if (lp > 0 && lp < node.end && src[node.end - 1] === ")") {
+            ed.push({ pos: node.start, text: "__cb(", open: true, span: span - 0.5 });
+            ed.push({ pos: c.object.end, end: lp + 1, text: ', "' + c.property.name + '", [', open: true, span: 0 });
+            ed.push({ pos: node.end - 1, end: node.end, text: "])", open: true, span: 0 });
+          }
+        }
+      }
+      for (const key in node) {
+        if (key === "type" || key === "start" || key === "end" || key === "loc" || key[0] === "_") continue;
+        const v = node[key];
+        if (Array.isArray(v)) v.forEach((ch) => walk(ch, ctx));
+        else if (v && typeof v.type === "string") walk(v, ctx);
+      }
+    }
+    walk(ast, true);
+    ed.sort((a, b) => a.pos - b.pos || (a.open === b.open ? b.span - a.span : (a.open ? 1 : -1)));
+    let outS = "", last = 0;
+    for (const e of ed) { outS += src.slice(last, e.pos) + e.text; last = e.end != null ? e.end : e.pos; }
+    return outS + src.slice(last);
+  }
+
+  async function msort(arr, cmp) {
+    if (arr.length < 2) return arr;
+    const mid = arr.length >> 1;
+    const l = await msort(arr.slice(0, mid), cmp), r = await msort(arr.slice(mid), cmp);
+    const o = []; let i = 0, j = 0;
+    while (i < l.length && j < r.length) { if (Number(await cmp(l[i], r[j])) > 0) o.push(r[j++]); else o.push(l[i++]); }
+    return o.concat(l.slice(i), r.slice(j));
+  }
+  async function __cb(obj, name, args) {
+    const fn = args[0];
+    if (Array.isArray(obj) && typeof fn === "function") {
+      const a = obj, t = args[1], n = a.length;
+      switch (name) {
+        case "forEach": for (let i = 0; i < n; i++) if (i in a) await fn.call(t, a[i], i, a); return undefined;
+        case "map": { const r = new Array(n); for (let i = 0; i < n; i++) if (i in a) r[i] = await fn.call(t, a[i], i, a); return r; }
+        case "filter": { const r = []; for (let i = 0; i < n; i++) if (i in a && await fn.call(t, a[i], i, a)) r.push(a[i]); return r; }
+        case "flatMap": { const r = []; for (let i = 0; i < n; i++) if (i in a) { const v = await fn.call(t, a[i], i, a); if (Array.isArray(v)) r.push(...v); else r.push(v); } return r; }
+        case "some": for (let i = 0; i < n; i++) if (i in a && await fn.call(t, a[i], i, a)) return true; return false;
+        case "every": for (let i = 0; i < n; i++) if (i in a && !(await fn.call(t, a[i], i, a))) return false; return true;
+        case "find": for (let i = 0; i < n; i++) if (await fn.call(t, a[i], i, a)) return a[i]; return undefined;
+        case "findIndex": for (let i = 0; i < n; i++) if (await fn.call(t, a[i], i, a)) return i; return -1;
+        case "findLast": for (let i = n - 1; i >= 0; i--) if (await fn.call(t, a[i], i, a)) return a[i]; return undefined;
+        case "findLastIndex": for (let i = n - 1; i >= 0; i--) if (await fn.call(t, a[i], i, a)) return i; return -1;
+        case "reduce": case "reduceRight": {
+          const idx = []; for (let i = 0; i < n; i++) if (i in a) idx.push(i);
+          if (name === "reduceRight") idx.reverse();
+          let k = 0, acc;
+          if (args.length > 1) acc = args[1];
+          else { if (!idx.length) throw new TypeError("Reduce of empty array with no initial value"); acc = a[idx[k++]]; }
+          for (; k < idx.length; k++) acc = await fn(acc, a[idx[k]], idx[k], a);
+          return acc;
+        }
+        case "sort": {
+          const items = []; let u = 0;
+          for (let i = 0; i < n; i++) if (i in a) { if (a[i] === undefined) u++; else items.push(a[i]); }
+          const s = await msort(items, fn);
+          let k = 0;
+          for (; k < s.length; k++) a[k] = s[k];
+          for (let j = 0; j < u; j++, k++) a[k] = undefined;
+          for (; k < n; k++) delete a[k];
+          return a;
+        }
+      }
+    }
+    if (typeof obj === "string" && (name === "replace" || name === "replaceAll") && typeof args[1] === "function") {
+      const calls = [];
+      obj[name](args[0], (...m) => { calls.push(m); return ""; });
+      const outs = [];
+      for (const m of calls) outs.push(String(await args[1](...m)));
+      let k = 0;
+      return obj[name](args[0], () => outs[k++]);
+    }
+    return obj[name](...args);
+  }
+
+  // Line numbers in runtime errors: find how many lines new Function adds
+  let lineOffset = null;
+  function probeOffset() {
+    try { new Function("return (async function(){\nthrow new Error('probe')\n})")()().catch((e) => { lineOffset = stackLine(e) - 1; }); } catch (e) {}
+  }
+  function stackLine(e) { const m = /(?:<anonymous>|Function|eval[^:]*):(\d+):\d+/.exec(String(e && e.stack)); return m ? +m[1] : null; }
+
+  function compile(src, env) {
+    const body = transform(src);
+    const g = Object.assign({ __cb }, env.globals);
+    const names = Object.keys(g);
+    const fn = new Function(...names, "return (async function(){\n" + body + "\n})");
+    return fn(...names.map((n) => g[n]));
+  }
+
+  // ---------- Sessions ----------
+  let BUILTIN = "";   // discgolf.js, fetched from next to this page
+  let door = { name: "discgolf.js", src: "", builtin: true };
+  let sess = { id: 0, env: null, rtt: null, state: "idle" };
+  function showErr(msg) { const e = $("err"); e.textContent = msg; e.hidden = !msg; }
+
+  function connect() {
+    if (sess.env) sess.env.kill();
+    dq = [];
+    if (L.heldTimer) clearTimeout(L.heldTimer);
+    Object.assign(L, { freeAt: 0, lastArrive: 0, ackAt: 0, held: [], heldTimer: 0, inFree: 0, inLast: 0 });
+    T.attr = 7; tClear(); T.cursor = true; T.st = 0;
+    const s = { id: sess.id + 1, env: null, rtt: null, state: "running" };
+    sess = s;
+    s.env = makeEnv(s);
+    showErr("");
+    tLocal("Connecting (" + linkText() + ")...\r\n", 8);
+    let main;
+    try { main = compile(door.src, s.env); }
+    catch (e) {
+      const where = e.loc ? " (line " + e.loc.line + ", col " + (e.loc.column + 1) + ")" : "";
+      showErr(door.name + ": " + String(e.message || e).replace(/ \(\d+:\d+\)$/, "") + where);
+      tLocal("\r\nCan't run " + door.name + ": syntax error" + where + ".\r\n", 12);
+      s.state = "ended"; return;
+    }
+    main().then(() => finish(s, null), (e) => finish(s, e));
+  }
+  function finish(s, e) {
+    if (e === ABORT || sess !== s) return;
+    if (e && e !== EXIT) {
+      const ln = lineOffset != null ? stackLine(e) : null;
+      const where = ln != null ? " (line " + (ln - lineOffset) + ")" : "";
+      showErr(door.name + ": " + (e.message || String(e)) + where);
+      window.console.error(e);
+      try { s.env.reset(); } catch (x) {}
+      send("\r\n");
+      dq.push({ at: L.lastArrive + 1, s: "", fn: () => { tLocal("\r\nThe door crashed: " + (e.message || e) + where + "\r\nPress any key to run it again.\r\n", 12); s.state = "ended"; } });
+      return;
+    }
+    try { s.env.reset(); } catch (x) {}
+    dq.push({ at: L.lastArrive + 1, s: "", fn: () => { tLocal("\r\nDoor exited. Press any key to run it again.\r\n", 8); if (sess === s) s.state = "ended"; } });
+  }
+  function pressKey(ch) {
+    if (sess.state === "ended") { connect(); return; }
+    sendInput({ ch, t0: performance.now() }, 1);
+  }
+
+  // ---------- Key log ----------
+  let keyN = 0;
+  function keyName(k) { return k === " " ? "SPACE" : k === "\r" ? "ENTER" : k === "\b" ? "BKSP" : k === "\x1b" ? "ESC" : k === "\x1e" ? "UP" : k === "\x0a" ? "DOWN" : k === "\x1d" ? "LEFT" : k === "\x06" ? "RIGHT" : k; }
+  function logKey(item, ms) {
+    const body = $("logBody");
+    if (!body) return;
+    keyN++;
+    if (keyN === 1) body.innerHTML = "";
+    const tr = document.createElement("tr");
+    const cls = ms < 60 ? "c-good" : ms < 150 ? "c-warn" : "c-bad";
+    tr.innerHTML = "<td>" + keyN + "</td><td>" + keyName(item.ch) + "</td><td>" + linkText() + '</td><td class="' + cls + '">' + Math.round(ms) + " ms</td>";
+    body.prepend(tr);
+    while (body.children.length > 12) body.lastElementChild.remove();
+  }
+
+  // ---------- Loading door scripts ----------
+  function setDoor(name, src, builtin) {
+    door = { name, src, builtin };
+    $("scriptName").textContent = name;
+    $("scriptInfo").textContent = (builtin ? "Built in" : "Loaded from your file") + " · " + src.split("\n").length + " lines";
+    $("builtinBtn").hidden = builtin;
+    try { if (builtin) localStorage.removeItem("dg-door"); else localStorage.setItem("dg-door", JSON.stringify({ name, src })); } catch (e) {}
+    connect();
+  }
+  function readFile(f) {
+    if (!f) return;
+    const r = new FileReader();
+    // Door scripts are CP437 bytes; latin1 keeps \xDB etc. as the same byte values.
+    r.onload = () => setDoor(f.name, String(r.result), false);
+    r.onerror = () => showErr("Couldn't read " + f.name + ".");
+    r.readAsText(f, "latin1");
+  }
+  $("fileIn").addEventListener("change", (e) => { readFile(e.target.files[0]); e.target.value = ""; });
+  $("builtinBtn").addEventListener("click", (e) => { setDoor("discgolf.js", BUILTIN, true); e.currentTarget.blur(); });
+  const bz = $("bezel");
+  ["dragenter", "dragover"].forEach((t) => bz.addEventListener(t, (e) => { e.preventDefault(); bz.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((t) => bz.addEventListener(t, (e) => { e.preventDefault(); bz.classList.remove("drag"); }));
+  bz.addEventListener("drop", (e) => readFile(e.dataTransfer && e.dataTransfer.files[0]));
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => e.preventDefault());
+
+  // ---------- Controls ----------
+  function linkText() {
+    const sp = S.baud ? S.baud.toLocaleString() + " bps" : "telnet";
+    return sp + " · " + S.rtt + " ms" + (S.jitter ? " +" + S.jitter : "") + (S.nagle ? " · Nagle" : "");
+  }
+  function syncOutputs() {
+    $("rttOut").textContent = S.rtt + " ms";
+    $("jitterOut").textContent = S.jitter ? "0–" + S.jitter + " ms" : "none";
+    $("linkLabel").textContent = linkText();
+    $("rCap").textContent = S.baud ? (S.baud / 10).toLocaleString() + " bytes/sec" : "unlimited";
+    document.querySelectorAll("#presets button").forEach((b, i) => {
+      const p = PRESETS[i];
+      b.setAttribute("aria-pressed", String(p.rtt === S.rtt && p.jitter === S.jitter && p.baud === S.baud));
+    });
+  }
+  PRESETS.forEach((p) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.innerHTML = p.name + "<small>" + p.sub + "</small>";
+    b.addEventListener("click", () => {
+      Object.assign(S, { rtt: p.rtt, jitter: p.jitter, baud: p.baud });
+      $("rtt").value = p.rtt; $("jitter").value = p.jitter; $("baud").value = String(p.baud);
+      syncOutputs(); connect(); b.blur();
+    });
+    $("presets").appendChild(b);
+  });
+  $("rtt").addEventListener("input", (e) => { S.rtt = +e.target.value; syncOutputs(); });
+  $("jitter").addEventListener("input", (e) => { S.jitter = +e.target.value; syncOutputs(); });
+  $("baud").addEventListener("change", (e) => { S.baud = +e.target.value; syncOutputs(); e.target.blur(); });
+  $("nagle").addEventListener("change", (e) => { S.nagle = e.target.checked; if (!S.nagle) flushHeld(); syncOutputs(); });
+  $("reconnect").addEventListener("click", (e) => { connect(); e.currentTarget.blur(); });
+
+  function bindKey(id, ch) {
+    const b = $(id);
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); pressKey(ch); });
+    b.addEventListener("click", (e) => { if (e.detail === 0) pressKey(ch); });
+  }
+  bindKey("spaceBtn", " "); bindKey("qBtn", "q"); bindKey("enterBtn", "\r");
+  bindKey("kLeft", "\x1d"); bindKey("kUp", "\x1e"); bindKey("kDown", "\x0a"); bindKey("kRight", "\x06");
+  bindKey("kD", "d"); bindKey("kT", "t"); bindKey("kH", "h"); bindKey("kA", "a"); bindKey("kS", "s");
+
+  const SPECIAL = { Enter: "\r", Backspace: "\b", Escape: "\x1b", Tab: "\t", ArrowUp: "\x1e", ArrowDown: "\x0a", ArrowLeft: "\x1d", ArrowRight: "\x06" };
+  window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const tg = e.target, tag = tg.tagName;
+    let ch = e.key.length === 1 ? e.key : SPECIAL[e.key];
+    if (ch == null) return;
+    if (tag === "SELECT" && ch !== " ") return;
+    if (tag === "INPUT" && tg.type === "range" && /^Arrow/.test(e.key)) return;
+    if ((tag === "BUTTON" || tag === "LABEL") && e.key === "Enter") return;
+    if (e.key === "Tab") return;
+    e.preventDefault();
+    if (e.repeat && !/^Arrow/.test(e.key)) return;   // holding an arrow keeps aiming
+    pressKey(ch);
+  });
+  window.addEventListener("keyup", (e) => { if (e.key === " ") e.preventDefault(); });
+
+  // ---------- Loops ----------
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let lastBlink = 0;
+  function frame() {
+    const now = performance.now();
+    let changed = false;
+    while (dq.length && dq[0].at <= now) { const d = dq.shift(); if (d.s) tFeed(d.s); if (d.fn) d.fn(); changed = true; }
+    if (changed) updLog.push(now);
+    if (!reduce && now - lastBlink > 530) { lastBlink = now; T.blink = !T.blink; if (T.cursor) T.dirty = true; }
+    if (T.dirty) { render(); T.dirty = false; }
+    requestAnimationFrame(frame);
+  }
+  setInterval(() => {
+    const now = performance.now();
+    while (bytesLog.length && bytesLog[0][0] < now - 1000) bytesLog.shift();
+    while (updLog.length && updLog[0] < now - 1000) updLog.shift();
+    const bps = bytesLog.reduce((a, b) => a + b[1], 0);
+    $("rBytes").textContent = bps.toLocaleString();
+    $("rBytes").className = S.baud && bps > S.baud / 10 ? "c-bad" : "";
+    $("rFps").textContent = String(updLog.length);
+    const backlog = Math.max(0, L.freeAt - now);
+    $("rBacklog").textContent = Math.round(backlog).toLocaleString() + " ms";
+    $("rBacklog").className = backlog > 250 ? "c-bad" : backlog > 50 ? "c-warn" : "";
+  }, 250);
+
+  probeOffset();
+  syncOutputs();
+  const go = () => { T.dirty = true; };
+  if (document.fonts && document.fonts.load) document.fonts.load(CH + 'px "VT323"').then(go, go);
+  requestAnimationFrame(frame);
+
+  if (typeof acorn === "undefined") {
+    showErr("The script parser didn't load, so the door can't run. Check your connection and reload the page.");
+    tLocal("Script parser failed to load.\r\n", 12);
+    return;
+  }
+  // The page plays discgolf.js from the same folder, so editing that file
+  // updates the web version too. A file the visitor loads themselves is
+  // remembered in their browser until they press "Use built-in".
+  tLocal("Loading discgolf.js...\r\n", 8);
+  fetch("discgolf.js", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.text() : Promise.reject(new Error("HTTP " + r.status))))
+    .then((src) => {
+      BUILTIN = src;
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem("dg-door") || "null"); } catch (e) {}
+      if (saved && saved.src) setDoor(saved.name, saved.src, false); else setDoor("discgolf.js", BUILTIN, true);
+    })
+    .catch((e) => {
+      showErr("Couldn't load discgolf.js (" + e.message + "). It must sit next to index.html, and the page has to be served by a web server, not opened as a file.");
+      tLocal("Couldn't load discgolf.js.\r\n", 12);
+    });
+})();
+</script>
+</body>
+</html>
