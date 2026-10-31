@@ -33,12 +33,50 @@ function titleScreen() {
 	bigText("DISC GOLF", 17, 2, [14, 11]);
 	put(17, 8, "\x01n\x01k\x01h" + new Array(47).join("\xC4"));
 	put(17, 9, "\x01nA 3-click swing meter disc golf door");
-	put(17, 11, "\x01hCourse  \x01n" + COURSES[0].name + " \x01k\x01h- " + COURSES[0].where);
+	put(17, 11, "\x01hCourses \x01n" + COURSES.length + " \x01k\x01h- pick one when you play");
 	put(17, 12, "\x01hPlayer  \x01n" + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
-	var items = ["~Play " + COURSES[0].name + " (" + COURSES[0].holes.length + " holes)", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
+	var items = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
 	for (var i = 0; i < items.length; i++) put(19, 14 + i, "\x01n" + items[i]);
 	put(19, 20, "\x01n\x01k\x01hChoose: ");
 	return key().toUpperCase();
+}
+
+// ---- Course menu ------------------------------------------------------------------
+// Opened by Play: lists every course; 1-9 picks one straight away, or Up/Down
+// and Enter. Returns the course's index, or -1 to go back to the title screen.
+// The last course played starts highlighted.
+function courseLines(i) {
+	var C = COURSES[i], par = 0, len = 0;
+	for (var h = 0; h < C.holes.length; h++) { par += C.holes[h].par; len += C.holes[h].ft; }
+	return ["\x01h\x01w" + C.name + "  \x01n\x01k\x01h" + C.where,
+		"\x01n" + C.holes.length + " holes   par " + par + "   " + String(len).replace(/\B(?=(\d{3})+$)/g, ",") + " ft"];
+}
+
+function drawCourseRow(i, on) {
+	var y = 5 + i * 3, L = courseLines(i);
+	put(3, y, (on ? "\x01h\x01c>" : " ") + " \x01h\x01y" + (i + 1) + "  " + L[0], 76);
+	put(8, y + 1, L[1], 70);
+}
+
+function courseMenu() {
+	if (COURSES.length === 1) return 0;
+	var sel = clamp(player.course, 0, COURSES.length - 1), i;
+	cls();
+	put(3, 2, "\x01h\x01wCHOOSE A COURSE");
+	for (i = 0; i < COURSES.length; i++) drawCourseRow(i, i === sel);
+	put(3, 6 + COURSES.length * 3, "\x01n\x01h1-" + COURSES.length + "\x01n pick   \x01hUp/Down\x01n + \x01hENTER\x01n   ~Quit back to the clubhouse", 76);
+	for (;;) {
+		var k = key(), ku = k.toUpperCase(), n = Number(k);
+		if (n >= 1 && n <= COURSES.length) return n - 1;
+		if (k === "\r") return sel;
+		if (ku === "Q" || k === "\x1b") return -1;
+		if (isUp(k) || isDown(k)) {
+			var old = sel;
+			sel = (sel + (isUp(k) ? COURSES.length - 1 : 1)) % COURSES.length;
+			drawCourseRow(old, false);
+			drawCourseRow(sel, true);
+		}
+	}
 }
 
 function setup(first) {

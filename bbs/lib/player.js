@@ -9,6 +9,7 @@ var player = {
 	style: "BH",         // usual throw
 	level: "reg",        // skill level: "reg" or "pro" (see LEVELS)
 	puttView: "side",    // side, top or pov
+	course: 0,           // the last course played (starts highlighted in the course menu)
 	bag: ["KC Aviar", "Zone", "Buzzz", "Teebird", "Leopard3", "Destroyer"]
 };
 

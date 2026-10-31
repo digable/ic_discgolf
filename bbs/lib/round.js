@@ -83,15 +83,31 @@ function confirmQuit(back) {
 }
 
 // ---- Scorecard ----------------------------------------------------------------
+// Up to 11 holes fit across the screen, so longer courses are split into even
+// blocks (21 holes: 11 + 10). Each block but the last ends with OUT (its own
+// subtotal); the last ends with TOT for the whole round.
+var CARD_MAX = 11;
+
 function scorecard(cur, final) {
 	cls();
-	var n = R.holes.length, i, tot = 0, par = 0;
+	var n = R.holes.length, nb = Math.ceil(n / CARD_MAX), per = Math.ceil(n / nb), b;
 	put(3, 2, "\x01h\x01w" + R.course.name.toUpperCase() + "  \x01n\x01k\x01h" + R.course.where, 76);
 	put(3, 3, "\x01n\x01k\x01h" + (final ? "Final scorecard" : "Scorecard"), 76);
+	var gap = nb === 1 ? 2 : 1;                          // one block: roomy rows, as before
+	for (b = 0; b < nb; b++) scoreBlock(b * per, Math.min(n, (b + 1) * per), b === nb - 1, cur, (nb === 1 ? 6 : 5 + b * 5), gap);
+	var rel = roundToPar();
+	put(3, nb === 1 ? 15 : 5 + nb * 5, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)), 60);
+	waitKey(final ? "Press any key to return to the clubhouse" : "Press any key to keep playing");
+}
+
+// One block of the card: holes a..z-1, at screen row y, gap rows apart
+function scoreBlock(a, z, last, cur, y, gap) {
 	var rows = [["HOLE", "\x01h"], ["FEET", "\x01n\x01k\x01h"], ["PAR", "\x01n"], [user.alias || "YOU", "\x01h\x01c"]];
+	var i0 = last ? 0 : a, i, ft_ = 0, par = 0, tot = 0;
+	for (i = i0; i < z; i++) { ft_ += R.holes[i].ft; par += R.holes[i].par; tot += R.strokes[i] || 0; }
 	for (var r = 0; r < rows.length; r++) {
 		var line = rows[r][1] + pad(rows[r][0].substr(0, 8), 9);
-		for (i = 0; i < n; i++) {
+		for (i = a; i < z; i++) {
 			var v;
 			if (r === 0) v = String(i + 1);
 			else if (r === 1) v = String(R.holes[i].ft);
@@ -107,18 +123,12 @@ function scorecard(cur, final) {
 			var vis = v.replace(/\x01./g, "");
 			line += blank(5 - vis.length) + v + rows[r][1];
 		}
-		if (r === 2) for (i = 0, par = 0; i < n; i++) par += R.holes[i].par;
-		if (r === 3) for (i = 0, tot = 0; i < n; i++) tot += R.strokes[i] || 0;
-		var tv = r === 0 ? "TOT" : (r === 1 ? String(sumFt()) : (r === 2 ? String(par) : (tot ? String(tot) : "")));
+		var tv = r === 0 ? (last ? "TOT" : "OUT") : (r === 1 ? String(ft_) : (r === 2 ? String(par) : (tot ? String(tot) : "")));
 		line += "  " + blank(5 - tv.length) + tv;
-		put(3, 6 + r * 2, line, 77);
+		put(3, y + r * gap, line, 77);
 	}
-	var rel = roundToPar();
-	put(3, 15, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)), 60);
-	waitKey(final ? "Press any key to return to the clubhouse" : "Press any key to keep playing");
 }
 
-function sumFt() { var t = 0; for (var i = 0; i < R.holes.length; i++) t += R.holes[i].ft; return t; }
 
 // ---- Round ---------------------------------------------------------------------
 function playRound(course) {

@@ -1,75 +1,128 @@
-# Disc Golf: the BBS door
+# Disc Golf Door 
 
-The game itself: a JavaScript door for Synchronet BBS. The web page (`../index.html`) plays these same
-files in its emulated terminal, so there's only one copy of the game.
+A Genesis-style disc golf game for Synchronet BBS, built around a 3-click swing
+meter. The same game script runs in two places:
 
-The door is written for Synchronet's JavaScript engine (ES5: no `let`, `const` or arrow functions), so
-keep to that style when you edit it.
+- **On your BBS** as a JavaScript door (`bbs/discgolf.js`).
+- **In a web browser** (`index.html`): an emulated 80×25 ANSI terminal that runs
+  the real door, with a simulated connection (lag, jitter, modem speeds),
+  so testers can play without dialing in.
+
+Two courses: Turkey Creek (Coralville Reservoir, Iowa City, IA; 9 holes) and
+Wildcat Bluff (Vinton, IA; 21 holes). **Play** opens a course menu: press the
+course's number, or Up/Down and Enter.
+
+## Files
+
+| Path | What it is |
+|---|---|
+| `bbs/` | The game: the Synchronet door (`discgolf.js`) and its `lib/` files. The web page plays these same files. See [`bbs/README.md`](bbs/README.md). |
+| `index.html` | The browser version's page: the terminal, the connection settings and the on-screen keys. |
+| `styles/` | The page's CSS: `base.css` (colors, fonts), `layout.css` (page layout), `components.css` (terminal, keys, panels). |
+| `scripts/` | The emulator, as ES modules (listed below). |
+| `vendor/acorn.js` | JavaScript parser the web page uses to run the door script in the browser (acorn 8.12.1, MIT license). |
+| `vendor/acorn-LICENSE.txt` | acorn's license. |
+| `deploy/update-discgolf.sh` | The script digiweb runs to publish a push (see "Automatic deploys"). |
+
+The emulator in `scripts/`:
 
 | File | What it does |
 |---|---|
-| `discgolf.js` | The door you install. Loads everything in `lib/`, in order, then runs the main menu. |
-| `lib/config.js` | Tuning: the swing meter, the 80×25 screen layout and the player model (arm speed, off hand, putting range). |
-| `lib/discs.js` | The disc catalog, with each maker's published speed, glide, turn and fade. |
-| `lib/courses.js` | The courses and their holes. The comment at the top explains each field. |
-| `lib/screen.js` | Basics, raw ANSI output (tracks cursor and color) and key input. |
-| `lib/meter.js` | Lag measurement and the 3-click swing meter. |
-| `lib/player.js` | The player: hands, throws and the bag. |
-| `lib/holes.js` | Building a hole from the course data: trees, lies and elevation. |
-| `lib/state.js` | Round and shot state, wind and disc range. |
-| `lib/hud.js` | Header, messages, key help and the disc/throw/wind panel. |
-| `lib/map.js` | The overhead hole map. |
-| `lib/pov.js` | The view from the player's lie, and the shot screen. |
-| `lib/flight.js` | Disc flight, throwing a shot and PDGA optional relief. |
-| `lib/putt.js` | Putting: side, overhead and from-the-player views. |
-| `lib/round.js` | Playing a hole, the scorecard and a full round. |
-| `lib/menus.js` | Title screen, player setup, bag and how to play. |
+| `main.js` | Entry point: loads the door, runs the screen and readout loops. |
+| `door-loader.js` | Fetches `bbs/discgolf.js` and the `lib/` files it `load()`s, and joins them into one program. |
+| `terminal.js` | The caller's screen: an ANSI parser drawing CP437 cells on a canvas. |
+| `wire.js` | The simulated connection: delay, jitter, line speed and Nagle's algorithm. |
+| `runtime.js` | A stand-in for Synchronet's JavaScript runtime (`console`, `bbs`, `system`, `user`, ...). |
+| `transform.js` | Makes the door's blocking calls (`console.getkey()`, `mswait()`) awaitable, and compiles it. |
+| `session.js` | Starting, restarting and ending a session, and reporting door errors. |
+| `controls.js` | Connection settings, on-screen keys, the phone keyboard and the real keyboard. |
+| `dom.js` | `$()`, the page's element lookup. |
 
-## How the files fit together
+## Put it on your web server
 
-`discgolf.js` pulls in each file with `load(js.exec_dir + "lib/name.js")`. On Synchronet that runs the
-file in the door's global scope, so everything it defines is visible to the others. The library files
-only define things (constants, data and functions); nothing runs until the main loop at the bottom of
-`discgolf.js`. Order still matters for constants that use earlier ones (`PV_SCALE` in `putt.js` uses
-`PUTT_M` from `config.js`), so add new files to the list in a sensible place.
+There's no build step. Copy the game files (`index.html`, `styles/`, `scripts/`,
+`bbs/` and `vendor/`) into any folder your web server serves, for example:
 
-The web page does the same: it fetches `discgolf.js`, finds those `load(...)` lines and puts each file's
-text in its place, then runs the result as one script. Only lines written exactly as
-`load(js.exec_dir + "lib/name.js");` are joined this way. Errors in the browser name the file and line,
-for example `(lib/putt.js line 42)`.
+```sh
+git clone https://github.com/YOU/ic_discgolf.git
+cd ic_discgolf
+cp -r index.html styles scripts bbs vendor /var/www/html/discgolf/
+```
 
-## Install on Synchronet
+Then open `https://your-site/discgolf/`.
 
-1. Copy `discgolf.js` and the `lib/` folder to a folder under your Synchronet install, for example
-   `xtrn/discgolf/`.
-2. In SCFG, go to **External Programs > Online Programs (Doors)**, pick a section, and add a program:
-   - **Name:** Disc Golf
-   - **Start-up Directory:** `../xtrn/discgolf/`
-   - **Command Line:** `?discgolf.js`
-3. Save, and it shows up in that door section.
+- Keep the folders together; the page loads its styles, scripts and the door from them.
+- The page must be served over http or https. Opening `index.html` straight from disk won't load the game, because browsers block that.
+- The page pulls its fonts from Google Fonts. Without internet access it falls back to system fonts and still works.
+- It's all static files, so GitHub Pages works too: enable Pages for the repo and the game is at `https://YOU.github.io/ic_discgolf/`.
 
-On digiweb the door runs from the published folder instead (see the main README, "Automatic deploys"):
+### Try it on your own computer first
 
-| Setting | Value |
-|---|---|
-| Name | Disc Golf |
-| Internal Code | `DISCGOLF` |
-| Start-up Directory | `/srv/apps/ic_discgolf/bbs` |
-| Command Line | `?discgolf.js` |
-| Native Executable/Script | No |
-| BBS Drop File Type | None |
-| Multiple Concurrent Users | Yes |
+```sh
+cd ic_discgolf
+python3 -m http.server 8000
+```
+
+Then open http://localhost:8000 in a browser.
+
+## Install the door on Synchronet
+
+See [`bbs/README.md`](bbs/README.md#install-on-synchronet): copy `bbs/discgolf.js` and `bbs/lib/` to
+your xtrn folder and add it in SCFG with the command line `?discgolf.js`.
+
+### Automatic deploys (digiweb)
+
+Every push to `main` runs `.github/workflows/deploy.yaml`, the same setup as IC
+Zombies: it joins Tailscale and SSHes to digiweb with a key that can only run
+`sudo update-discgolf.sh`. That script pulls `main` into `/srv/src/ic_discgolf`
+and copies just the game files (`index.html`, `styles/`, `scripts/`, the door in
+`bbs/`, and `vendor/`) to `/srv/apps/ic_discgolf`. nginx serves that folder as
+[discgolf.sodamachine.net](https://discgolf.sodamachine.net), and the BBS door runs
+from its `bbs/` folder, so one push updates both.
+
+The copy of `update-discgolf.sh` that runs is the one in `/usr/local/bin/`, not
+the repo's. When `deploy/update-discgolf.sh` changes, copy it there again.
+
+One-time setup (the full steps are in the digiweb setup guide, "Adding another game"):
+
+1. Clone the repo to `/srv/src/ic_discgolf`, copy `deploy/update-discgolf.sh` to
+   `/usr/local/bin/`, make it executable and run it once.
+2. Make a new SSH key for this repo, and add its public key to `~deploy/.ssh/authorized_keys`, locked to the script:
+   `restrict,command="sudo /usr/local/bin/update-discgolf.sh" ssh-ed25519 AAAA... github-actions discgolf`,
+   plus `/etc/sudoers.d/deploy-discgolf` with
+   `deploy ALL=(root) NOPASSWD: /usr/local/bin/update-discgolf.sh`.
+3. In the GitHub repo's **Settings > Secrets and variables > Actions**, add
+   `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `DEPLOY_SSH_KEY` (the new private key)
+   and `DEPLOY_KNOWN_HOSTS` (the same values as IC Zombies, except the key).
+4. In SCFG, point the door at the published folder: Start-up Directory
+   `/srv/apps/ic_discgolf/bbs` (all the settings are in
+   [`bbs/README.md`](bbs/README.md#install-on-synchronet)).
 
 ## Editing the game
 
-- **Discs:** `DISCS` in `lib/discs.js`.
-- **Holes:** `COURSES` in `lib/courses.js`. Each hole has a length and par, a path from tee to basket on a
-  78×16 grid, fairway width, how wooded each side is, single trees, and out-of-bounds areas (road,
-  parking, water).
-- **Elevation:** add `elev` to a hole, in feet, such as
-  `elev: { tee: 0, basket: -12, hills: [[40, 6, 5, 8]] }`. Each hill is `[column, row, radius, height]`;
-  use a negative height for a dip.
-- **Meter and player tuning:** the constants in `lib/config.js` (`SWEEP_SEC`, `LEVELS`, `OFF_HAND`,
-  `PUTT_M`, and so on).
+The discs, courses and tuning constants are in `bbs/lib/`; see
+[`bbs/README.md`](bbs/README.md#editing-the-game) for which file holds what.
 
-After editing, refresh the web page to play your changes; **Restart** reloads the game.
+After editing, refresh the web page to play your changes, and **Restart**
+reloads the game. The web page only runs its own copy of the door; to try changes
+without touching the server, run the page on your own computer (see "Try it on
+your own computer first").
+
+## Known limits
+
+- Wildcat Bluff's hole lengths and pars (short/red tees, par 71, 7,445 ft) come
+  from its UDisc listing (2026). Its fairways, bends and hills are drawn from
+  UDisc's description (heavily wooded, very hilly, tight lines), not surveyed.
+- Turkey Creek's hole lengths and pars come from its UDisc listing (2026). The
+  fairway shapes are drawn from course descriptions, not surveyed, and no
+  elevation is set yet.
+- Player setup and bag aren't saved between visits yet.
+- No multiplayer or tournaments yet.
+
+## Credits
+
+- Disc flight numbers: published by Innova, Discraft, Dynamic Discs and Axiom.
+- Turkey Creek hole lengths and pars: [UDisc](https://udisc.com/courses/turkey-creek-tNSo).
+- Wildcat Bluff hole lengths and pars: [UDisc](https://udisc.com/courses/wildcat-bluff-I1rO).
+- Relief rule: PDGA optional relief (one penalty throw, move back along the line of play).
+- [acorn](https://github.com/acornjs/acorn) JavaScript parser, MIT license.

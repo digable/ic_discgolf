@@ -38,7 +38,10 @@ try {
 	for (;;) {
 		if (!bbs.online || js.terminated) break;
 		var choice = titleScreen();
-		if (choice === "P") playRound(COURSES[0]);
+		if (choice === "P") {
+			var ci = courseMenu();
+			if (ci >= 0) { player.course = ci; playRound(COURSES[ci]); }
+		}
 		else if (choice === "S") setup(false);
 		else if (choice === "B") bagScreen();
 		else if (choice === "H") howTo();
