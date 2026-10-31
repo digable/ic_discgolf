@@ -19,7 +19,7 @@ function frame() {
   let changed = false;
   while (dq.length && dq[0].at <= now) { const d = dq.shift(); if (d.s) tFeed(d.s); if (d.fn) d.fn(); changed = true; }
   if (changed) updLog.push(now);
-  if (!reduceMotion && now - lastBlink > 530) { lastBlink = now; T.blink = !T.blink; if (T.cursor) T.dirty = true; }
+  if (!reduceMotion && now - lastBlink > 530) { lastBlink = now; T.blink = !T.blink; T.dirty = true; }
   if (T.dirty) { render(); T.dirty = false; }
   requestAnimationFrame(frame);
 }

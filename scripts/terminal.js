@@ -9,7 +9,7 @@ const PAL = ["#000000","#AA0000","#00AA00","#AA5500","#0000AA","#AA00AA","#00AAA
 const cv = $("screen"), ctx = cv.getContext("2d");
 cv.width = COLS * CW; cv.height = ROWS * CH;
 const chars = new Array(COLS * ROWS).fill(" ");
-const attrs = new Uint8Array(COLS * ROWS).fill(7); // fg (0-15) | bg << 4
+const attrs = new Uint16Array(COLS * ROWS).fill(7); // fg (0-15) | bg << 4 | 0x80 underline | 0x100 blink
 export const T = { x: 0, y: 0, attr: 7, cursor: true, dirty: true, blink: true, st: 0, params: "", sx: 0, sy: 0 };
 
 export function tClear() { chars.fill(" "); attrs.fill(T.attr & 0x70); T.x = 0; T.y = 0; T.dirty = true; }
@@ -47,10 +47,12 @@ function csi(final, p) {
         else if (v === 22) T.attr &= ~8;
         else if (v === 4) T.attr |= 0x80;        // underline
         else if (v === 24) T.attr &= ~0x80;
+        else if (v === 5) T.attr |= 0x100;       // blink
+        else if (v === 25) T.attr &= ~0x100;
         else if (v >= 30 && v <= 37) T.attr = (T.attr & ~7) | (v - 30);
         else if (v === 39) T.attr = (T.attr & ~7) | 7;
-        else if (v >= 40 && v <= 47) T.attr = (T.attr & 0x8f) | ((v - 40) << 4);
-        else if (v === 49) T.attr &= 0x8f;
+        else if (v >= 40 && v <= 47) T.attr = (T.attr & ~0x70) | ((v - 40) << 4);
+        else if (v === 49) T.attr &= ~0x70;
       }
       break;
   }
@@ -96,13 +98,14 @@ const SH = { "░": 1, "▒": 2, "▓": 3 };
 // Only cells that changed since the last frame are redrawn. Each cell is drawn entirely inside
 // its own box (text glyphs are clipped to it), so a cell's pixels never depend on its neighbours
 // and redrawing some cells gives the same picture as redrawing them all.
-const shownCh = new Array(COLS * ROWS).fill(null), shownAt = new Uint8Array(COLS * ROWS);
-let redrawAll = true, shownCursor = -1;
+// Blinking cells show only their background in the off half of T.blink's cycle.
+const shownCh = new Array(COLS * ROWS).fill(null), shownAt = new Uint16Array(COLS * ROWS);
+let redrawAll = true, shownCursor = -1, shownBlink = true;
 function drawCell(i) {
   const a = attrs[i], px = (i % COLS) * CW, py = Math.floor(i / COLS) * CH;
   ctx.fillStyle = PAL[(a >> 4) & 7]; ctx.fillRect(px, py, CW, CH);
   let ch = chars[i];
-  if (ch === " ") return;
+  if (ch === " " || ((a & 0x100) && !T.blink)) return;
   ch = CP[ch] || ch;
   const col = PAL[a & 15];
   if (ch === "█") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH); }
@@ -122,9 +125,9 @@ function drawCell(i) {
 export function render() {
   ctx.font = CH + 'px "VT323", "Courier New", monospace';
   ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-  const cur = T.cursor && T.blink ? T.y * COLS + T.x : -1;
+  const cur = T.cursor && T.blink ? T.y * COLS + T.x : -1, flip = T.blink !== shownBlink;
   for (let i = 0; i < COLS * ROWS; i++) {
-    if (redrawAll || chars[i] !== shownCh[i] || attrs[i] !== shownAt[i] || i === cur || i === shownCursor) {
+    if (redrawAll || chars[i] !== shownCh[i] || attrs[i] !== shownAt[i] || i === cur || i === shownCursor || (flip && (attrs[i] & 0x100))) {
       drawCell(i);
       shownCh[i] = chars[i]; shownAt[i] = attrs[i];
     }
@@ -132,6 +135,7 @@ export function render() {
   redrawAll = false;
   if (cur >= 0) { ctx.fillStyle = PAL[7]; ctx.fillRect(T.x * CW, T.y * CH + CH - 6, CW, 4); }
   shownCursor = cur;
+  shownBlink = T.blink;
 }
 
 // Paint every cell on the next render (the font arrived: every glyph changes)

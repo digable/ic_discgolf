@@ -9,7 +9,7 @@ function playHole(idx) {
 	S = {
 		H: H, lie: { x: H.tee.x, y: H.tee.y }, aim: { x: H.basket.x, y: H.basket.y },
 		strokes: 0, disc: 0, hand: S ? S.hand : player.hand, style: S ? (S.style === "HM" ? player.style : S.style) : player.style,
-		angle: "F", wind: newWind(), showAim: true, pitch: false, view: null, pov: null, rangeCell: null, lastMsg: ""
+		angle: "F", wind: newWind(), showAim: true, pitch: false, view: null, pov: null, marks: null, lastMsg: ""
 	};
 	PT = null;
 	caddiePick();

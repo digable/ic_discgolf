@@ -26,15 +26,16 @@ function seeded(seed) {
 // ---- Lean screen output (raw ANSI, tracks cursor and color) --------------
 // Colors use ANSI order: 0 black 1 red 2 green 3 brown 4 blue 5 magenta
 // 6 cyan 7 gray, +8 bright (10 lt green, 11 yellow, 15 white), +16*n
-// background, +128 underline.
+// background, +128 underline, +256 blink.
 var scr = { row: 0, col: 0, attr: -1 };
 
 function setAttr(a) {
 	if (a === scr.attr) return "";
 	var p = [], o = scr.attr;
-	if (o < 0 || ((o & 8) && !(a & 8)) || ((o & 0x70) && !(a & 0x70)) || ((o & 0x80) && !(a & 0x80))) { p.push(0); o = 7; }
+	if (o < 0 || ((o & 8) && !(a & 8)) || ((o & 0x70) && !(a & 0x70)) || ((o & 0x80) && !(a & 0x80)) || ((o & 0x100) && !(a & 0x100))) { p.push(0); o = 7; }
 	if ((a & 8) && !(o & 8)) p.push(1);
 	if ((a & 0x80) && !(o & 0x80)) p.push(4);
+	if ((a & 0x100) && !(o & 0x100)) p.push(5);
 	if ((a & 7) !== (o & 7)) p.push(30 + (a & 7));
 	if ((a & 0x70) !== (o & 0x70)) p.push(40 + ((a >> 4) & 7));
 	scr.attr = a;

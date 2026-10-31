@@ -24,6 +24,7 @@ var HELP_Y = 19;         // key help
 var PANEL_X = 60, PANEL_Y = 20;  // disc / throw / wind panel, rows 20-25
 var STATUS_Y = BAR_Y + 3;
 var HOT_ATTR = 11 | 0x80;  // hotkey letters: yellow, underlined (terminals without underlines just show yellow)
+var BLINK = 0x100;         // blinking (terminals using iCE colors show a bright background instead)
 
 // ---- Player model ---------------------------------------------------------
 // Skill levels: backhand / forehand arm speed (an arm of 10 fully powers a speed-10 disc)

@@ -140,6 +140,7 @@ function howTo() {
 		"            the yellow: early pulls toward your fade side, late pushes the other way.",
 		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
 		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind (\x01n\x01c\xE9\x01n: off map).",
+		"            The dots are its flight; trees and hazards in its way show on red.",
 		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and hammer. A hammer flies over the",
 		"            trees and comes down hard; it goes about two-thirds as far.",
 		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
