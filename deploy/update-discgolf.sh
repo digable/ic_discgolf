@@ -23,7 +23,7 @@ git -C "$SRC" fetch --quiet --depth 1 origin HEAD
 git -C "$SRC" reset --quiet --hard FETCH_HEAD
 
 mkdir -p "$DEST"
-rsync -a --delete \
+rsync -a --delete --delete-excluded \
     --include='/index.html' \
     --include='/styles/***' \
     --include='/scripts/***' \
