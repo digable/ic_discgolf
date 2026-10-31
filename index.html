@@ -59,6 +59,11 @@ code { font-family: var(--mono); font-size: 12px; color: var(--fg); }
 .keys { display: flex; gap: 6px; flex-wrap: wrap; }
 .key { font-family: var(--display); font-size: 26px; line-height: 1; padding: 10px 14px; min-width: 44px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .key.big { padding: 10px 36px; color: var(--accent); border-color: var(--accent); }
+/* Typing any key on a phone: the abc button focuses this input so the phone's own keyboard comes up.
+   It stays in the layout (a hidden input can't take focus), just invisible; 16px stops iOS zooming in. */
+.keys { position: relative; }
+.kb-in { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; font-size: 16px; }
+#kbBtn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .key:active { background: var(--accent); color: #000; }
 
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -110,7 +115,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
 <div class="wrap">
   <header>
     <h1>Disc Golf Door</h1>
-    <p>A disc golf door for Synchronet, played here on an emulated 80×25 ANSI screen with the same 3-click meter. It runs the real discgolf.js file, starting at Turkey Creek in Iowa City. Pick your hand and throw, choose a disc, aim with the arrow keys and press <kbd>SPACE</kbd> to throw.</p>
+    <p>A disc golf door for Synchronet, played here on an emulated 80×25 ANSI screen with the same 3-click meter. It runs the real discgolf.js file, starting at Turkey Creek in Iowa City. Pick your hand and throw, choose a disc, aim with the arrow keys and press <kbd>SPACE</kbd> to throw. On a phone, tap <kbd>abc</kbd> (or the screen) for the keyboard when it asks for a letter.</p>
   </header>
 
   <div class="main">
@@ -133,6 +138,8 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
           <button class="key" id="kS" type="button" aria-label="S, scorecard">S</button>
           <button class="key" id="qBtn" type="button" aria-label="Q key">Q</button>
           <button class="key" id="enterBtn" type="button" aria-label="Enter key">↵</button>
+          <button class="key" id="kbBtn" type="button" aria-label="Open the keyboard to type any key">abc</button>
+          <input class="kb-in" id="kbIn" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" aria-label="Type keys for the door">
         </div>
         <p>Keys reach the door after the same delay a caller would have, and the screen updates come back the same way.</p>
       </div>
@@ -778,12 +785,37 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
   bindKey("kLeft", "\x1d"); bindKey("kUp", "\x1e"); bindKey("kDown", "\x0a"); bindKey("kRight", "\x06");
   bindKey("kD", "d"); bindKey("kT", "t"); bindKey("kH", "h"); bindKey("kA", "a"); bindKey("kS", "s");
 
+  // abc: bring up the phone's keyboard. Letters arrive as "input" events (Android keyboards often
+  // send keydown with key "Unidentified"), so they're read from the input and it's cleared each time.
+  // Enter, Backspace and arrows still come through keydown below.
+  const kbIn = $("kbIn"), kbBtn = $("kbBtn");
+  kbBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (document.activeElement === kbIn) kbIn.blur(); else kbIn.focus({ preventScroll: true });
+  });
+  kbBtn.addEventListener("click", (e) => { if (e.detail === 0) kbIn.focus({ preventScroll: true }); });
+  kbIn.addEventListener("focus", () => kbBtn.setAttribute("aria-pressed", "true"));
+  kbIn.addEventListener("blur", () => kbBtn.setAttribute("aria-pressed", "false"));
+  kbIn.addEventListener("beforeinput", (e) => {
+    if (e.inputType === "deleteContentBackward") { e.preventDefault(); pressKey("\b"); }
+    else if (e.inputType === "insertLineBreak") { e.preventDefault(); pressKey("\r"); }
+  });
+  kbIn.addEventListener("input", () => {
+    const v = kbIn.value;
+    kbIn.value = "";
+    for (const ch of v) pressKey(ch === "\n" ? "\r" : ch);
+  });
+  // Tapping the screen on a touch device opens the keyboard too.
+  $("screen").addEventListener("click", () => { if (matchMedia("(pointer: coarse)").matches) kbIn.focus({ preventScroll: true }); });
+
   const SPECIAL = { Enter: "\r", Backspace: "\b", Escape: "\x1b", Tab: "\t", ArrowUp: "\x1e", ArrowDown: "\x0a", ArrowLeft: "\x1d", ArrowRight: "\x06" };
   window.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const tg = e.target, tag = tg.tagName;
     let ch = e.key.length === 1 ? e.key : SPECIAL[e.key];
     if (ch == null) return;
+    // In the abc input, letters come through its "input" event; only special keys are handled here.
+    if (tg === kbIn && e.key.length === 1) return;
     if (tag === "SELECT" && ch !== " ") return;
     if (tag === "INPUT" && tg.type === "range" && /^Arrow/.test(e.key)) return;
     if ((tag === "BUTTON" || tag === "LABEL") && e.key === "Enter") return;
