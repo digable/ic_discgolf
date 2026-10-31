@@ -621,28 +621,58 @@ function panel() {
 }
 
 // ---- Overhead map ----------------------------------------------------------
-// lc: the lie's cell, ac: the aim's cell (null when the aim isn't shown)
-function cellGlyph(c, r, lc, ac) {
+var RANGE_MARK = ["\xE9", 14];      // where the disc lands at 100% power: bright cyan
+var RANGE_PAST = ["\xE9", 6];       // it flies off the map: dim cyan at the map's edge
+
+// lc: the lie's cell, ac: the aim's cell, rc: the range mark's cell (null when not shown)
+function cellGlyph(c, r, lc, ac, rc) {
 	if (c === lc.c && r === lc.r) return ["\xFE", 15];
 	if (ac && c === ac.c && r === ac.r) return S.H.grid[r][c] === "B" ? ["\xE8", 11 | 0x50] : ["+", 13];
+	if (rc && c === rc.c && r === rc.r) return rc.past ? RANGE_PAST : RANGE_MARK;
 	return GLYPH[S.H.grid[r][c]] || [" ", 7];
 }
 
 function aimCell() { return S.showAim ? cellOf(S.H, S.aim) : null; }
 
+// The range mark: how far the current disc flies at 100% power with a perfect release, toward the
+// aim. Distance only (disc, throw and hand, or a pitch-out's cap); no wind, angle or terrain.
+function rangeCell() {
+	if (!S.showAim || S.view === "pov") return null;
+	var dx = S.aim.x - S.lie.x, dy = S.aim.y - S.lie.y, L = hyp(dx, dy);
+	if (L < 0.01) { dx = S.H.basket.x - S.lie.x; dy = S.H.basket.y - S.lie.y; L = hyp(dx, dy) || 1; }
+	var rng = discRange(curDisc(), S.style, domHand()) * (S.pitch ? PITCH_POWER : 1);
+	var rc = cellOf(S.H, { x: S.lie.x + dx / L * rng, y: S.lie.y + dy / L * rng });
+	if (inMap(rc)) return rc;
+	// Past the edge: step back along the line to the last cell on the map
+	for (var m = rng; m > 0; m -= S.H.S / 2) {
+		rc = cellOf(S.H, { x: S.lie.x + dx / L * m, y: S.lie.y + dy / L * m });
+		if (inMap(rc)) { rc.past = true; return rc; }
+	}
+	return null;
+}
+
 function drawCell(c, r) {
 	if (c < 0 || c >= MAP_W || r < 0 || r >= MAP_H) return "";
-	var g = cellGlyph(c, r, cellOf(S.H, S.lie), aimCell());
+	var g = cellGlyph(c, r, cellOf(S.H, S.lie), aimCell(), S.rangeCell);
 	return moveTo(MAP_X + c, MAP_Y + r) + text(g[0], g[1]);
 }
 
 function drawMap() {
-	var s = "", lc = cellOf(S.H, S.lie), ac = aimCell();
+	S.rangeCell = rangeCell();
+	var s = "", lc = cellOf(S.H, S.lie), ac = aimCell(), rc = S.rangeCell;
 	for (var r = 0; r < MAP_H; r++) {
 		s += moveTo(MAP_X, MAP_Y + r);
-		for (var c = 0; c < MAP_W; c++) { var g = cellGlyph(c, r, lc, ac); s += text(g[0], g[1]); }
+		for (var c = 0; c < MAP_W; c++) { var g = cellGlyph(c, r, lc, ac, rc); s += text(g[0], g[1]); }
 	}
 	out(s);
+}
+
+// Moves the range mark after a disc, throw, hand, pitch or aim change (redraws just two cells)
+function updateRangeMark() {
+	var old = S.rangeCell, nw = rangeCell();
+	if (old && nw && old.c === nw.c && old.r === nw.r && old.past === nw.past) return;
+	S.rangeCell = nw;
+	out((old ? drawCell(old.c, old.r) : "") + (nw ? drawCell(nw.c, nw.r) : ""));
 }
 
 // ---- View from the player (POV) -----------------------------------------
@@ -986,7 +1016,7 @@ function throwShot() {
 	var wasPov = S.view === "pov";
 	S.showAim = false;
 	if (wasPov) { S.view = "map"; cls(); header(); drawMap(); helpLine(); drawMeter(); panel(); msg(); }
-	else { var oldAim = cellOf(H, S.aim); out(drawCell(oldAim.c, oldAim.r)); }
+	else { var oldAim = cellOf(H, S.aim); out(drawCell(oldAim.c, oldAim.r)); updateRangeMark(); }
 	var fromLie = cellOf(H, S.lie);
 	var trail = animate(res.path);
 	var start = { x: S.lie.x, y: S.lie.y };
@@ -1498,7 +1528,7 @@ function playHole(idx) {
 	S = {
 		H: H, lie: { x: H.tee.x, y: H.tee.y }, aim: { x: H.basket.x, y: H.basket.y },
 		strokes: 0, disc: 0, hand: S ? S.hand : player.hand, style: S ? (S.style === "HM" ? player.style : S.style) : player.style,
-		angle: "F", wind: newWind(), showAim: true, pitch: false, view: null, pov: null, lastMsg: ""
+		angle: "F", wind: newWind(), showAim: true, pitch: false, view: null, pov: null, rangeCell: null, lastMsg: ""
 	};
 	PT = null;
 	caddiePick();
@@ -1558,6 +1588,7 @@ function playHole(idx) {
 			if (a0.c !== a1.c || a0.r !== a1.r) out(drawCell(a0.c, a0.r) + drawCell(a1.c, a1.r));
 		}
 		else continue;
+		if (S.view !== "pov") updateRangeMark();
 		panel();
 	}
 }
@@ -1722,6 +1753,7 @@ function howTo() {
 		"            power drops. SPACE a third time as the marker comes back through",
 		"            the yellow: early pulls toward your fade side, late pushes the other way.",
 		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
+		"            On the map, \x01h\x01c\xE9\x01n marks how far it flies at 100% (\x01n\x01c\xE9\x01n: off the map).",
 		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and hammer. A hammer flies over the",
 		"            trees and comes down hard; it goes about two-thirds as far.",
 		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
