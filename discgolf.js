@@ -595,7 +595,9 @@ function throwLabel() {
 }
 
 // Panel lines shared by the throw and putt panels
-function discSpecLine(d) { return "\x01n\x01k\x01h" + pad(TYPE_NAME[d.type], 9) + "\x01n" + d.n.join("/"); }
+// How far this disc flies at 100% for the current throw and hand (matches the range mark on the map)
+function maxRange(d) { return discRange(d, S.style, domHand()) * (S.pitch ? PITCH_POWER : 1); }
+function discSpecLine(d) { return "\x01n\x01k\x01hMax \x01n\x01c" + pad(ft(maxRange(d)) + " ft", 7) + "\x01n" + d.n.join("/"); }
 function handLine() { return "\x01n\x01h~Hand  \x01n" + handName(S.hand) + (domHand() ? "" : " \x01h\x01r(off)"); }
 
 function showPanel(lines) { for (var i = 0; i < lines.length; i++) put(PANEL_X, PANEL_Y + i, lines[i], 20); }
@@ -634,18 +636,18 @@ function cellGlyph(c, r, lc, ac, rc) {
 
 function aimCell() { return S.showAim ? cellOf(S.H, S.aim) : null; }
 
-// The range mark: how far the current disc flies at 100% power with a perfect release, toward the
-// aim. Distance only (disc, throw and hand, or a pitch-out's cap); no wind, angle or terrain.
+// The range mark: where the current disc lands on a perfect, flat 100% throw. Only the disc's
+// flight numbers shape it (plus the hand and throw, which set which way it curves, and a
+// pitch-out's power cap). No wind, release angle, terrain, trees, skips or rolls.
 function rangeCell() {
 	if (!S.showAim || S.view === "pov") return null;
-	var dx = S.aim.x - S.lie.x, dy = S.aim.y - S.lie.y, L = hyp(dx, dy);
-	if (L < 0.01) { dx = S.H.basket.x - S.lie.x; dy = S.H.basket.y - S.lie.y; L = hyp(dx, dy) || 1; }
-	var rng = discRange(curDisc(), S.style, domHand()) * (S.pitch ? PITCH_POWER : 1);
-	var rc = cellOf(S.H, { x: S.lie.x + dx / L * rng, y: S.lie.y + dy / L * rng });
+	var sh = throwShape(1, false);
+	var rc = cellOf(S.H, idealPoint(sh, 1));
 	if (inMap(rc)) return rc;
-	// Past the edge: step back along the line to the last cell on the map
-	for (var m = rng; m > 0; m -= S.H.S / 2) {
-		rc = cellOf(S.H, { x: S.lie.x + dx / L * m, y: S.lie.y + dy / L * m });
+	// Past the edge: step back along the flight to the last cell on the map
+	var step = S.H.S / 2 / sh.dist;
+	for (var u = 1 - step; u > 0; u -= step) {
+		rc = cellOf(S.H, idealPoint(sh, u));
 		if (inMap(rc)) { rc.past = true; return rc; }
 	}
 	return null;
@@ -853,39 +855,75 @@ function drawShotScreen() {
 // ---- Flight ------------------------------------------------------------------
 // Throws the current disc from S.lie toward S.aim. Returns the path (world
 // points), where it ended, and what happened.
-function fly(sw) {
-	var H = S.H, d = curDisc(), n = d.n, speed = n[0], turn = n[2], fade = n[3];
-	var dom = domHand(), hammer = S.style === "HM", pitch = S.pitch;
-	var arm = armSpeed(S.style, dom);
-	var pf = (sw.power || 0) / 100;
+// ---- Flight shape (shared by the throw and the range mark on the map) -------
+// The shape of a throw before wind and terrain: how far it goes and how much it turns
+// and fades, from the disc, throw, hand, power (pf, 0-1) and whether it was overswung.
+function throwShape(pf, over) {
+	var d = curDisc(), n = d.n, dom = domHand(), pitch = S.pitch;
 	if (pitch) pf *= PITCH_POWER;
 	var cw = (S.hand === "R") === (S.style !== "FH");    // clockwise spin: fades left
-	var fadeSide = cw ? -1 : 1;                          // in right-positive terms
-	var armFull = arm / speed, ar = armFull * pf;
+	var ar = armSpeed(S.style, dom) / n[0] * pf;
+	var sh = {
+		pf: pf, ar: ar, hammer: S.style === "HM",
+		fadeSide: cw ? -1 : 1,                           // in right-positive terms
+		hamSide: S.hand === "R" ? 1 : -1,                // a righty's hammer curves right
+		dist: Math.max(1, discRange(d, S.style, dom) * pf),
+		effTurn: n[2] * clamp(ar, 0, 1.4),               // turn shows up only at speed
+		effFade: n[3] + Math.max(0, 0.8 - ar) * 2,       // underpowered discs fade early
+		angTerm: 0
+	};
+	if (over) sh.effTurn -= 1;                           // muscled it: turns over
+	if (pitch) { sh.effTurn *= 0.5; sh.effFade *= 0.5; }
+	return sh;
+}
 
-	var dist = Math.max(1, discRange(d, S.style, dom) * pf);
-	var effTurn = turn * clamp(ar, 0, 1.4);              // turn shows up only at speed
-	var effFade = fade + Math.max(0, 0.8 - ar) * 2;      // underpowered discs fade early
-	if (sw.over) effTurn -= 1;                           // muscled it: turns over
-	if (pitch) { effTurn *= 0.5; effFade *= 0.5; }
+// Hyzer and anhyzer release angles (applied after wind, as the throw always has)
+function applyAngle(sh) {
+	if (!sh.hammer && S.angle === "H") { sh.effTurn *= 0.4; sh.angTerm = 0.08; }
+	else if (!sh.hammer && S.angle === "A") { sh.effTurn -= 0.8; sh.angTerm = -0.08; }
+}
 
+// Sideways offset (meters right of the line) u of the way along a flight of length dist
+function curveLat(sh, u, dist, cross) {
+	if (sh.hammer) return sh.hamSide * dist * 0.12 * u * u + cross * dist * 0.02 * u;
+	var ts = u < 0.75 ? (u / 0.75) * (u / 0.75) : 1;
+	var fs = u < 0.55 ? 0 : ((u - 0.55) / 0.45) * ((u - 0.55) / 0.45);
+	return (sh.effFade * dist * 0.05 * fs + sh.effTurn * dist * 0.035 * ts + sh.angTerm * dist * u * u) * sh.fadeSide + cross * dist * 0.012 * u;
+}
+
+// Unit direction of the throw: toward the aim, or the basket if the aim is on the lie
+function throwDir() {
 	var dx = S.aim.x - S.lie.x, dy = S.aim.y - S.lie.y, L = hyp(dx, dy);
-	if (L < 0.5) { dx = H.basket.x - S.lie.x; dy = H.basket.y - S.lie.y; L = hyp(dx, dy) || 1; }
-	dx /= L; dy /= L;
+	if (L < 0.5) { dx = S.H.basket.x - S.lie.x; dy = S.H.basket.y - S.lie.y; L = hyp(dx, dy) || 1; }
+	return { x: dx / L, y: dy / L };
+}
+
+// Where a perfect 100% throw ends up with no wind, terrain or trees: the disc's curve only.
+// u can stop short of 1 to walk back along the flight.
+function idealPoint(sh, u) {
+	var dir = throwDir(), lat = curveLat(sh, u, sh.dist, 0);
+	return { x: S.lie.x + dir.x * sh.dist * u - dir.y * lat, y: S.lie.y + dir.y * sh.dist * u + dir.x * lat };
+}
+
+function fly(sw) {
+	var H = S.H, d = curDisc(), speed = d.n[0];
+	var dom = domHand(), pitch = S.pitch;
+	var sh = throwShape((sw.power || 0) / 100, sw.over);
+	var hammer = sh.hammer, pf = sh.pf, fadeSide = sh.fadeSide, dist = sh.dist;
+
+	var dir = throwDir(), dx = dir.x, dy = dir.y;
 	var rx = -dy, ry = dx;
 	var head = -(S.wind.x * dx + S.wind.y * dy), cross = S.wind.x * rx + S.wind.y * ry;
-	effTurn -= head * 0.12;                              // headwind: more turn
-	if (head < 0) effFade += -head * 0.1;                // tailwind: more fade
+	sh.effTurn -= head * 0.12;                           // headwind: more turn
+	if (head < 0) sh.effFade += -head * 0.1;             // tailwind: more fade
 	dist *= 1 - head * 0.02;
 
 	// elevation: downhill flies farther and fades more, uphill comes up short
 	var drop = (heightAt(H, S.lie) - heightAt(H, { x: S.lie.x + dx * dist, y: S.lie.y + dy * dist })) / FT;
 	dist = Math.max(1, dist + drop);
-	if (drop > 0) effFade += drop * 0.05;
+	if (drop > 0) sh.effFade += drop * 0.05;
 
-	var angTerm = 0;
-	if (!hammer && S.angle === "H") { effTurn *= 0.4; angTerm = 0.08; }
-	else if (!hammer && S.angle === "A") { effTurn -= 0.8; angTerm = -0.08; }
+	applyAngle(sh);
 
 	// Release timing: early = toward the fade side, late = toward the turn side
 	var accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1) * (hammer ? 1.4 : 1) * (pitch ? 0.7 : 1);
@@ -898,18 +936,11 @@ function fly(sw) {
 	var rot = err * fadeSide, cr = Math.cos(rot), sr = Math.sin(rot);
 	var fx = dx * cr + rx * sr, fy = dy * cr + ry * sr;   // rotated forward
 	var gx = -fy, gy = fx;                                // rotated right
-	var hamSide = S.hand === "R" ? 1 : -1;               // a righty's hammer curves right
 
 	var path = [], lastIn = { x: S.lie.x, y: S.lie.y }, res = { tree: false, basket: false, ob: false };
 	var steps = Math.max(2, Math.ceil(dist / 0.5)), discR = pitch ? 0.04 : 0.11;
 	for (var i = 1; i <= steps; i++) {
-		var s = dist * i / steps, u = s / dist, lat;
-		if (hammer) lat = hamSide * dist * 0.12 * u * u + cross * dist * 0.02 * u;
-		else {
-			var ts = u < 0.75 ? (u / 0.75) * (u / 0.75) : 1;
-			var fs = u < 0.55 ? 0 : ((u - 0.55) / 0.45) * ((u - 0.55) / 0.45);
-			lat = (effFade * dist * 0.05 * fs + effTurn * dist * 0.035 * ts + angTerm * dist * u * u) * fadeSide + cross * dist * 0.012 * u;
-		}
+		var s = dist * i / steps, u = s / dist, lat = curveLat(sh, u, dist, cross);
 		var p = { x: S.lie.x + fx * s + gx * lat, y: S.lie.y + fy * s + gy * lat };
 		path.push(p);
 		var t = tileAt(H, p);
@@ -1753,7 +1784,7 @@ function howTo() {
 		"            power drops. SPACE a third time as the marker comes back through",
 		"            the yellow: early pulls toward your fade side, late pushes the other way.",
 		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
-		"            On the map, \x01h\x01c\xE9\x01n marks how far it flies at 100% (\x01n\x01c\xE9\x01n: off the map).",
+		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind (\x01n\x01c\xE9\x01n: off map).",
 		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and hammer. A hammer flies over the",
 		"            trees and comes down hard; it goes about two-thirds as far.",
 		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
