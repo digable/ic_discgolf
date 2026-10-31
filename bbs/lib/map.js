@@ -49,7 +49,7 @@ function rangeMarks() {
 	c = cellOf(S.H, idealPoint(sh, 1));
 	if (!off && inMap(c)) m.rc = c;
 	else if (cells.length) { m.rc = cells.pop(); m.rc.past = true; }   // past the edge: the last cell on the map
-	for (i = 0; i < cells.length; i++) {
+	for (i = 0; i < cells.length && player.flightPath; i++) {
 		c = cells[i];
 		if ((c.c === lc.c && c.r === lc.r) || (m.rc && c.c === m.rc.c && c.r === m.rc.r)) continue;
 		m.path[c.c + "," + c.r] = n++;

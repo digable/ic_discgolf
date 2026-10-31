@@ -79,24 +79,84 @@ function courseMenu() {
 	}
 }
 
+// ---- Player setup -----------------------------------------------------------------
+// Every question at once. Up/Down picks a question, Left/Right changes its answer, and its
+// letters pick an answer and move on to the next question. ENTER (or Continue at the bottom)
+// is done. Answers take effect as they change.
+var SETUP_X = 36;           // column the answers start in
+var SETUP_GO_Y = 20;        // the Continue button's row
+var SETUP = [
+	{ y: 5, q: "Which hand do you throw with?", opts: [["R", "~Right"], ["L", "~Left"]],
+		get: function () { return player.hand; }, set: function (v) { player.hand = v; },
+		note: function () {
+			return ["\x01h\x01c" + handName(player.hand) + "-handed.\x01n \x01k\x01hYour other hand has about " + Math.round(OFF_HAND * 100) + "% of the power, less accuracy."];
+		} },
+	{ y: 8, q: "Your usual throw?", opts: [["BH", "~Backhand"], ["FH", "~Forehand (sidearm)"]],
+		get: function () { return player.style; }, set: function (v) { player.style = v; },
+		note: function () {
+			var spin = (player.hand === "R") === (player.style === "BH");
+			return ["\x01h\x01c" + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/hammer.",
+				"\x01nYour " + styleName(player.style).toLowerCase() + " fades to the \x01h" + (spin ? "left" : "right") + "\x01n and turns over to the \x01h" + (spin ? "right" : "left") + "\x01n."];
+		} },
+	{ y: 12, q: "How far do you throw?", opts: [["reg", "~Regular"], ["pro", "~Pro"]],
+		get: function () { return player.level; }, set: function (v) { player.level = v; },
+		note: function () {
+			return player.level === "pro"
+				? ["\x01h\x01cPro.\x01n \x01k\x01hA big arm: drivers fly 400+ ft and turn over at speed."]
+				: ["\x01h\x01cRegular.\x01n \x01k\x01hA typical rec arm: about 300 ft drives.", "\x01k\x01hFast drivers barely turn and fade early."];
+		} },
+	{ y: 16, q: "Flight path on the map?", opts: [[true, "~Show"], [false, "~Hide"]],
+		get: function () { return player.flightPath; }, set: function (v) { player.flightPath = v; },
+		note: function () {
+			return player.flightPath
+				? ["\x01h\x01cShown.\x01n \x01k\x01hDots trace a perfect throw out to the range mark \x01n\x01h\x01c\xE9\x01k\x01h;", "\x01k\x01htrees and hazards in its way show on red."]
+				: ["\x01h\x01cHidden.\x01n \x01k\x01hThe map shows just the range mark \x01n\x01h\x01c\xE9\x01k\x01h, where a perfect throw lands."];
+		} }
+];
+
+function hotkeyOf(label) { return label.charAt(label.indexOf("~") + 1).toUpperCase(); }
+
+// Question i (SETUP.length: the Continue button). The answer is highlighted: white on blue on
+// the question you're on, black on gray on the others. Hotkeys show only where they work.
+function drawSetupRow(i, focus) {
+	var mark = text(focus ? ">" : " ", 14) + text(" ", 7);
+	if (i === SETUP.length) { out(moveTo(2, SETUP_GO_Y) + mark + text(" Continue ", focus ? 0x4F : 0x70) + setAttr(7)); return; }
+	var row = SETUP[i], cur = row.get(), s = moveTo(2, row.y) + mark + ca(row.q, focus ? 15 : 7)[0], col = SETUP_X;
+	s += text(blank(SETUP_X - 4 - row.q.length), 7);
+	for (var j = 0; j < row.opts.length; j++) {
+		var lab = " " + row.opts[j][1] + " ", on = row.opts[j][0] === cur;
+		if (on) s += ca(lab.replace("~", ""), focus ? 0x4F : 0x70)[0];
+		else s += ca(focus ? lab : lab.replace("~", ""), focus ? 7 : 8)[0];
+		s += text(" ", 7);
+		col += lab.length;              // the ~ isn't shown; the space after is
+	}
+	out(s + text(blank(SCR_W - col), 7));
+	var notes = row.note();
+	for (j = 0; j < 2; j++) put(6, row.y + 1 + j, notes[j] || "", 74);
+}
+
 function setup(first) {
 	cls();
 	put(3, 2, "\x01h\x01wPLAYER SETUP");
-	if (first) put(3, 3, "\x01n\x01k\x01hA few questions before you head to the first tee.");
-	put(3, 5, "\x01nWhich hand do you throw with?   ~Right   ~Left");
-	for (;;) { var k = key().toUpperCase(); if (k === "R" || k === "L") { player.hand = k; break; } if (k === "\r" && !first) break; }
-	put(3, 6, "\x01h\x01c  " + handName(player.hand) + "-handed.\x01n \x01k\x01hYour other hand has about " + Math.round(OFF_HAND * 100) + "% of the power, less accuracy.", 76);
-	put(3, 8, "\x01nYour usual throw?   ~Backhand   ~Forehand (sidearm)");
-	for (;;) { var k2 = key().toUpperCase(); if (k2 === "B" || k2 === "F") { player.style = k2 === "B" ? "BH" : "FH"; break; } if (k2 === "\r" && !first) break; }
-	put(3, 9, "\x01h\x01c  " + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/hammer.", 76);
-	var spin = (player.hand === "R") === (player.style === "BH");
-	put(3, 10, "\x01n  Your " + styleName(player.style).toLowerCase() + " fades to the \x01h" + (spin ? "left" : "right") + "\x01n and turns over to the \x01h" + (spin ? "right" : "left") + "\x01n.");
-	put(3, 12, "\x01nHow far do you throw?   ~Regular   ~Pro");
-	for (;;) { var k3 = key().toUpperCase(); if (k3 === "R" || k3 === "P") { player.level = k3 === "P" ? "pro" : "reg"; break; } if (k3 === "\r") break; }
-	put(3, 13, "\x01h\x01c  " + level().name + ".\x01n \x01k\x01h" + (player.level === "pro"
-		? "A big arm: drivers fly 400+ ft and turn over at speed."
-		: "A typical rec arm: ~300 ft drives; fast drivers barely turn and fade early."), 76);
-	waitKey("Press any key");
+	put(3, 3, "\x01n\x01k\x01h" + (first ? "A few questions before you head to the first tee." : "Changes take effect right away."));
+	put(3, 22, "\x01n\x01hUp/Down\x01n pick a question   \x01hLeft/Right\x01n or a letter: answer   \x01hENTER\x01n continue", 76);
+	var f = 0, i;
+	for (i = 0; i <= SETUP.length; i++) drawSetupRow(i, i === f);
+	for (;;) {
+		var k = key(), ku = k.toUpperCase(), row = SETUP[f], old = f, changed = false, j, hit = -1;
+		if (k === "\r" || k === "\x1b") return;
+		if (row) for (j = 0; j < row.opts.length; j++) if (hotkeyOf(row.opts[j][1]) === ku) hit = j;
+		if (hit >= 0) { row.set(row.opts[hit][0]); changed = true; f++; }     // letters before arrows: L is also Right (isRight)
+		else if (isUp(k)) f = Math.max(0, f - 1);
+		else if (isDown(k)) f = Math.min(SETUP.length, f + 1);
+		else if (row && (isLeft(k) || isRight(k))) {
+			for (j = 0; j < row.opts.length; j++) if (row.opts[j][0] === row.get()) break;
+			j = clamp(j + (isLeft(k) ? -1 : 1), 0, row.opts.length - 1);
+			if (row.opts[j][0] !== row.get()) { row.set(row.opts[j][0]); changed = true; }
+		}
+		if (changed) { for (i = 0; i <= SETUP.length; i++) drawSetupRow(i, i === f); }   // the throw's note depends on the hand
+		else if (f !== old) { drawSetupRow(old, false); drawSetupRow(f, true); }
+	}
 }
 
 function bagScreen() {
@@ -137,10 +197,10 @@ function howTo() {
 		"\x01h\x01cThe meter\x01n   SPACE starts your reach-back. SPACE again sets power: the white",
 		"            mark is 100%. Past it you overswing - the disc turns over and",
 		"            power drops. SPACE a third time as the marker comes back through",
-		"            the yellow: early pulls toward your fade side, late pushes the other way.",
+		"            the yellow: early pulls to your fade side, late pushes away.",
 		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
-		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind (\x01n\x01c\xE9\x01n: off map).",
-		"            The dots are its flight; trees and hazards in its way show on red.",
+		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind; dots",
+		"            trace its flight, obstacles on red (Player setup can hide them).",
 		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and hammer. A hammer flies over the",
 		"            trees and comes down hard; it goes about two-thirds as far.",
 		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
