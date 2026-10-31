@@ -28,22 +28,27 @@ var FRAME_MS = 50;       // marker updates ~20 times a second
 var MAX_LAG_COMP = 0.25; // never compensate more than 250 ms of lag
 
 // ---- Screen layout (80x25) ------------------------------------------------
+var SCR_W = 80;          // screen width
 var MAP_X = 2, MAP_Y = 2, MAP_W = 78, MAP_H = 16;  // hole map: rows 2-17
 var MSG_Y = 18;          // shot results
 var HELP_Y = 19;         // key help
-var PANEL_X = 60;        // disc / throw / wind panel, rows 20-25
+var PANEL_X = 60, PANEL_Y = 20;  // disc / throw / wind panel, rows 20-25
 var STATUS_Y = BAR_Y + 3;
+var HOT_ATTR = 11 | 0x80;  // hotkey letters: yellow, underlined (terminals without underlines just show yellow)
 
 // ---- Player model ---------------------------------------------------------
 var ARM_BH = 10;         // backhand arm speed: fully powers a speed-10 disc
 var ARM_FH = 9;          // forehand arm speed
 var OFF_HAND = 0.7;      // non-dominant hand: 70% of the arm speed...
 var OFF_ACC = 1.6;       // ...and 60% bigger release errors
+var OVER_ACC = 1.5;      // an overswing makes release errors 50% bigger
 var HAMMER_RANGE = 0.65; // a hammer flies 65% as far as a flat backhand
 var PITCH_POWER = 0.4;   // a pitch-out tops out at 40% power
 var PUTT_M = 20;         // inside 20 m (66 ft) you putt (circle 2)
+var C1_M = 10;           // circle 1: 10 m (33 ft)
 var BAG_MAX = 8;
 var FT = 3.28084;        // feet per meter
+var MPH_TO_MS = 0.447;   // meters per second per mph
 
 // ---- Discs: speed / glide / turn / fade as published by the makers -------
 // Types: P putter, A approach, M midrange, F fairway driver, D distance driver
@@ -74,6 +79,11 @@ var DISCS = [
 	{ name: "Shryke",      maker: "Innova",        type: "D", n: [13, 6, -2, 2] }
 ];
 var TYPE_NAME = { P: "Putter", A: "Approach", M: "Midrange", F: "Fairway", D: "Distance" };
+var DISC_BY_NAME = {};
+for (var di = 0; di < DISCS.length; di++) DISC_BY_NAME[DISCS[di].name] = DISCS[di];
+
+// What the toggle keys cycle through
+var HANDS = ["R", "L"], STYLES = ["BH", "FH", "HM"], ANGLES = ["F", "H", "A"], PUTT_VIEWS = ["side", "top", "pov"];
 
 // ---- Courses --------------------------------------------------------------
 // Each hole is drawn on a 78x16 grid; the door scales it so the tee-to-basket
@@ -133,6 +143,7 @@ function blank(n) { return n > 0 ? new Array(n + 1).join(" ") : ""; }
 function pad(s, n) { s = String(s); return s.length >= n ? s.substr(0, n) : s + blank(n - s.length); }
 function ft(m) { return Math.round(m * FT); }
 function angDiff(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+function cycle(list, cur) { return list[(list.indexOf(cur) + 1) % list.length]; }   // the item after cur, wrapping
 
 // Seeded random numbers so each hole's woods come out the same every time
 function seeded(seed) {
@@ -175,16 +186,14 @@ function moveTo(x, y) {
 function text(str, attr) {
 	var s = (attr === undefined ? "" : setAttr(attr)) + str;
 	scr.col += str.length;
-	if (scr.col > 80) scr.row = 0;   // hit the right edge: next move is absolute
+	if (scr.col > SCR_W) scr.row = 0;   // hit the right edge: next move is absolute
 	return s;
 }
 
 function out(s) { if (s) console.write(s); }
 
-function hotAttr() { return 11 | (player.underline ? 0x80 : 0); }
-
-// Ctrl-A color codes to raw ANSI. "~X" draws X as a hotkey (yellow,
-// underlined if the player wants). Stops after max visible characters.
+// Ctrl-A color codes to raw ANSI. "~X" draws X as a hotkey (HOT_ATTR).
+// Stops after max visible characters.
 // Returns [ansi, visibleLength].
 function ca(str, base, max) {
 	var o = "", a = base === undefined ? 7 : base, buf = "", vis = 0;
@@ -193,7 +202,7 @@ function ca(str, base, max) {
 		var ch = str.charAt(i);
 		if (ch === "~" && i + 1 < str.length) {
 			if (buf) { o += text(buf, a); vis += buf.length; buf = ""; }
-			o += text(str.charAt(++i), hotAttr()); vis++;
+			o += text(str.charAt(++i), HOT_ATTR); vis++;
 			continue;
 		}
 		if (ch === "\x01" && i + 1 < str.length) {
@@ -224,7 +233,7 @@ function cls() {
 function key() { return console.getkey(K_NONE); }
 
 function waitKey(msg) {
-	if (msg) put(BAR_X, 25, "\x01n\x01h" + msg, BAR_W + 2);
+	if (msg) put(BAR_X, STATUS_Y, "\x01n\x01h" + msg, BAR_W + 2);
 	return key();
 }
 
@@ -344,36 +353,45 @@ function swingMeter(lag) {
 var player = {
 	hand: "R",           // dominant hand
 	style: "BH",         // usual throw
-	underline: true,     // underline hotkey letters (always on; terminals without underlines just show them in yellow)
 	puttView: "side",    // side, top or pov
 	bag: ["KC Aviar", "Zone", "Buzzz", "Teebird", "Leopard3", "Destroyer"]
 };
 
-function discByName(n) {
-	for (var i = 0; i < DISCS.length; i++) if (DISCS[i].name === n) return DISCS[i];
-	return null;
-}
+function discByName(n) { return DISC_BY_NAME.hasOwnProperty(n) ? DISC_BY_NAME[n] : null; }
+
+// The bag as disc objects, slowest first. Sorted once and kept until the bag
+// changes (call bagChanged() after editing player.bag).
+var bagCache = null;
 
 function bagDiscs() {
-	player.bag.sort(function (a, c) { return discByName(a).n[0] - discByName(c).n[0]; });
-	var b = [];
-	for (var i = 0; i < player.bag.length; i++) { var d = discByName(player.bag[i]); if (d) b.push(d); }
-	return b;
+	if (!bagCache) {
+		player.bag.sort(function (a, c) { return discByName(a).n[0] - discByName(c).n[0]; });
+		bagCache = [];
+		for (var i = 0; i < player.bag.length; i++) { var d = discByName(player.bag[i]); if (d) bagCache.push(d); }
+	}
+	return bagCache;
 }
 
+function bagChanged() { bagCache = null; }
+
 function puttDisc() { return bagDiscs()[0]; }
+function domHand() { return S.hand === player.hand; }   // throwing with the dominant hand
+function armSpeed(style, dom) { return (style === "FH" ? ARM_FH : ARM_BH) * (dom ? 1 : OFF_HAND); }
 
 function handName(h) { return h === "R" ? "Right" : "Left"; }
 function styleName(s) { return s === "BH" ? "Backhand" : (s === "FH" ? "Forehand" : "Hammer"); }
 function angleName(a) { return a === "H" ? "Hyzer" : (a === "A" ? "Anhyzer" : "Flat"); }
 
 // ---- Holes ------------------------------------------------------------------
+// Map cell (column, row) to world meters, m meters per column
+function gridPt(c, r, m) { return { x: c * m, y: r * 2 * m }; }
+
 function buildHole(h, idx) {
 	var L1 = 0, i;
 	for (i = 1; i < h.pts.length; i++) L1 += hyp(h.pts[i][0] - h.pts[i - 1][0], 2 * (h.pts[i][1] - h.pts[i - 1][1]));
 	var S = (h.ft / FT) / L1;   // meters per column (a row is 2*S tall)
 	var P = [];
-	for (i = 0; i < h.pts.length; i++) P.push({ x: h.pts[i][0] * S, y: h.pts[i][1] * 2 * S });
+	for (i = 0; i < h.pts.length; i++) P.push(gridPt(h.pts[i][0], h.pts[i][1], S));
 	var dens = {
 		dense:  { w: 0.72, t: 0.18 },
 		medium: { w: 0.4,  t: 0.3 },
@@ -412,8 +430,8 @@ function buildHole(h, idx) {
 	}
 	var H = {
 		def: h, num: idx + 1, par: h.par, ft: h.ft, S: S, grid: grid,
-		tee: { x: tee[0] * S, y: tee[1] * 2 * S },
-		basket: { x: bk[0] * S, y: bk[1] * 2 * S }
+		tee: gridPt(tee[0], tee[1], S),
+		basket: gridPt(bk[0], bk[1], S)
 	};
 	buildTrunks(H);
 	return H;
@@ -514,21 +532,21 @@ var S = null;  // current hole/shot state
 function newWind() {
 	var dirs = [[0, -1, "N"], [1, -1, "NE"], [1, 0, "E"], [1, 1, "SE"], [0, 1, "S"], [-1, 1, "SW"], [-1, 0, "W"], [-1, -1, "NW"]];
 	var d = dirs[Math.floor(rnd() * 8)], mph = Math.floor(rnd() * 13), L = hyp(d[0], d[1]);
-	return { mph: mph, to: d[2], x: d[0] / L * mph * 0.447, y: d[1] / L * mph * 0.447 };
+	return { mph: mph, to: d[2], x: d[0] / L * mph * MPH_TO_MS, y: d[1] / L * mph * MPH_TO_MS };
 }
 
 function windText() { return S.wind.mph ? S.wind.mph + " mph to " + S.wind.to : "calm"; }
 
 // How far a disc flies at 100% power for this thrower (meters, flat, no wind)
 function discRange(d, style, dom) {
-	var arm = (style === "FH" ? ARM_FH : ARM_BH) * (dom ? 1 : OFF_HAND);
+	var arm = armSpeed(style, dom);
 	var r = (30 + d.n[0] * 7 + d.n[1] * 4) * Math.min(1, 0.6 + 0.4 * arm / d.n[0]);
 	return style === "HM" ? r * HAMMER_RANGE : r;
 }
 
 // Caddie: the slowest disc in the bag that reaches the basket with room to spare
 function caddiePick() {
-	var b = bagDiscs(), pin = pinDist(), dom = S.hand === player.hand;
+	var b = bagDiscs(), pin = pinDist(), dom = domHand();
 	S.disc = b.length - 1;
 	for (var i = 0; i < b.length; i++) if (discRange(b[i], S.style, dom) >= pin * 1.1) { S.disc = i; break; }
 }
@@ -538,10 +556,15 @@ function pinDist() { return hyp(S.H.basket.x - S.lie.x, S.H.basket.y - S.lie.y);
 function lieInTrees() { return isTrees(tileAt(S.H, S.lie)); }
 
 // ---- Screen pieces -------------------------------------------------------
+// Strokes over (+) or under (-) par for the holes finished so far
+function roundToPar() {
+	var rel = 0;
+	for (var i = 0; i < R.strokes.length; i++) if (R.strokes[i]) rel += R.strokes[i] - R.holes[i].par;
+	return rel;
+}
+
 function header(extra) {
-	var tot = 0, par = 0;
-	for (var i = 0; i < R.strokes.length; i++) if (R.strokes[i]) { tot += R.strokes[i]; par += R.holes[i].par; }
-	var rel = tot - par, rs = !tot ? "E" : (rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel)));
+	var rel = roundToPar(), rs = rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel));
 	var h = " " + R.course.name.toUpperCase() + "   HOLE " + S.H.num + "   PAR " + S.H.par + "   " + S.H.ft + " FT" +
 		"   THROW " + (S.strokes + 1) + "   ROUND " + rs;
 	if (extra) h += "   " + extra;
@@ -549,12 +572,12 @@ function header(extra) {
 		var e = Math.round(heightAt(S.H, S.H.basket) - heightAt(S.H, S.H.tee));
 		if (Math.abs(e) >= 2) h += "   BASKET " + (e > 0 ? "+" : "") + e + " FT";
 	}
-	out(moveTo(1, 1) + text(pad(h, 80), 0x4F) + setAttr(7));
+	out(moveTo(1, 1) + text(pad(h, SCR_W), 0x4F) + setAttr(7));
 }
 
 function msg(m) {
 	if (m !== undefined) S.lastMsg = m;
-	put(1, MSG_Y, " " + S.lastMsg, 80);
+	put(1, MSG_Y, " " + S.lastMsg, SCR_W);
 }
 
 function helpLine(mode) {
@@ -571,12 +594,18 @@ function throwLabel() {
 	return styleName(S.style) + " \x01k\x01h" + angleName(S.angle);
 }
 
+// Panel lines shared by the throw and putt panels
+function discSpecLine(d) { return "\x01n\x01k\x01h" + pad(TYPE_NAME[d.type], 9) + "\x01n" + d.n.join("/"); }
+function handLine() { return "\x01n\x01h~Hand  \x01n" + handName(S.hand) + (domHand() ? "" : " \x01h\x01r(off)"); }
+
+function showPanel(lines) { for (var i = 0; i < lines.length; i++) put(PANEL_X, PANEL_Y + i, lines[i], 20); }
+
 function panel() {
-	var d = curDisc(), dom = S.hand === player.hand, pin = pinDist();
+	var d = curDisc(), pin = pinDist();
 	var lines = [
 		"\x01n\x01h~Disc  \x01c" + d.name,
-		"\x01n\x01k\x01h" + pad(TYPE_NAME[d.type], 9) + "\x01n" + d.n.join("/"),
-		"\x01n\x01h~Hand  \x01n" + handName(S.hand) + (dom ? "" : " \x01h\x01r(off)"),
+		discSpecLine(d),
+		handLine(),
 		"\x01n\x01h~Throw \x01n" + throwLabel()
 	];
 	if (S.view === "pov" && S.pov) {
@@ -588,31 +617,30 @@ function panel() {
 		lines.push("\x01n\x01hWind  \x01n" + windText());
 		lines.push("\x01n\x01hPin \x01n" + ft(pin) + " ft " + (up ? "\x01k\x01h" + up : "\x01k\x01hAim \x01n" + ft(hyp(S.aim.x - S.lie.x, S.aim.y - S.lie.y))));
 	}
-	for (var i = 0; i < lines.length; i++) put(PANEL_X, 20 + i, lines[i], 20);
+	showPanel(lines);
 }
 
 // ---- Overhead map ----------------------------------------------------------
-function cellGlyph(c, r) {
-	var lc = cellOf(S.H, S.lie);
+// lc: the lie's cell, ac: the aim's cell (null when the aim isn't shown)
+function cellGlyph(c, r, lc, ac) {
 	if (c === lc.c && r === lc.r) return ["\xFE", 15];
-	if (S.showAim) {
-		var ac = cellOf(S.H, S.aim);
-		if (c === ac.c && r === ac.r) return S.H.grid[r][c] === "B" ? ["\xE8", 11 | 0x50] : ["+", 13];
-	}
+	if (ac && c === ac.c && r === ac.r) return S.H.grid[r][c] === "B" ? ["\xE8", 11 | 0x50] : ["+", 13];
 	return GLYPH[S.H.grid[r][c]] || [" ", 7];
 }
 
+function aimCell() { return S.showAim ? cellOf(S.H, S.aim) : null; }
+
 function drawCell(c, r) {
 	if (c < 0 || c >= MAP_W || r < 0 || r >= MAP_H) return "";
-	var g = cellGlyph(c, r);
+	var g = cellGlyph(c, r, cellOf(S.H, S.lie), aimCell());
 	return moveTo(MAP_X + c, MAP_Y + r) + text(g[0], g[1]);
 }
 
 function drawMap() {
-	var s = "";
+	var s = "", lc = cellOf(S.H, S.lie), ac = aimCell();
 	for (var r = 0; r < MAP_H; r++) {
 		s += moveTo(MAP_X, MAP_Y + r);
-		for (var c = 0; c < MAP_W; c++) { var g = cellGlyph(c, r); s += text(g[0], g[1]); }
+		for (var c = 0; c < MAP_W; c++) { var g = cellGlyph(c, r, lc, ac); s += text(g[0], g[1]); }
 	}
 	out(s);
 }
@@ -622,16 +650,23 @@ function drawMap() {
 // ground below the horizon.
 var POV = { horizon: MAP_Y + 5, fov: 70 * Math.PI / 180, camH: 1.6, f: 32, maxD: 60, clearing: 2.2 };
 
-function colAngle(i) { return S.pov.ang + (i + 0.5 - MAP_W / 2) / MAP_W * POV.fov; }
+function colOffset(i) { return (i + 0.5 - MAP_W / 2) / MAP_W * POV.fov; }   // screen column's angle off center
+function colAngle(i) { return S.pov.ang + colOffset(i); }
 
 function povHits(H, from, ang) {
-	var hit = [], tr = H.trunks;
-	for (var i = 0; i < MAP_W; i++) {
-		var a = ang + (i + 0.5 - MAP_W / 2) / MAP_W * POV.fov, ca_ = Math.cos(a), sa = Math.sin(a), best = 1e9;
-		for (var j = 0; j < tr.length; j++) {
-			var vx = tr[j].x - from.x, vy = tr[j].y - from.y, along = vx * ca_ + vy * sa;
-			if (along < 0.4 || along > POV.maxD || along > best || hyp(vx, vy) < POV.clearing) continue;
-			if (Math.abs(-vx * sa + vy * ca_) < tr[j].rad) best = along;
+	var hit = [], near = [], tr = H.trunks, reach = POV.maxD + 1, i, j;
+	// Only trunks past the clearing and close enough to be seen (a trunk this
+	// far out is beyond maxD along any ray that could touch it)
+	for (j = 0; j < tr.length; j++) {
+		var tx = tr[j].x - from.x, ty = tr[j].y - from.y, td = hyp(tx, ty);
+		if (td >= POV.clearing && td <= reach) near.push({ vx: tx, vy: ty, rad: tr[j].rad });
+	}
+	for (i = 0; i < MAP_W; i++) {
+		var a = ang + colOffset(i), ca_ = Math.cos(a), sa = Math.sin(a), best = 1e9;
+		for (j = 0; j < near.length; j++) {
+			var n = near[j], along = n.vx * ca_ + n.vy * sa;
+			if (along < 0.4 || along > POV.maxD || along > best) continue;
+			if (Math.abs(-n.vx * sa + n.vy * ca_) < n.rad) best = along;
 		}
 		hit.push(best * Math.cos(a - ang));
 	}
@@ -646,12 +681,14 @@ function drawPOV() {
 	P.bang = angDiff(Math.atan2(by, bx) - P.ang);
 	P.bcol = Math.floor(MAP_W / 2 + P.bang / POV.fov * MAP_W);
 	P.buf = [];
+	var cols = [];
+	for (i = 0; i < MAP_W; i++) cols.push(povColumn(i));
 	var s = "";
 	for (r = 0; r < MAP_H; r++) {
 		var row = MAP_Y + r, line = [];
 		s += moveTo(MAP_X, row);
 		for (i = 0; i < MAP_W; i++) {
-			var g = povCell(i, row);
+			var g = povCell(i, row, cols[i]);
 			line.push(g);
 			s += text(g[0], g[1]);
 		}
@@ -662,20 +699,30 @@ function drawPOV() {
 	basketMarker();
 }
 
-function povCell(i, row) {
+// What povCell needs for a column, worked out once per column: the ray's
+// direction and the rows of the nearest trunk's base, trunk top and crown
+function povColumn(i) {
+	var a = colAngle(i), d = S.pov.hit[i];
+	return {
+		ca: Math.cos(a), sa: Math.sin(a), off: Math.cos(a - S.pov.ang),
+		base: POV.horizon + POV.camH * POV.f / d,
+		trunkTop: POV.horizon - (2.6 - POV.camH) * POV.f / d,
+		crown: POV.horizon - (9 - POV.camH) * POV.f / d
+	};
+}
+
+function povCell(i, row, C) {
 	var H = S.H, P = S.pov, d = P.hit[i], g = [" ", 0x40];
-	var a2 = colAngle(i);
-	var base = POV.horizon + POV.camH * POV.f / d, trunkTop = POV.horizon - (2.6 - POV.camH) * POV.f / d, crown = POV.horizon - (9 - POV.camH) * POV.f / d;
 	if (row >= POV.horizon) {
-		var fd = POV.camH * POV.f / (row - POV.horizon + 0.5) / Math.cos(a2 - P.ang);
-		var t = fd > POV.maxD ? "," : tileAt(H, { x: S.lie.x + Math.cos(a2) * fd, y: S.lie.y + Math.sin(a2) * fd });
+		var fd = POV.camH * POV.f / (row - POV.horizon + 0.5) / C.off;
+		var t = fd > POV.maxD ? "," : tileAt(H, { x: S.lie.x + C.ca * fd, y: S.lie.y + C.sa * fd });
 		g = t === "." ? ["\xB1", 10] : (isOB(t) && t !== "O" ? ["\xB1", 8] : ["\xB0", 2]);
 	}
-	if (d < 1e8 && row <= base && row >= crown) {
-		if (row >= trunkTop) g = [d < 12 ? "\xDB" : (d < 28 ? "\xB2" : "\xB1"), d < 28 ? 3 : 8];
+	if (d < 1e8 && row <= C.base && row >= C.crown) {
+		if (row >= C.trunkTop) g = [d < 12 ? "\xDB" : (d < 28 ? "\xB2" : "\xB1"), d < 28 ? 3 : 8];
 		else g = [d < 20 ? "\xB2" : "\xB1", row < POV.horizon ? 2 | 0x40 : 2];
 	}
-	if (Math.abs(i - P.bcol) <= 0 && P.bd < d) {
+	if (i === P.bcol && P.bd < d) {
 		var bTop = Math.round(POV.horizon + (POV.camH - 1.35) * POV.f / P.bd), bBase = Math.round(POV.horizon + POV.camH * POV.f / P.bd);
 		if (row === bTop) g = ["\xE8", 11 | (row < POV.horizon ? 0x40 : 0)];
 		else if (row > bTop && row <= bBase) g = ["\xB3", 7 | (row < POV.horizon ? 0x40 : 0)];
@@ -724,7 +771,7 @@ function gapInfo(col) {
 }
 
 function bearingText() {
-	var P = S.pov, deg = Math.round((P.bang - (P.aimCol + 0.5 - MAP_W / 2) / MAP_W * POV.fov) * 180 / Math.PI);
+	var P = S.pov, deg = Math.round((P.bang - colOffset(P.aimCol)) * 180 / Math.PI);
 	return Math.abs(deg) < 1 ? "on your line" : Math.abs(deg) + "\xF8 " + (deg < 0 ? "left" : "right");
 }
 
@@ -744,7 +791,7 @@ function povTurn(dc) {
 	if (nc < 4 || nc > MAP_W - 5) {
 		P.ang = colAngle(nc);   // re-center the view on the new line
 		P.aimCol = MAP_W / 2 - 1;
-		P.ang -= (P.aimCol + 0.5 - MAP_W / 2) / MAP_W * POV.fov;
+		P.ang -= colOffset(P.aimCol);
 		drawPOV();
 	} else {
 		povAimOverlay(P.aimCol, false);
@@ -778,8 +825,8 @@ function drawShotScreen() {
 // points), where it ended, and what happened.
 function fly(sw) {
 	var H = S.H, d = curDisc(), n = d.n, speed = n[0], turn = n[2], fade = n[3];
-	var dom = S.hand === player.hand, hammer = S.style === "HM", pitch = S.pitch;
-	var arm = (S.style === "FH" ? ARM_FH : ARM_BH) * (dom ? 1 : OFF_HAND);
+	var dom = domHand(), hammer = S.style === "HM", pitch = S.pitch;
+	var arm = armSpeed(S.style, dom);
 	var pf = (sw.power || 0) / 100;
 	if (pitch) pf *= PITCH_POWER;
 	var cw = (S.hand === "R") === (S.style !== "FH");    // clockwise spin: fades left
@@ -811,7 +858,7 @@ function fly(sw) {
 	else if (!hammer && S.angle === "A") { effTurn -= 0.8; angTerm = -0.08; }
 
 	// Release timing: early = toward the fade side, late = toward the turn side
-	var accMul = (dom ? 1 : OFF_ACC) * (sw.over ? 1.5 : 1) * (hammer ? 1.4 : 1) * (pitch ? 0.7 : 1);
+	var accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1) * (hammer ? 1.4 : 1) * (pitch ? 0.7 : 1);
 	var err;
 	if (sw.whiff) err = (rnd() - 0.5) * 0.6;
 	else {
@@ -939,7 +986,7 @@ function throwShot() {
 	var wasPov = S.view === "pov";
 	S.showAim = false;
 	if (wasPov) { S.view = "map"; cls(); header(); drawMap(); helpLine(); drawMeter(); panel(); msg(); }
-	else out(drawCell(cellOf(H, S.aim).c, cellOf(H, S.aim).r));
+	else { var oldAim = cellOf(H, S.aim); out(drawCell(oldAim.c, oldAim.r)); }
 	var fromLie = cellOf(H, S.lie);
 	var trail = animate(res.path);
 	var start = { x: S.lie.x, y: S.lie.y };
@@ -993,7 +1040,7 @@ function throwShot() {
 function relief() {
 	var H = S.H, bx = S.lie.x - H.basket.x, by = S.lie.y - H.basket.y, L = hyp(bx, by) || 1;
 	bx /= L; by /= L;
-	var step = Math.max(0.5, H.S), maxBack = 0, back, spots = [];
+	var step = Math.max(0.5, H.S), back, spots = [];
 	for (back = 0; back < 200; back += step) {
 		var p = { x: S.lie.x + bx * back, y: S.lie.y + by * back };
 		if (!inMap(cellOf(H, p))) break;
@@ -1023,7 +1070,7 @@ function relief() {
 			"\x01n\x01hPin   \x01n" + ft(hyp(H.basket.x - sp.x, H.basket.y - sp.y)) + " ft",
 			"", ""
 		];
-		for (var j = 0; j < lines.length; j++) put(PANEL_X, 20 + j, lines[j], 20);
+		showPanel(lines);
 		status(isOB(t) ? "\x01h\x01rThat spot is out of bounds." : "Slide to a clear spot, then \x01hENTER");
 	}
 	if (spots.length < 2) { status("No room to move back here."); key(); S.view = savedView; S.showAim = true; return false; }
@@ -1052,6 +1099,10 @@ function relief() {
 var PV_BX = 66;                 // basket column in the side view
 var PV_GROUND = MAP_Y + 13;     // ground row (flat)
 var PV_SCALE = 50 / PUTT_M;     // columns per meter (side view)
+var PP_CX = 40;                 // center column of the overhead and player views
+var PP_HORIZON = MAP_Y + 5;     // horizon row in the view from the player
+var PP_AIM_ROW = MAP_Y + 14;    // aim mark / disc start row in the view from the player
+var PUTT_FRAME_MS = 45;         // putt animation frame time
 var PT = null;                  // putt state
 
 function puttCol(m) { return Math.max(MAP_X + 2, PV_BX - Math.round(m * PV_SCALE)); }
@@ -1078,7 +1129,7 @@ function sideGlyph(c, r) {
 }
 
 // Overhead putting view: the putt line runs up the screen to the basket
-var TOP = { cx: 40, cy: MAP_Y + 6, colM: 1.25, rowM: 2.5 };
+var TOP = { cx: PP_CX, cy: MAP_Y + 6, colM: 1.25, rowM: 2.5 };
 
 function topWorld(c, r) {
 	var x = (c - TOP.cx) * TOP.colM, y = (r - TOP.cy) * TOP.rowM;   // right, back toward the player
@@ -1094,8 +1145,8 @@ function topGlyph(c, r) {
 	var w = topWorld(c, r), d = hyp(w.x - S.H.basket.x, w.y - S.H.basket.y), t = tileAt(S.H, w);
 	var g = isTrees(t) ? ["\xE7", 10] : (isOB(t) && t !== "O" ? ["\xB1", 8] : (d < PUTT_M ? ["\xB1", 10] : ["\xB0", 2]));
 	if (!isTrees(t)) {
-		if (Math.abs(d - 10) < 0.8) g = ["\xFA", 15 | 0x20];
-		else if (Math.abs(d - 20) < 1.0) g = ["\xFA", 7 | 0x20];
+		if (Math.abs(d - C1_M) < 0.8) g = ["\xFA", 15 | 0x20];
+		else if (Math.abs(d - PUTT_M) < 1.0) g = ["\xFA", 7 | 0x20];
 	}
 	if (c === TOP.cx && r === TOP.cy) g = ["\xE8", 11];
 	return g;
@@ -1109,9 +1160,9 @@ function povPuttArt(d) {
 }
 
 function povPuttGlyph(c, r) {
-	var hz = MAP_Y + 5, g = r >= hz ? ((r - hz) < 3 ? ["\xB0", 2] : ["\xB1", 10]) : [" ", 0x40];
+	var hz = PP_HORIZON, g = r >= hz ? ((r - hz) < 3 ? ["\xB0", 2] : ["\xB1", 10]) : [" ", 0x40];
 	if (r < hz && ((c * 5 + r * 3) % 11 === 0 || (c > 62 && (c + r) % 3 === 0) || (c < 9 && (c + r) % 2 === 0))) g = ["\xB2", 2 | 0x40];
-	var art = PT.art, top = PT.artTop, w = art[0][0].length, left = 40 - Math.floor(w / 2);
+	var art = PT.art, top = PT.artTop, w = art[0][0].length, left = PP_CX - Math.floor(w / 2);
 	if (r >= top && r < top + art.length && c >= left && c < left + w) {
 		var ch = art[r - top][0].charAt(c - left);
 		if (ch !== " ") g = [ch, art[r - top][1] | (r < hz ? 0x40 : 0)];
@@ -1120,34 +1171,37 @@ function povPuttGlyph(c, r) {
 }
 
 function povPuttAimCol() {
-	return clamp(40 + Math.round(Math.atan2(PT.aim, PT.dist) / (POV.fov / MAP_W) * 2), MAP_X + 2, MAP_X + MAP_W - 3);
+	return clamp(PP_CX + Math.round(Math.atan2(PT.aim, PT.dist) / (POV.fov / MAP_W) * 2), MAP_X + 2, MAP_X + MAP_W - 3);
+}
+
+// Paints the whole map area; glyph(c, r) takes screen columns and rows
+function paintScene(glyph) {
+	var s = "", r, c, g;
+	for (r = MAP_Y; r < MAP_Y + MAP_H; r++) { s += moveTo(MAP_X, r); for (c = MAP_X; c < MAP_X + MAP_W; c++) { g = glyph(c, r); s += text(g[0], g[1]); } }
+	out(s);
 }
 
 function drawPuttScene() {
-	var s = "", r, c, g;
 	if (player.puttView === "top") {
-		for (r = MAP_Y; r < MAP_Y + MAP_H; r++) { s += moveTo(MAP_X, r); for (c = MAP_X; c < MAP_X + MAP_W; c++) { g = topGlyph(c, r); s += text(g[0], g[1]); } }
-		out(s);
+		paintScene(topGlyph);
 		var pc = topCell(S.lie);
 		out(moveTo(pc.c, pc.r) + text("\xFE", 15));
-		put(TOP.cx - 13, TOP.cy - 4, "\x01n\x01k\x01hC1 33 ft", 0);
-		put(TOP.cx + 19, TOP.cy + 6, "\x01n\x01k\x01hC2 66 ft", 0);
+		put(TOP.cx - 13, TOP.cy - 4, "\x01n\x01k\x01hC1 " + ft(C1_M) + " ft", 0);
+		put(TOP.cx + 19, TOP.cy + 6, "\x01n\x01k\x01hC2 " + ft(PUTT_M) + " ft", 0);
 		var ac = topCell({ x: S.H.basket.x + PT.rx * PT.aim, y: S.H.basket.y + PT.ry * PT.aim });
 		if (PT.aim) out(moveTo(ac.c, ac.r) + text("+", 13));
 	} else if (player.puttView === "pov") {
 		PT.art = povPuttArt(PT.dist);
 		PT.artTop = MAP_Y + 1 + (PT.dist < 7 ? 0 : (PT.dist < 13 ? 2 : 3)) - clamp(Math.round(PT.dz / 3), -1, 2);
-		for (r = MAP_Y; r < MAP_Y + MAP_H; r++) { s += moveTo(MAP_X, r); for (c = MAP_X; c < MAP_X + MAP_W; c++) { g = povPuttGlyph(c, r); s += text(g[0], g[1]); } }
-		out(s);
-		out(moveTo(povPuttAimCol(), MAP_Y + 14) + text("^", 13) + setAttr(7));
+		paintScene(povPuttGlyph);
+		out(moveTo(povPuttAimCol(), PP_AIM_ROW) + text("^", 13) + setAttr(7));
 	} else {
-		for (r = MAP_Y; r < MAP_Y + MAP_H; r++) { s += moveTo(MAP_X, r); for (c = MAP_X; c < MAP_X + MAP_W; c++) { g = sideGlyph(c, r); s += text(g[0], g[1]); } }
-		out(s);
-		put(puttCol(10) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC1", 0);
-		put(puttCol(20) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC2", 0);
+		paintScene(sideGlyph);
+		put(puttCol(C1_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC1", 0);
+		put(puttCol(PUTT_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC2", 0);
 		out(moveTo(PT.p0, sideGround(PT.p0) - 1) + text("\xFE", 15));
 	}
-	var circle = PT.dist <= 10 ? "inside Circle 1" : "Circle 2 - jump putt";
+	var circle = PT.dist <= C1_M ? "inside Circle 1" : "Circle 2 - jump putt";
 	var slope = elevText(PT.dz);
 	put(MAP_X + 1, MAP_Y + (player.puttView === "side" ? 1 : 15), "\x01h\x01wPUTT \x01y" + ft(PT.dist) + " ft \x01n" + circle + (slope ? "  \x01h\x01c" + slope : ""), 0, player.puttView === "side" ? 0 : 0x20);
 }
@@ -1164,16 +1218,14 @@ function aimText() {
 }
 
 function puttPanel(d) {
-	var dom = S.hand === player.hand;
-	var lines = [
+	showPanel([
 		"\x01n\x01hPutter \x01c" + d.name,
-		"\x01n\x01k\x01h" + pad(TYPE_NAME[d.type], 9) + "\x01n" + d.n.join("/"),
-		"\x01n\x01h~Hand  \x01n" + handName(S.hand) + (dom ? "" : " \x01h\x01r(off)"),
+		discSpecLine(d),
+		handLine(),
 		"\x01n\x01hAim   \x01n" + aimText(),
 		"\x01n\x01k\x01h" + puttWindText(),
 		"\x01n\x01h~View  \x01n" + (player.puttView === "top" ? "overhead" : (player.puttView === "pov" ? "from player" : "side"))
-	];
-	for (var i = 0; i < lines.length; i++) put(PANEL_X, 20 + i, lines[i], 20);
+	]);
 }
 
 // Putting meter ticks every 10 ft; full power (66 ft) at the white mark
@@ -1203,27 +1255,31 @@ function puttFlight(made, along, lat) {
 		var a = topCell(S.lie), b = made ? { c: TOP.cx, r: TOP.cy } : topCell({ x: S.H.basket.x + PT.bx * along + PT.rx * lat, y: S.H.basket.y + PT.by * along + PT.ry * lat });
 		for (i = 1; i <= n; i++) {
 			c = Math.round(a.c + (b.c - a.c) * i / n); r = Math.round(a.r + (b.r - a.r) * i / n);
-			var sb = prev ? moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) : moveTo(a.c, a.r) + text(topGlyph(a.c, a.r)[0], topGlyph(a.c, a.r)[1]);
+			var sb = "";
+			if (prev) sb = moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]);
+			else { g = topGlyph(a.c, a.r); sb = moveTo(a.c, a.r) + text(g[0], g[1]); }
 			prev = { c: c, r: r, g: topGlyph(c, r) };
 			out(sb + moveTo(c, r) + text("\xFE", 15));
-			mswait(45);
+			mswait(PUTT_FRAME_MS);
 		}
 		return;
 	}
 	if (player.puttView === "pov") {
-		var c0 = povPuttAimCol(), r0 = MAP_Y + 14, c1 = made ? 40 : clamp(40 + Math.round(lat * 4), MAP_X + 1, MAP_X + MAP_W - 2);
+		var c0 = povPuttAimCol(), r0 = PP_AIM_ROW, c1 = made ? PP_CX : clamp(PP_CX + Math.round(lat * 4), MAP_X + 1, MAP_X + MAP_W - 2);
 		var r1 = made ? PT.artTop + 2 : clamp(PT.artTop + PT.art.length + Math.round(along * 0.6), MAP_Y + 6, MAP_Y + 14);
 		for (i = 1; i <= n; i++) {
 			c = Math.round(c0 + (c1 - c0) * i / n); r = Math.round(r0 + (r1 - r0) * i / n - Math.sin(i / n * Math.PI) * 2);
 			var sb2 = prev ? moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) : "";
 			prev = { c: c, r: r, g: povPuttGlyph(c, r) };
-			out(sb2 + moveTo(c, r) + text("\xFE", 15 | (r < MAP_Y + 5 ? 0x40 : 0)));
-			mswait(45);
+			out(sb2 + moveTo(c, r) + text("\xFE", 15 | (r < PP_HORIZON ? 0x40 : 0)));
+			mswait(PUTT_FRAME_MS);
 		}
 		return;
 	}
 	var cA = PT.p0, cB = made ? PV_BX : (along >= 0 ? puttCol(along) : Math.min(MAP_X + MAP_W - 2, PV_BX + Math.round(-along * PV_SCALE)));
-	out(moveTo(cA, sideGround(cA) - 1) + text(sideGlyph(cA, sideGround(cA) - 1)[0], sideGlyph(cA, sideGround(cA) - 1)[1]));
+	var rA = sideGround(cA) - 1;
+	g = sideGlyph(cA, rA);
+	out(moveTo(cA, rA) + text(g[0], g[1]));
 	for (i = 1; i <= n; i++) {
 		var u = i / n; c = Math.round(cA + (cB - cA) * u);
 		var gnd = sideGround(c) - 1, chain = MAP_Y + 5 - PT.rise;
@@ -1231,7 +1287,7 @@ function puttFlight(made, along, lat) {
 		var sb3 = prev ? moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) : "";
 		prev = { c: c, r: r, g: sideGlyph(c, r) };
 		out(sb3 + moveTo(c, r) + text("\xFE", 15));
-		mswait(45);
+		mswait(PUTT_FRAME_MS);
 	}
 	if (made) out(moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) + moveTo(PV_BX, MAP_Y + 7 - PT.rise) + text("\xFE", 15));
 }
@@ -1262,8 +1318,8 @@ function putt() {
 	status("\x01hSPACE\x01n to start your putt");
 	for (;;) {
 		var k = key(), ku = k.toUpperCase();
-		if (ku === "H") { S.hand = S.hand === "R" ? "L" : "R"; puttPanel(d); continue; }
-		if (ku === "V") { player.puttView = player.puttView === "side" ? "top" : (player.puttView === "top" ? "pov" : "side"); drawPuttScreen(); status("\x01hSPACE\x01n to start your putt"); continue; }
+		if (ku === "H") { S.hand = cycle(HANDS, S.hand); puttPanel(d); continue; }
+		if (ku === "V") { player.puttView = cycle(PUTT_VIEWS, player.puttView); drawPuttScreen(); status("\x01hSPACE\x01n to start your putt"); continue; }
 		if (ku === "S") { scorecard(S.H.num - 1, false); drawPuttScreen(); status("\x01hSPACE\x01n to start your putt"); continue; }
 		if (isLeft(k) || isRight(k)) {
 			PT.aim = clamp(PT.aim + (isLeft(k) ? -0.15 : 0.15), -3, 3);
@@ -1271,17 +1327,12 @@ function putt() {
 			if (player.puttView !== "side") { drawPuttScene(); }
 			continue;
 		}
-		if (ku === "Q") {
-			status("Quit this round? \x01hY\x01n/N");
-			if (key().toUpperCase() === "Y") return null;
-			status("\x01hSPACE\x01n to start your putt");
-			continue;
-		}
+		if (ku === "Q") { if (confirmQuit("\x01hSPACE\x01n to start your putt")) return null; continue; }
 		if (k === " ") break;
 	}
 	var sw = swingMeter(R.lag);
 	S.strokes++;
-	var dom = S.hand === player.hand, accMul = (dom ? 1 : OFF_ACC) * (sw.over ? 1.5 : 1);
+	var dom = domHand(), accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1);
 	var need = PT.dist + PT.dz / FT;                          // uphill plays longer
 	var thrown = (sw.power / 100) * PUTT_M * (sw.whiff ? 0.6 : 1);
 	var over = thrown - need;
@@ -1325,7 +1376,7 @@ function playHole(idx) {
 	};
 	PT = null;
 	caddiePick();
-	msg_set("\x01n" + H.def.note);
+	S.lastMsg = "\x01n" + H.def.note;
 	var needDraw = true;
 
 	for (;;) {
@@ -1356,9 +1407,9 @@ function playHole(idx) {
 		}
 		if (ku >= "1" && ku <= "9" && Number(ku) <= bagDiscs().length) S.disc = Number(ku) - 1;
 		else if (ku === "D") S.disc = (S.disc + 1) % bagDiscs().length;
-		else if (ku === "T") S.style = S.style === "BH" ? "FH" : (S.style === "FH" ? "HM" : "BH");
-		else if (ku === "H") S.hand = S.hand === "R" ? "L" : "R";
-		else if (ku === "A") S.angle = S.angle === "F" ? "H" : (S.angle === "H" ? "A" : "F");
+		else if (ku === "T") S.style = cycle(STYLES, S.style);
+		else if (ku === "H") S.hand = cycle(HANDS, S.hand);
+		else if (ku === "A") S.angle = cycle(ANGLES, S.angle);
 		else if (ku === "P") S.pitch = !S.pitch;
 		else if (ku === "V") {
 			if (S.view === "pov") { S.view = "map"; povSetAim(); }
@@ -1368,12 +1419,7 @@ function playHole(idx) {
 		}
 		else if (ku === "R") { relief(); needDraw = true; continue; }
 		else if (ku === "S") { scorecard(idx, false); needDraw = true; continue; }
-		else if (ku === "Q") {
-			status("Quit this round? \x01hY\x01n/N");
-			if (key().toUpperCase() === "Y") return null;
-			status("\x01hSPACE\x01n to throw");
-			continue;
-		}
+		else if (ku === "Q") { if (confirmQuit("\x01hSPACE\x01n to throw")) return null; continue; }
 		else if (S.view === "pov" && (isLeft(k) || isRight(k))) { povTurn(isLeft(k) ? -1 : 1); panel(); continue; }
 		else if (S.view !== "pov" && (isLeft(k) || isRight(k) || isUp(k) || isDown(k))) {
 			if (isLeft(k)) S.aim.x -= H.S;
@@ -1390,7 +1436,13 @@ function playHole(idx) {
 	}
 }
 
-function msg_set(m) { S.lastMsg = m; }
+// Asks before quitting the round. If not, puts the status line back to back.
+function confirmQuit(back) {
+	status("Quit this round? \x01hY\x01n/N");
+	if (key().toUpperCase() === "Y") return true;
+	status(back);
+	return false;
+}
 
 // ---- Scorecard ----------------------------------------------------------------
 function scorecard(cur, final) {
@@ -1423,10 +1475,8 @@ function scorecard(cur, final) {
 		line += "  " + blank(5 - tv.length) + tv;
 		put(3, 6 + r * 2, line, 77);
 	}
-	var played = 0, ppar = 0;
-	for (i = 0; i < n; i++) if (R.strokes[i]) { played += R.strokes[i]; ppar += R.holes[i].par; }
-	var rel = played - ppar;
-	put(3, 15, "\x01h\x01wTo par: " + (played ? (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)) : "E"), 60);
+	var rel = roundToPar();
+	put(3, 15, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)), 60);
 	waitKey(final ? "Press any key to return to the clubhouse" : "Press any key to keep playing");
 }
 
@@ -1485,7 +1535,7 @@ function titleScreen() {
 	put(17, 9, "\x01nA 3-click swing meter disc golf door");
 	put(17, 11, "\x01hCourse  \x01n" + COURSES[0].name + " \x01k\x01h- " + COURSES[0].where);
 	put(17, 12, "\x01hPlayer  \x01n" + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower");
-	var items = ["~Play " + COURSES[0].name + " (9 holes)", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
+	var items = ["~Play " + COURSES[0].name + " (" + COURSES[0].holes.length + " holes)", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
 	for (var i = 0; i < items.length; i++) put(19, 14 + i, "\x01n" + items[i]);
 	put(19, 20, "\x01n\x01k\x01hChoose: ");
 	return key().toUpperCase();
@@ -1497,7 +1547,7 @@ function setup(first) {
 	if (first) put(3, 3, "\x01n\x01k\x01hA few questions before you head to the first tee.");
 	put(3, 5, "\x01nWhich hand do you throw with?   ~Right   ~Left");
 	for (;;) { var k = key().toUpperCase(); if (k === "R" || k === "L") { player.hand = k; break; } if (k === "\r" && !first) break; }
-	put(3, 6, "\x01h\x01c  " + handName(player.hand) + "-handed.\x01n \x01k\x01hYour other hand has about 70% of the power, less accuracy.", 76);
+	put(3, 6, "\x01h\x01c  " + handName(player.hand) + "-handed.\x01n \x01k\x01hYour other hand has about " + Math.round(OFF_HAND * 100) + "% of the power, less accuracy.", 76);
 	put(3, 8, "\x01nYour usual throw?   ~Backhand   ~Forehand (sidearm)");
 	for (;;) { var k2 = key().toUpperCase(); if (k2 === "B" || k2 === "F") { player.style = k2 === "B" ? "BH" : "FH"; break; } if (k2 === "\r" && !first) break; }
 	put(3, 9, "\x01h\x01c  " + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/hammer.", 76);
@@ -1531,6 +1581,7 @@ function bagScreen() {
 			var nm = DISCS[sel].name, at = player.bag.indexOf(nm);
 			if (at >= 0) { if (player.bag.length > 1) player.bag.splice(at, 1); }
 			else if (player.bag.length < BAG_MAX) player.bag.push(nm);
+			bagChanged();
 		}
 		else if (ku === "Q" || k === "\x1b") return;
 	}
@@ -1554,7 +1605,7 @@ function howTo() {
 		"            safe throw back to the fairway. ~Relief (PDGA optional relief):",
 		"            +1 throw, move back along the line from the basket.",
 		"\x01h\x01cView\x01n        ~V switches between the map and the view from your lie.",
-		"\x01h\x01cPutting\x01n     Inside 66 ft you putt. ~V cycles side, overhead and from-the-",
+		"\x01h\x01cPutting\x01n     Inside " + ft(PUTT_M) + " ft you putt. ~V cycles side, overhead and from-the-",
 		"            player views. Left/Right aims off the basket to play the wind.",
 		"            The meter is marked in feet; the small \x01h\x01y\xE8\x01n on it is the basket.",
 		"\x01h\x01cHills\x01n       Downhill throws fly farther; uphill putts need more power.",

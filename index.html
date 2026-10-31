@@ -12,7 +12,7 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; }
 [hidden] { display: none !important; }
-/* Layout: caller's 80x25 screen on the left; the door script, the connection and live readouts on the right; key log below. Single dark look: it's a terminal. */
+/* Layout: caller's 80x25 screen on the left; the door script, the connection and live readouts on the right; controls below. Single dark look: it's a terminal. */
 :root {
   color-scheme: dark;
   --bg: #0c0e13;
@@ -56,12 +56,11 @@ code { font-family: var(--mono); font-size: 12px; color: var(--fg); }
   background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.22) 3px, rgba(0,0,0,0) 4px); }
 .under { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .under p { margin: 0; color: var(--muted); font-size: 13px; flex: 1 1 240px; min-width: 0; }
-.keys { display: flex; gap: 6px; flex-wrap: wrap; }
+.keys { display: flex; gap: 6px; flex-wrap: wrap; position: relative; }
 .key { font-family: var(--display); font-size: 26px; line-height: 1; padding: 10px 14px; min-width: 44px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .key.big { padding: 10px 36px; color: var(--accent); border-color: var(--accent); }
 /* Typing any key on a phone: the abc button focuses this input so the phone's own keyboard comes up.
    It stays in the layout (a hidden input can't take focus), just invisible; 16px stops iOS zooming in. */
-.keys { position: relative; }
 .kb-in { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; font-size: 16px; }
 #kbBtn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 /* While the phone keyboard is up, it does the typing: hide the other on-screen keys so the
@@ -73,7 +72,7 @@ body.kb-open #kbBtn { font-size: 20px; }
 
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .box { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.box h2, .log h2 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.box h2 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .script { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .script b { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--accent); overflow-wrap: anywhere; }
 .script span { font-size: 12px; color: var(--muted); }
@@ -101,14 +100,7 @@ body.kb-open #kbBtn { font-size: 20px; }
 .readouts { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: 13px; }
 .readouts dt { color: var(--muted); }
 .readouts dd { margin: 0; font-family: var(--mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
-
-.log { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.tablewrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-td { padding: 6px 10px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
-td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
-.c-good { color: var(--good); } .c-warn { color: var(--warn); } .c-bad { color: var(--bad); }
+.c-warn { color: var(--warn); } .c-bad { color: var(--bad); }
 
 .notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
@@ -309,76 +301,89 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
   const CP = {};
   for (let i = 0; i < 128; i++) CP[String.fromCharCode(128 + i)] = CP437_HI[i];
   const SH = { "░": 1, "▒": 2, "▓": 3 };
+  // Only cells that changed since the last frame are redrawn. Each cell is drawn entirely inside
+  // its own box (text glyphs are clipped to it), so a cell's pixels never depend on its neighbours
+  // and redrawing some cells gives the same picture as redrawing them all.
+  const shownCh = new Array(COLS * ROWS).fill(null), shownAt = new Uint8Array(COLS * ROWS);
+  let redrawAll = true, shownCursor = -1;
+  function drawCell(i) {
+    const a = attrs[i], px = (i % COLS) * CW, py = Math.floor(i / COLS) * CH;
+    ctx.fillStyle = PAL[(a >> 4) & 7]; ctx.fillRect(px, py, CW, CH);
+    let ch = chars[i];
+    if (ch === " ") return;
+    ch = CP[ch] || ch;
+    const col = PAL[a & 15];
+    if (ch === "█") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH); }
+    else if (ch === "▄") { ctx.fillStyle = col; ctx.fillRect(px, py + CH / 2, CW, CH / 2); }
+    else if (ch === "▀") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH / 2); }
+    else if (ch === "▌") { ctx.fillStyle = col; ctx.fillRect(px, py, CW / 2, CH); }
+    else if (ch === "▐") { ctx.fillStyle = col; ctx.fillRect(px + CW / 2, py, CW / 2, CH); }
+    else if (SH[ch]) { ctx.fillStyle = shade(col, SH[ch]); ctx.fillRect(px, py, CW, CH); }
+    else {
+      ctx.fillStyle = col;
+      ctx.save(); ctx.beginPath(); ctx.rect(px, py, CW, CH); ctx.clip();
+      ctx.fillText(ch, px + CW / 2, py + CH * 0.78);
+      ctx.restore();
+    }
+    if (a & 0x80) { ctx.fillStyle = col; ctx.fillRect(px + 1, py + CH - 5, CW - 2, 3); }
+  }
   function render() {
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.font = CH + 'px "VT323", "Courier New", monospace';
     ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-      const i = y * COLS + x, a = attrs[i], px = x * CW, py = y * CH;
-      const bg = (a >> 4) & 7;
-      if (bg) { ctx.fillStyle = PAL[bg]; ctx.fillRect(px, py, CW, CH); }
-      let ch = chars[i];
-      if (ch === " ") continue;
-      ch = CP[ch] || ch;
-      const col = PAL[a & 15];
-      if (ch === "█") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH); }
-      else if (ch === "▄") { ctx.fillStyle = col; ctx.fillRect(px, py + CH / 2, CW, CH / 2); }
-      else if (ch === "▀") { ctx.fillStyle = col; ctx.fillRect(px, py, CW, CH / 2); }
-      else if (ch === "▌") { ctx.fillStyle = col; ctx.fillRect(px, py, CW / 2, CH); }
-      else if (ch === "▐") { ctx.fillStyle = col; ctx.fillRect(px + CW / 2, py, CW / 2, CH); }
-      else if (SH[ch]) { ctx.fillStyle = shade(col, SH[ch]); ctx.fillRect(px, py, CW, CH); }
-      else { ctx.fillStyle = col; ctx.fillText(ch, px + CW / 2, py + CH * 0.78); }
-      if (a & 0x80) { ctx.fillStyle = col; ctx.fillRect(px + 1, py + CH - 5, CW - 2, 3); }
+    const cur = T.cursor && T.blink ? T.y * COLS + T.x : -1;
+    for (let i = 0; i < COLS * ROWS; i++) {
+      if (redrawAll || chars[i] !== shownCh[i] || attrs[i] !== shownAt[i] || i === cur || i === shownCursor) {
+        drawCell(i);
+        shownCh[i] = chars[i]; shownAt[i] = attrs[i];
+      }
     }
-    if (T.cursor && T.blink) { ctx.fillStyle = PAL[7]; ctx.fillRect(T.x * CW, T.y * CH + CH - 6, CW, 4); }
+    redrawAll = false;
+    if (cur >= 0) { ctx.fillStyle = PAL[7]; ctx.fillRect(T.x * CW, T.y * CH + CH - 6, CW, 4); }
+    shownCursor = cur;
   }
 
   // ---------- The wire ----------
   let dq = [];
-  const L = { freeAt: 0, lastArrive: 0, ackAt: 0, held: [], heldTimer: 0, inFree: 0, inLast: 0 };
+  const freshLink = () => ({ freeAt: 0, lastArrive: 0, ackAt: 0, held: [], heldTimer: 0, inFree: 0, inLast: 0 });
+  const L = freshLink();
   const bytesLog = [], updLog = [];
   const cps = () => (S.baud ? S.baud / 10 : 0);
   const oneWay = () => S.rtt / 2 + Math.random() * S.jitter;
 
-  function transmit(chunks) {
+  // When bytes sent at time now arrive at the far end. free/last name the L fields for this
+  // direction: when the line is next free, and when the last data arrived (TCP keeps order).
+  function arrival(now, bytes, free, last) {
     const c = cps();
-    for (const s of chunks) {
-      const now = performance.now();
-      const start = Math.max(now, L.freeAt);
-      const done = c ? start + (s.length / c) * 1000 : start;
-      L.freeAt = done;
-      const at = Math.max(done + oneWay(), L.lastArrive); // TCP keeps order
-      L.lastArrive = at;
-      dq.push({ at, s });
-    }
+    const start = Math.max(now, L[free]);
+    const done = c ? start + (bytes / c) * 1000 : start;
+    L[free] = done;
+    const at = Math.max(done + oneWay(), L[last]);
+    L[last] = at;
+    return at;
   }
+  function transmit(s) { dq.push({ at: arrival(performance.now(), s.length, "freeAt", "lastArrive"), s }); }
   function flushHeld() {
     L.heldTimer = 0;
     if (!L.held.length) return;
     const s = L.held.join(""); L.held = [];
-    transmit([s]);
+    transmit(s);
     L.ackAt = performance.now() + S.rtt + 40; // + delayed ACK
   }
   function send(s) {
     if (!s) return;
     bytesLog.push([performance.now(), s.length]);
-    if (!S.nagle) { transmit([s]); return; }
+    if (!S.nagle) { transmit(s); return; }
     const now = performance.now();
     if (now < L.ackAt) {
       L.held.push(s);
       if (!L.heldTimer) L.heldTimer = setTimeout(flushHeld, L.ackAt - now);
       return;
     }
-    transmit([s]);
+    transmit(s);
     L.ackAt = now + S.rtt + 40;
   }
   function sendInput(item, bytes) {
-    const now = performance.now(), c = cps();
-    const start = Math.max(now, L.inFree);
-    const done = c ? start + (bytes / c) * 1000 : start;
-    L.inFree = done;
-    const at = Math.max(done + oneWay(), L.inLast);
-    L.inLast = at;
+    const now = performance.now(), at = arrival(now, bytes, "inFree", "inLast");
     const sid = sess.id;
     setTimeout(() => { if (sess.id === sid && sess.env) sess.env.deliver(item); }, at - now);
   }
@@ -504,9 +509,16 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
       },
       async getnum(max) { const s = await con.getstr(String(max || 0).length || 5, K.K_NUMBER); const n = parseInt(s, 10); return isNaN(n) ? -1 : n; },
       async pause() { print("\x01n\x01h[Hit a key]"); await wait("keys", "waiter", null); out("\r\x1b[K"); },
-      async yesno(q) { print("\x01n\x01h" + q + "? [Y/n] "); for (;;) { const m = await wait("keys", "waiter", null); const k = m.ch.toUpperCase(); if (k === "Y" || k === "\r") { out("Yes\r\n"); return true; } if (k === "N") { out("No\r\n"); return false; } } },
-      async noyes(q) { print("\x01n\x01h" + q + "? [y/N] "); for (;;) { const m = await wait("keys", "waiter", null); const k = m.ch.toUpperCase(); if (k === "N" || k === "\r") { out("No\r\n"); return true; } if (k === "Y") { out("Yes\r\n"); return false; } } }
+      yesno: async (q) => ask(q, "Y"), noyes: async (q) => ask(q, "N")
     };
+    // yesno/noyes: def is the answer ENTER gives; true when the answer is def
+    async function ask(q, def) {
+      print("\x01n\x01h" + q + (def === "Y" ? "? [Y/n] " : "? [y/N] "));
+      for (;;) {
+        const m = await wait("keys", "waiter", null), k = m.ch === "\r" ? def : m.ch.toUpperCase();
+        if (k === "Y" || k === "N") { out(k === "Y" ? "Yes\r\n" : "No\r\n"); return k === def; }
+      }
+    }
     const bbs = { get online() { return !st.dead; }, sys_status: 0, node_num: 1, get time_left() { return 3600; }, nodesync() {}, log_str() {} };
     const system = { get timer() { return performance.now() / 1000; }, name: "Emulator BBS", operator: "Sysop", node_list: [], get secondary_timer() { return performance.now() / 1000; } };
     const user = { alias: "Tester", name: "Test Caller", number: 1, handle: "Tester", security: { level: 50 }, settings: 0 };
@@ -516,7 +528,6 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
       st,
       deliver(item) {
         if (item.reply) { st.replies.push(item.reply); if (st.rwaiter) st.rwaiter(); return; }
-        logKey(item, performance.now() - item.t0);
         st.keys.push(item); if (st.waiter) st.waiter();
       },
       kill() { st.dead = true; if (st.waiter) st.waiter(); if (st.rwaiter) st.rwaiter(); },
@@ -525,7 +536,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
         console: con, bbs, system, user, js, argv: [], client: { protocol: "Telnet", socket: {} }, server: { version: "emulated" },
         format: cfmt, printf: (...a) => print(cfmt(...a)), print: (s) => print(String(s) + "\r\n"), write: (s) => print(s), writeln: (s) => print((s == null ? "" : s) + "\r\n"),
         log: (...a) => window.console.log("[door]", ...a), alert: (s) => print("\x01n\x01h\x01r" + s + "\x01n\r\n"),
-        mswait: (ms) => sleep(ms), sleep: (ms) => sleep(ms),
+        mswait: async (ms) => sleep(ms), sleep: async (ms) => sleep(ms),
         require: () => ({}), load: () => ({}), exit: () => { throw EXIT; },
         ascii: (v) => (typeof v === "number" ? String.fromCharCode(v) : String(v).charCodeAt(0)),
         strip_ctrl: stripCtrlA, truncsp: (s) => String(s).replace(/\s+$/, ""), random: (n) => Math.floor(Math.random() * n),
@@ -535,36 +546,185 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
   }
 
   // ---------- Make the synchronous door script awaitable ----------
-  // Every function in the script becomes async and every call is awaited, so console.getkey()
-  // and friends can wait for the caller's key wherever they appear. Array and string methods
-  // that take a callback (forEach, map, filter, sort, reduce, replace...) are routed through
-  // __cb, which runs the callback one item at a time and waits for it.
+  // Door scripts call console.getkey(), mswait() and friends as if they block. Here those wait,
+  // so every function that can reach one of them becomes async and every call that can reach
+  // one is awaited. Functions that can't stay ordinary synchronous functions, which keeps the
+  // drawing and maths code (most of a door) at full speed.
+  // Array and string methods that take a callback (forEach, map, sort, replace...) are routed
+  // through __cb when the callback might wait; __cb runs it one item at a time.
   // Constructors, getters and setters stay synchronous because JavaScript requires it.
   const CB_METHODS = new Set(["forEach", "map", "filter", "some", "every", "find", "findIndex", "findLast", "findLastIndex",
     "reduce", "reduceRight", "flatMap", "sort", "replace", "replaceAll"]);
-  function transform(src) {
+  // The runtime calls that wait: global functions and console methods. compile() reads the real
+  // list from the runtime (its async functions); this is the same list for use without one.
+  const WAITS = { globals: new Set(["mswait", "sleep"]),
+    methods: new Set(["getkey", "inkey", "getxy", "getstr", "getnum", "pause", "yesno", "noyes"]) };
+  function transform(src, waits) {
+    waits = waits || WAITS;
     src = src.replace(/^#!.*/, "");
     const ast = acorn.parse(src, { ecmaVersion: 2020, sourceType: "script", allowReturnOutsideFunction: true, locations: true });
     const ed = [];
     const isFn = (n) => n && (n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression" || n.type === "FunctionDeclaration");
     const ctors = new Set();
-    (function scan(n) {
+    // Calls to the standard Math functions run without await (they're hot in door loops), but only
+    // if the script uses Math purely as Math.name: never declares, reassigns, passes or patches it.
+    let mathPlain = true;
+    const WRITES = { AssignmentExpression: "left", UpdateExpression: "argument", ForInStatement: "left", ForOfStatement: "left",
+      ArrayPattern: "elements", AssignmentPattern: "left", RestElement: "argument", Property: "value" };
+    (function scan(n, parent, key) {
       if (!n || typeof n.type !== "string") return;
       if (n.type === "NewExpression" && n.callee.type === "Identifier") ctors.add(n.callee.name);
-      for (const k in n) { if (k === "loc") continue; const v = n[k]; if (Array.isArray(v)) v.forEach(scan); else if (v && typeof v.type === "string") scan(v); }
-    })(ast);
-    function walk(node, ctx) {
-      if (!node || typeof node.type !== "string") return;
-      if (node.type === "FunctionDeclaration" && node.id && ctors.has(node.id.name)) node._sync = true;
-      if (node.type === "VariableDeclarator" && node.id.type === "Identifier" && ctors.has(node.id.name) && isFn(node.init)) node.init._sync = true;
-      if (node.type === "AssignmentExpression" && node.left.type === "Identifier" && ctors.has(node.left.name) && isFn(node.right)) node.right._sync = true;
-      if (node.type === "Property" && (node.kind === "get" || node.kind === "set") && isFn(node.value)) node.value._sync = true;
-      if (node.type === "MethodDefinition" && node.kind !== "method" && isFn(node.value)) node.value._sync = true;
-      if (isFn(node)) {
-        if (node._sync || node.generator) ctx = false;
-        else { if (!node.async) ed.push({ pos: node.start, text: "async ", open: true, span: node.end - node.start }); ctx = true; }
+      if (n.type === "WithStatement") mathPlain = false;
+      if (n.type === "Identifier" && n.name === "Math" && !(parent && parent.type === "MemberExpression" && key === "object")) mathPlain = false;
+      if (n.type === "MemberExpression" && n.object.type === "Identifier" && n.object.name === "Math" && parent &&
+          (WRITES[parent.type] === key || (parent.type === "UnaryExpression" && parent.operator === "delete"))) mathPlain = false;
+      for (const k in n) {
+        if (k === "loc") continue;
+        const v = n[k];
+        if (Array.isArray(v)) v.forEach((ch) => scan(ch, n, k)); else if (v && typeof v.type === "string") scan(v, n, k);
       }
-      if (node.type === "CallExpression" && ctx && node.callee.type !== "Super") {
+    })(ast, null, null);
+    const MATH_SYNC = new Set(["abs", "acos", "asin", "atan", "atan2", "cbrt", "ceil", "cos", "exp", "floor", "hypot",
+      "log", "log10", "log2", "max", "min", "pow", "random", "round", "sign", "sin", "sqrt", "tan", "trunc"]);
+    const isMathCall = (node) => {
+      const c = node.callee;
+      return mathPlain && !node.optional && c.type === "MemberExpression" && !c.computed && !c.optional &&
+        c.object.type === "Identifier" && c.object.name === "Math" && c.property.type === "Identifier" && MATH_SYNC.has(c.property.name);
+    };
+
+    // ---- Which functions can wait ----
+    // A call to a function declared once, at the top of the script or of a function body, and
+    // never reassigned, can only land on that function, so it waits only if that function does.
+    // Any other call (a method, a callback, a function held in a variable) could land on any
+    // function that's used as a value, so it waits if any of those functions waits. Calls to the
+    // runtime's waiting functions always wait. Anything that could hide one of those calls from
+    // this (eval, with, arguments.callee, keeping console.getkey or mswait in a variable)
+    // makes every function async and every call awaited, as if there were no analysis.
+    const fns = [], calls = [], counts = new Map(), funcDecls = new Map(), written = new Set(), valueRefs = new Set();
+    let unsafe = false, aliasRisk = false;
+    const count = (name) => counts.set(name, (counts.get(name) || 0) + 1);
+    const isCallee = (parent, key) => parent && parent.type === "CallExpression" && key === "callee";
+    function bind(p, owner, assigning) {   // the names a declaration (or assignment) pattern binds
+      if (!p) return;
+      if (p.type === "Identifier") { if (assigning) written.add(p.name); else count(p.name); }
+      else if (p.type === "ObjectPattern") {
+        for (const q of p.properties) {
+          if (q.type === "RestElement") bind(q.argument, owner, assigning);
+          else { if (q.computed) visit(q.key, q, "key", owner); bind(q.value, owner, assigning); }
+        }
+      }
+      else if (p.type === "ArrayPattern") for (const q of p.elements) bind(q, owner, assigning);
+      else if (p.type === "RestElement") bind(p.argument, owner, assigning);
+      else if (p.type === "AssignmentPattern") { bind(p.left, owner, assigning); visit(p.right, p, "right", owner); }
+      else visit(p, null, null, owner);   // a member expression target: an ordinary reference
+    }
+    function visit(n, parent, key, owner) {
+      if (!n || typeof n.type !== "string") return;
+      // what JavaScript requires to stay synchronous
+      if (n.type === "FunctionDeclaration" && n.id && ctors.has(n.id.name)) n._sync = true;
+      if (n.type === "VariableDeclarator" && n.id.type === "Identifier" && ctors.has(n.id.name) && isFn(n.init)) n.init._sync = true;
+      if (n.type === "AssignmentExpression" && n.left.type === "Identifier" && ctors.has(n.left.name) && isFn(n.right)) n.right._sync = true;
+      if (n.type === "Property" && (n.kind === "get" || n.kind === "set") && isFn(n.value)) n.value._sync = true;
+      if (n.type === "MethodDefinition" && n.kind !== "method" && isFn(n.value)) n.value._sync = true;
+      switch (n.type) {
+        case "WithStatement": unsafe = true; break;
+        case "Identifier":
+          if (n.name === "eval") unsafe = true;
+          if (isCallee(parent, key)) return;   // sorted out with the call
+          valueRefs.add(n.name);
+          if (n.name === "console" && !(parent && parent.type === "MemberExpression" && key === "object" && !parent.computed)) aliasRisk = true;
+          if (waits.globals.has(n.name)) aliasRisk = true;
+          return;
+        case "MemberExpression":
+          if (!n.computed && n.property.type === "Identifier") {
+            const p = n.property.name;
+            if (p === "callee" || p === "caller") unsafe = true;
+            if (waits.methods.has(p) && !isCallee(parent, key)) aliasRisk = true;
+          } else if (n.computed && n.property.type === "Literal" &&
+                     (n.property.value === "callee" || n.property.value === "caller" || waits.methods.has(n.property.value))) unsafe = true;
+          visit(n.object, n, "object", owner);
+          if (n.computed) visit(n.property, n, "property", owner);
+          return;
+        case "Property": case "MethodDefinition": case "PropertyDefinition":
+          // method shorthand, m() {}: "async" goes before the name, not before the "("
+          if (isFn(n.value) && (n.type === "MethodDefinition" ? n.kind === "method" : n.method))
+            n.value._asyncAt = n.computed ? src.lastIndexOf("[", n.key.start) : n.key.start;
+          if (n.computed) visit(n.key, n, "key", owner);
+          visit(n.value, n, "value", owner);
+          return;
+        case "LabeledStatement": visit(n.body, n, "body", owner); return;
+        case "BreakStatement": case "ContinueStatement": case "MetaProperty": return;
+        case "VariableDeclarator": bind(n.id, owner, false); visit(n.init, n, "init", owner); return;
+        case "CatchClause": bind(n.param, owner, false); visit(n.body, n, "body", owner); return;
+        case "ClassDeclaration": case "ClassExpression":
+          if (n.id) count(n.id.name);
+          visit(n.superClass, n, "superClass", owner); visit(n.body, n, "body", owner);
+          return;
+        case "AssignmentExpression": bind(n.left, owner, true); visit(n.right, n, "right", owner); return;
+        case "UpdateExpression": bind(n.argument, owner, true); return;
+        case "ForInStatement": case "ForOfStatement":
+          if (n.left.type === "VariableDeclaration") visit(n.left, n, "left", owner); else bind(n.left, owner, true);
+          visit(n.right, n, "right", owner); visit(n.body, n, "body", owner);
+          return;
+        case "CallExpression": calls.push({ node: n, owner }); break;
+      }
+      if (isFn(n)) {
+        fns.push(n);
+        n._calls = [];
+        n._escaped = !(isCallee(parent, key) && n.type !== "FunctionDeclaration");   // declarations: settled below
+        if (n.id) count(n.id.name);
+        if (n.type === "FunctionDeclaration" && n.id) {
+          const top = parent && (parent.type === "Program" || (parent.type === "BlockStatement" && parent._fnBody));
+          funcDecls.set(n.id.name, funcDecls.has(n.id.name) || !top ? null : n);
+        }
+        for (const p of n.params) bind(p, n, false);
+        if (n.body.type === "BlockStatement") n.body._fnBody = true;
+        visit(n.body, n, "body", n);
+        return;
+      }
+      for (const k in n) {
+        if (k === "type" || k === "start" || k === "end" || k === "loc" || k[0] === "_") continue;
+        const v = n[k];
+        if (Array.isArray(v)) v.forEach((ch) => visit(ch, n, k, owner));
+        else if (v && typeof v.type === "string") visit(v, n, k, owner);
+      }
+    }
+    visit(ast, null, null, null);
+    if (unsafe) mathPlain = false;
+    const direct = (name) => {
+      const f = funcDecls.get(name);
+      return f && counts.get(name) === 1 && !written.has(name) ? f : null;
+    };
+    for (const f of fns) if (f.type === "FunctionDeclaration") f._escaped = !f.id || !direct(f.id.name) || valueRefs.has(f.id.name);
+    const top = [];
+    for (const c of calls) {
+      const k = c.node.callee;
+      if (k.type === "Super" || isMathCall(c.node)) c.kind = "never";
+      else if (k.type === "Identifier") c.kind = waits.globals.has(k.name) ? "wait" : (c.fn = direct(k.name)) ? "fn" : "indirect";
+      else if (k.type === "MemberExpression" && !k.computed && k.property.type === "Identifier" && waits.methods.has(k.property.name)) c.kind = "wait";
+      else if (isFn(k)) { c.kind = "fn"; c.fn = k; }
+      else c.kind = "indirect";
+      (c.owner ? c.owner._calls : top).push(c);
+    }
+    for (const f of fns) { f._forced = !!(f._sync || f.generator); f._async = !f._forced && (unsafe || !!f.async); }
+    let indirect = true;
+    const waitsAt = (c) => c.kind === "wait" || (c.kind === "fn" && c.fn._async) || (c.kind === "indirect" && indirect);
+    if (unsafe) indirect = true;
+    else for (let changed = true; changed;) {
+      changed = false;
+      indirect = aliasRisk || fns.some((f) => f._escaped && f._async);
+      for (const f of fns) if (!f._async && !f._forced && f._calls.some(waitsAt)) { f._async = true; changed = true; }
+    }
+    for (const c of calls) c.node._await = c.kind !== "never" && (unsafe || waitsAt(c));
+
+    function walk(node, ctx) {   // ctx: awaits are allowed here (an async function or the top level)
+      if (!node || typeof node.type !== "string") return;
+      if (isFn(node)) {
+        ctx = node._async;
+        const at = node._asyncAt != null ? node._asyncAt : node.start;
+        if (ctx && !node.async) ed.push({ pos: at, text: "async ", open: true, span: node.end - at });
+      }
+      if (node.type === "CallExpression" && ctx && node._await) {
         const span = node.end - node.start, c = node.callee;
         ed.push({ pos: node.start, text: "(await ", open: true, span });
         ed.push({ pos: node.end, text: ")", open: false, span: 0 });
@@ -654,8 +814,21 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
   }
   function stackLine(e) { const m = /(?:<anonymous>|Function|eval[^:]*):(\d+):\d+/.exec(String(e && e.stack)); return m ? +m[1] : null; }
 
+  // The runtime's waiting calls, for transform(): its async global functions and the async
+  // methods of its objects (console). Anything in the runtime that waits must be async.
+  function waitsOf(globals) {
+    const isAsync = (f) => typeof f === "function" && f.constructor.name === "AsyncFunction";
+    const w = { globals: new Set(), methods: new Set() };
+    for (const [k, v] of Object.entries(globals)) {
+      if (isAsync(v)) w.globals.add(k);
+      else if (v && typeof v === "object")
+        for (const [m, d] of Object.entries(Object.getOwnPropertyDescriptors(v))) if (isAsync(d.value)) w.methods.add(m);
+    }
+    return w;
+  }
+
   function compile(src, env) {
-    const body = transform(src);
+    const body = transform(src, waitsOf(env.globals));
     const g = Object.assign({ __cb }, env.globals);
     const names = Object.keys(g);
     const fn = new Function(...names, "return (async function(){\n" + body + "\n})");
@@ -672,7 +845,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
     if (sess.env) sess.env.kill();
     dq = [];
     if (L.heldTimer) clearTimeout(L.heldTimer);
-    Object.assign(L, { freeAt: 0, lastArrive: 0, ackAt: 0, held: [], heldTimer: 0, inFree: 0, inLast: 0 });
+    Object.assign(L, freshLink());
     T.attr = 7; tClear(); T.cursor = true; T.st = 0;
     const s = { id: sess.id + 1, env: null, rtt: null, state: "running" };
     sess = s;
@@ -706,22 +879,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
   }
   function pressKey(ch) {
     if (sess.state === "ended") { connect(); return; }
-    sendInput({ ch, t0: performance.now() }, 1);
-  }
-
-  // ---------- Key log ----------
-  let keyN = 0;
-  function keyName(k) { return k === " " ? "SPACE" : k === "\r" ? "ENTER" : k === "\b" ? "BKSP" : k === "\x1b" ? "ESC" : k === "\x1e" ? "UP" : k === "\x0a" ? "DOWN" : k === "\x1d" ? "LEFT" : k === "\x06" ? "RIGHT" : k; }
-  function logKey(item, ms) {
-    const body = $("logBody");
-    if (!body) return;
-    keyN++;
-    if (keyN === 1) body.innerHTML = "";
-    const tr = document.createElement("tr");
-    const cls = ms < 60 ? "c-good" : ms < 150 ? "c-warn" : "c-bad";
-    tr.innerHTML = "<td>" + keyN + "</td><td>" + keyName(item.ch) + "</td><td>" + linkText() + '</td><td class="' + cls + '">' + Math.round(ms) + " ms</td>";
-    body.prepend(tr);
-    while (body.children.length > 12) body.lastElementChild.remove();
+    sendInput({ ch }, 1);
   }
 
   // ---------- Loading door scripts ----------
@@ -787,7 +945,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
     b.addEventListener("click", (e) => { if (e.detail === 0) pressKey(ch); });
   }
   bindKey("spaceBtn", " "); bindKey("qBtn", "q"); bindKey("enterBtn", "\r");
-  bindKey("kLeft", "\x1d"); bindKey("kUp", "\x1e"); bindKey("kDown", "\x0a"); bindKey("kRight", "\x06");
+  bindKey("kLeft", K.KEY_LEFT); bindKey("kUp", K.KEY_UP); bindKey("kDown", K.KEY_DOWN); bindKey("kRight", K.KEY_RIGHT);
   bindKey("kD", "d"); bindKey("kT", "t"); bindKey("kH", "h"); bindKey("kA", "a"); bindKey("kS", "s");
 
   // abc: bring up the phone's keyboard. Letters arrive as "input" events (Android keyboards often
@@ -836,7 +994,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
   // Tapping the screen on a touch device opens the keyboard too.
   $("screen").addEventListener("click", () => { if (matchMedia("(pointer: coarse)").matches) kbIn.focus({ preventScroll: true }); });
 
-  const SPECIAL = { Enter: "\r", Backspace: "\b", Escape: "\x1b", Tab: "\t", ArrowUp: "\x1e", ArrowDown: "\x0a", ArrowLeft: "\x1d", ArrowRight: "\x06" };
+  const SPECIAL = { Enter: "\r", Backspace: "\b", Escape: "\x1b", Tab: "\t", ArrowUp: K.KEY_UP, ArrowDown: K.KEY_DOWN, ArrowLeft: K.KEY_LEFT, ArrowRight: K.KEY_RIGHT };
   window.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const tg = e.target, tag = tg.tagName;
@@ -881,7 +1039,7 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
 
   probeOffset();
   syncOutputs();
-  const go = () => { T.dirty = true; };
+  const go = () => { redrawAll = true; T.dirty = true; };   // the font arrived: every glyph changes
   if (document.fonts && document.fonts.load) document.fonts.load(CH + 'px "VT323"').then(go, go);
   requestAnimationFrame(frame);
 
