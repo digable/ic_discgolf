@@ -46,8 +46,6 @@ code { font-family: var(--mono); font-size: 12px; color: var(--fg); }
 
 .term { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .bezel { background: #000; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; position: relative; }
-.bezel.drag { border-color: var(--accent); }
-.bezel.drag::before { content: "Drop your .js door to run it"; position: absolute; inset: 32px 0 0; display: grid; place-items: center; z-index: 2; background: rgba(0,0,0,.75); color: var(--accent); font: 32px var(--display); }
 .titlebar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .titlebar b { color: var(--fg); font-weight: 500; }
 .screen { position: relative; }
@@ -95,7 +93,6 @@ body.kb-open #kbBtn { font-size: 20px; }
 .btn.primary { border-color: var(--accent); color: var(--accent); }
 .hint { margin: 0; color: var(--muted); font-size: 12px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 .readouts { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: 13px; }
 .readouts dt { color: var(--muted); }
@@ -145,15 +142,12 @@ body.kb-open #kbBtn { font-size: 20px; }
     <aside class="side">
       <div class="box">
         <h2>Door script</h2>
-        <div class="script"><b id="scriptName">discgolf.js</b><span id="scriptInfo">Built in</span></div>
+        <div class="script"><b id="scriptName">discgolf.js</b><span id="scriptInfo"></span></div>
         <div class="btns">
-          <label class="btn primary" for="fileIn">Load a .js file</label>
-          <input class="vh" type="file" id="fileIn" accept=".js,.ssjs,text/javascript,text/plain">
-          <button class="btn" id="builtinBtn" type="button">Use built-in</button>
           <button class="btn" id="reconnect" type="button">Restart</button>
         </div>
         <p class="err" id="err" hidden></p>
-        <p class="hint">You can also drop a file on the screen. Restart re-measures the lag.</p>
+        <p class="hint">Restart re-measures the lag.</p>
       </div>
 
       <div class="box">
@@ -836,8 +830,7 @@ body.kb-open #kbBtn { font-size: 20px; }
   }
 
   // ---------- Sessions ----------
-  let BUILTIN = "";   // discgolf.js, fetched from next to this page
-  let door = { name: "discgolf.js", src: "", builtin: true };
+  let door = { name: "discgolf.js", src: "" };
   let sess = { id: 0, env: null, rtt: null, state: "idle" };
   function showErr(msg) { const e = $("err"); e.textContent = msg; e.hidden = !msg; }
 
@@ -882,29 +875,15 @@ body.kb-open #kbBtn { font-size: 20px; }
     sendInput({ ch }, 1);
   }
 
-  // ---------- Loading door scripts ----------
-  function setDoor(name, src, builtin) {
-    door = { name, src, builtin };
+  // ---------- The door script ----------
+  // The page only ever runs the site's own discgolf.js; there's no way to load another script.
+  function setDoor(name, src) {
+    door = { name, src };
     $("scriptName").textContent = name;
-    $("scriptInfo").textContent = (builtin ? "Built in" : "Loaded from your file") + " · " + src.split("\n").length + " lines";
-    $("builtinBtn").hidden = builtin;
-    try { if (builtin) localStorage.removeItem("dg-door"); else localStorage.setItem("dg-door", JSON.stringify({ name, src })); } catch (e) {}
+    $("scriptInfo").textContent = src.split("\n").length + " lines";
     connect();
   }
-  function readFile(f) {
-    if (!f) return;
-    const r = new FileReader();
-    // Door scripts are CP437 bytes; latin1 keeps \xDB etc. as the same byte values.
-    r.onload = () => setDoor(f.name, String(r.result), false);
-    r.onerror = () => showErr("Couldn't read " + f.name + ".");
-    r.readAsText(f, "latin1");
-  }
-  $("fileIn").addEventListener("change", (e) => { readFile(e.target.files[0]); e.target.value = ""; });
-  $("builtinBtn").addEventListener("click", (e) => { setDoor("discgolf.js", BUILTIN, true); e.currentTarget.blur(); });
-  const bz = $("bezel");
-  ["dragenter", "dragover"].forEach((t) => bz.addEventListener(t, (e) => { e.preventDefault(); bz.classList.add("drag"); }));
-  ["dragleave", "drop"].forEach((t) => bz.addEventListener(t, (e) => { e.preventDefault(); bz.classList.remove("drag"); }));
-  bz.addEventListener("drop", (e) => readFile(e.dataTransfer && e.dataTransfer.files[0]));
+  // A file dropped on the page would otherwise make the browser open it and leave the game
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => e.preventDefault());
 
@@ -1049,16 +1028,14 @@ body.kb-open #kbBtn { font-size: 20px; }
     return;
   }
   // The page plays discgolf.js from the same folder, so editing that file
-  // updates the web version too. A file the visitor loads themselves is
-  // remembered in their browser until they press "Use built-in".
+  // updates the web version too.
   tLocal("Loading discgolf.js...\r\n", 8);
   fetch("discgolf.js", { cache: "no-cache" })
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error("HTTP " + r.status))))
     .then((src) => {
-      BUILTIN = src;
-      let saved = null;
-      try { saved = JSON.parse(localStorage.getItem("dg-door") || "null"); } catch (e) {}
-      if (saved && saved.src) setDoor(saved.name, saved.src, false); else setDoor("discgolf.js", BUILTIN, true);
+      // Forget any script an older version of this page saved from "Load a .js file"
+      try { localStorage.removeItem("dg-door"); } catch (e) {}
+      setDoor("discgolf.js", src);
     })
     .catch((e) => {
       showErr("Couldn't load discgolf.js (" + e.message + "). It must sit next to index.html, and the page has to be served by a web server, not opened as a file.");

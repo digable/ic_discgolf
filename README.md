@@ -105,9 +105,10 @@ Everything is near the top of `discgolf.js`:
 - **Meter and player tuning**: the constants at the top (`SWEEP_SEC`,
   `ARM_BH`, `OFF_HAND`, `PUTT_M`, and so on).
 
-After editing, refresh the web page to play your changes. On the page, **Restart**
-reloads the game, and **Load a .js file** lets you test a copy without changing
-the one on the server.
+After editing, refresh the web page to play your changes, and **Restart**
+reloads the game. The web page only runs its own `discgolf.js`; to try changes
+without touching the server, run the page on your own computer (see "Try it on
+your own computer first").
 
 ## Known limits
 
