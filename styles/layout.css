@@ -1,0 +1,18 @@
+/* Layout: caller's 80x25 screen on the left; the door script, the connection and live readouts on the right; controls below. */
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+header h1 { font-family: var(--display); font-weight: 400; font-size: 44px; line-height: 1; margin: 0; color: var(--accent); letter-spacing: .02em; text-wrap: balance; }
+header p { margin: 8px 0 0; color: var(--muted); max-width: 70ch; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.term { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.under { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.under p { margin: 0; color: var(--muted); font-size: 13px; flex: 1 1 240px; min-width: 0; }
+
+.side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes div { border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; color: var(--muted); }
+.notes b { display: block; color: var(--fg); font-weight: 600; margin-bottom: 2px; }

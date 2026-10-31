@@ -12,7 +12,8 @@
 #   deploy ALL=(root) NOPASSWD: /usr/local/bin/update-discgolf.sh
 #
 # The published folder is used twice: nginx serves it as discgolf.sodamachine.net, and Synchronet runs
-# the door from it (Start-up Directory in SCFG). Only the game files go there, never .git or the docs.
+# the door from its bbs/ folder (Start-up Directory in SCFG). Only the game files go there, never .git
+# or the docs.
 set -euo pipefail
 
 SRC=/srv/src/ic_discgolf
@@ -24,7 +25,11 @@ git -C "$SRC" reset --quiet --hard FETCH_HEAD
 mkdir -p "$DEST"
 rsync -a --delete \
     --include='/index.html' \
-    --include='/discgolf.js' \
+    --include='/styles/***' \
+    --include='/scripts/***' \
+    --include='/bbs/' \
+    --include='/bbs/discgolf.js' \
+    --include='/bbs/lib/***' \
     --include='/vendor/***' \
     --exclude='*' \
     "$SRC/" "$DEST/"
