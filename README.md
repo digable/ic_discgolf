@@ -1,4 +1,4 @@
-# Disc Golf Door
+# Disc Golf Door 
 
 A Genesis-style disc golf game for Synchronet BBS, built around a 3-click swing
 meter. The same game script runs in two places:
