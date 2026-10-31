@@ -1326,6 +1326,9 @@ function drawPuttScreen() {
 	puttPanel(d);
 }
 
+// A trail dot left behind the disc in the basket view
+function povTrailDot(q) { return moveTo(q.c, q.r) + text("\xFA", 7 | (povOnArt(q.c, q.r) ? 0 : povBg(q.r))); }
+
 // Animates a putt. kind: made, cage, short, over or miss. along: where it ends, meters short of
 // the basket (negative = past it); lat: meters right of the line where it ends.
 // The disc leaves a dotted trail, so the whole path stays on screen next to the basket.
@@ -1348,13 +1351,12 @@ function puttFlight(kind, along, lat) {
 			for (i = 1; i <= 8; i++) { u = 1 + (uEnd - 1) * i / 8; pts.push({ p: povProj(puttLat(u), u, Yb * (1 - i / 8)), u: u }); }
 		}
 		// Behind the basket (past it) the drawing covers the disc; in front, the disc covers the drawing.
-		function dot(q, on) { return moveTo(q.c, q.r) + text("\xFA", (on ? 15 : 7) | (povOnArt(q.c, q.r) ? 0 : povBg(q.r))); }
 		var prev = null, prevU = 0, s, hidden = false;
 		for (i = 0; i < pts.length; i++) {
 			p = pts[i].p;
 			if (!povOnScreen(p) || (prev && prev.c === p.c && prev.r === p.r)) continue;
 			hidden = pts[i].u > 1.02 && povOnArt(p.c, p.r);
-			s = prev ? dot(prev, false) : "";
+			s = prev ? povTrailDot(prev) : "";
 			if (!hidden) s += moveTo(p.c, p.r) + text(pts[i].u < 0.55 ? "\xFE" : "\xF9", 15 | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
 			out(s);
 			prev = hidden ? null : p; prevU = pts[i].u;
