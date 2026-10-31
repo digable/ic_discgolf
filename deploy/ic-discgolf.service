@@ -20,9 +20,12 @@ WorkingDirectory=/srv/apps/ic_discgolf
 Environment=PORT=3002
 Environment=HOST=127.0.0.1
 Environment=DB_FILE=/var/lib/ic-discgolf/saves.db
+Environment=NODE_OPTIONS=--max-old-space-size=128
 EnvironmentFile=/etc/ic-discgolf.env
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
+RestartSec=5
+MemoryMax=200M
 
 # It only needs to write its database (StateDirectory is writable under ProtectSystem=strict)
 StateDirectory=ic-discgolf
