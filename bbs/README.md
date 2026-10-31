@@ -8,9 +8,11 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-Two courses: Turkey Creek (Coralville Reservoir, Iowa City, IA; 9 holes) and
-Wildcat Bluff (Vinton, IA; 21 holes). **Play** opens a course menu: press the
-course's number, or Up/Down and Enter.
+Three courses: Turkey Creek (Coralville Reservoir, Iowa City, IA; 9 holes),
+Wildcat Bluff (Vinton, IA; 21 holes) and the Championship Course at Eagles
+Crossing (New Truxton, MO; 18 holes, with ponds, island greens and a gravel road
+out of bounds). **Play** opens a course menu: press the course's number, or
+Up/Down and Enter.
 
 ## Files
 
@@ -110,6 +112,10 @@ your own computer first").
 
 ## Known limits
 
+- Eagles Crossing's hole lengths and pars (UDisc's current red layout, par 70,
+  7,564 ft) come from its UDisc listing (2026). Where the water, woods, road and
+  hills go is from course reviews written before the course was renumbered in
+  2023, so some may be on different holes now; shapes are drawn, not surveyed.
 - Wildcat Bluff's hole lengths and pars (short/red tees, par 71, 7,445 ft) come
   from its UDisc listing (2026). Its fairways, bends and hills are drawn from
   UDisc's description (heavily wooded, very hilly, tight lines), not surveyed.
@@ -124,5 +130,6 @@ your own computer first").
 - Disc flight numbers: published by Innova, Discraft, Dynamic Discs and Axiom.
 - Turkey Creek hole lengths and pars: [UDisc](https://udisc.com/courses/turkey-creek-tNSo).
 - Wildcat Bluff hole lengths and pars: [UDisc](https://udisc.com/courses/wildcat-bluff-I1rO).
+- Eagles Crossing hole lengths and pars: [UDisc](https://udisc.com/courses/championship-course-at-eagles-crossing-JQQP); water and woods: [DG Course Review](https://dgcoursereview.com/courses/eagles-crossing.12414/reviews).
 - Relief rule: PDGA optional relief (one penalty throw, move back along the line of play).
 - [acorn](https://github.com/acornjs/acorn) JavaScript parser, MIT license.

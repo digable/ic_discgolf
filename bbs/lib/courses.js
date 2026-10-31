@@ -123,4 +123,70 @@ var COURSES = [{
 		  trees: [[52, 8]], elev: { tee: 0, basket: 12 },
 		  note: "Uphill finish. Make your last drive count." }
 	]
+}, {
+// Eagles Crossing, Championship Course: 18 holes, par 70, 7,564 ft - lengths and
+// pars from UDisc's current layout ("Masters Invitational 2026 - Red", 2026).
+// UDisc: about 400 acres of open fields, very hilly woods and nine ponds and lakes;
+// every hole has red, white and blue tees. Where the water, woods, roads and hills
+// go is from course reviews written before the course was renumbered in 2023, so
+// some may now be on different holes. Shapes are drawn, not surveyed: adjust them
+// to match the real holes. Island greens are a ring of water around the basket.
+	name: "Eagles Crossing",
+	where: "Championship Course, New Truxton, MO",
+	holes: [
+		{ par: 4, ft: 582, pts: [[5, 8], [40, 7], [72, 8]], hw: 7, rough: 4, left: "open", right: "open",
+		  trees: [[30, 6]], ob: [{ t: "W", x1: 60, y1: 11, x2: 77, y2: 15 }],
+		  note: "Wide open and long. Water waits right of the green." },
+		{ par: 4, ft: 462, pts: [[5, 4], [45, 6], [72, 10]], hw: 7, rough: 4, left: "open", right: "light",
+		  trees: [[25, 5]], ob: [{ t: "W", x1: 57, y1: 5, x2: 63, y2: 13 }], elev: { tee: 0, basket: -14 },
+		  note: "Downhill bomber. The approach crosses the pond." },
+		{ par: 4, ft: 354, pts: [[6, 11], [40, 9], [71, 5]], hw: 4, rough: 2, left: "dense", right: "dense",
+		  trees: [[52, 7]], elev: { tee: 0, basket: 10 },
+		  note: "Wooded and uphill. Two clean shots beat one big one." },
+		{ par: 5, ft: 657, pts: [[4, 8], [26, 6], [50, 9], [73, 8]], hw: 5, rough: 3, left: "medium", right: "dense",
+		  trees: [[18, 7]], ob: [{ t: "W", x1: 33, y1: 3, x2: 39, y2: 13 }, { t: "W", x1: 61, y1: 5, x2: 65, y2: 12 }], elev: { tee: 0, basket: -8 },
+		  note: "Par 5 over two ponds at different levels. Lay up or carry them." },
+		{ par: 5, ft: 642, pts: [[4, 12], [30, 10], [52, 5], [73, 4]], hw: 5, rough: 3, left: "dense", right: "dense",
+		  trees: [[40, 8], [62, 4]], elev: { tee: 0, basket: 12, hills: [[30, 10, 7, 6]] },
+		  note: "Long wooded climb. Stay in the fairway." },
+		{ par: 4, ft: 471, pts: [[5, 5], [70, 10]], hw: 6, rough: 3, left: "light", right: "light",
+		  trees: [[35, 7], [50, 9]], ob: [{ t: "W", x1: 66, y1: 12, x2: 77, y2: 15 }], elev: { tee: 0, basket: -20 },
+		  note: "Drops steeply past the trees. Water short and right of the pin." },
+		{ par: 3, ft: 330, pts: [[7, 6], [70, 6]], hw: 6, rough: 3, left: "open", right: "open",
+		  trees: [[40, 5]], ob: [{ t: "W", x1: 10, y1: 9, x2: 72, y2: 13 }],
+		  note: "Water all down the right side." },
+		{ par: 3, ft: 199, pts: [[10, 8], [64, 8]], hw: 5, rough: 2, left: "light", right: "light",
+		  trees: [], ob: [{ t: "W", x1: 58, y1: 4, x2: 70, y2: 6 }, { t: "W", x1: 58, y1: 10, x2: 70, y2: 12 }, { t: "W", x1: 58, y1: 7, x2: 60, y2: 9 }, { t: "W", x1: 68, y1: 7, x2: 70, y2: 9 }],
+		  note: "Island green. Land it or re-tee." },
+		{ par: 4, ft: 504, pts: [[5, 10], [38, 8], [72, 6]], hw: 7, rough: 4, left: "light", right: "open",
+		  trees: [[55, 7]], ob: [{ t: "W", x1: 25, y1: 0, x2: 60, y2: 3 }], elev: { tee: 0, basket: 10 },
+		  note: "Open and uphill, with the water's edge left." },
+		{ par: 5, ft: 555, pts: [[4, 6], [36, 8], [73, 9]], hw: 5, rough: 3, left: "dense", right: "medium",
+		  trees: [[24, 7], [56, 9]],
+		  note: "Long par 5 through the woods. Patience." },
+		{ par: 3, ft: 261, pts: [[8, 7], [66, 8]], hw: 3, rough: 2, left: "dense", right: "dense",
+		  trees: [], ob: [{ t: "W", x1: 60, y1: 4, x2: 72, y2: 6 }, { t: "W", x1: 60, y1: 10, x2: 72, y2: 12 }, { t: "W", x1: 60, y1: 7, x2: 62, y2: 9 }, { t: "W", x1: 70, y1: 7, x2: 72, y2: 9 }], elev: { tee: 0, basket: -15 },
+		  note: "Downhill down a narrow gap to an island green." },
+		{ par: 3, ft: 225, pts: [[10, 9], [64, 7]], hw: 4, rough: 2, left: "medium", right: "dense",
+		  trees: [[40, 8]], elev: { tee: 0, basket: 12 },
+		  note: "Steep uphill shot. Missing right is costly." },
+		{ par: 3, ft: 207, pts: [[12, 8], [64, 8]], hw: 3.5, rough: 2, left: "dense", right: "dense",
+		  trees: [[38, 8]],
+		  note: "Short and wooded. Hit the gap." },
+		{ par: 4, ft: 375, pts: [[6, 4], [40, 6], [71, 10]], hw: 4, rough: 2, left: "dense", right: "dense",
+		  trees: [[28, 5]], ob: [{ t: "R", x1: 44, y1: 0, x2: 45, y2: 15 }, { t: "W", x1: 68, y1: 12, x2: 77, y2: 15 }],
+		  note: "Over the gravel road (out of bounds) and on to a pin near water." },
+		{ par: 3, ft: 330, pts: [[8, 6], [66, 9]], hw: 5, rough: 2, left: "light", right: "medium",
+		  trees: [[34, 7]], ob: [{ t: "W", x1: 60, y1: 5, x2: 72, y2: 7 }, { t: "W", x1: 60, y1: 11, x2: 72, y2: 13 }, { t: "W", x1: 60, y1: 8, x2: 62, y2: 10 }, { t: "W", x1: 70, y1: 8, x2: 72, y2: 10 }], elev: { tee: 0, basket: 6 },
+		  note: "Slightly uphill to an island green." },
+		{ par: 4, ft: 438, pts: [[5, 8], [72, 8]], hw: 7, rough: 4, left: "open", right: "open",
+		  trees: [[45, 7]], ob: [{ t: "W", x1: 12, y1: 3, x2: 22, y2: 13 }],
+		  note: "Carry the water off the tee, then it opens up." },
+		{ par: 4, ft: 417, pts: [[6, 11], [40, 9], [71, 4]], hw: 4, rough: 2, left: "dense", right: "dense",
+		  trees: [[30, 10]], ob: [{ t: "R", x1: 50, y1: 0, x2: 51, y2: 15 }], elev: { tee: 0, basket: -14 },
+		  note: "Downhill through the woods, across the gravel road." },
+		{ par: 5, ft: 555, pts: [[4, 3], [30, 5], [55, 7], [73, 5]], hw: 6, rough: 3, left: "light", right: "light",
+		  trees: [[42, 5]], ob: [{ t: "W", x1: 20, y1: 10, x2: 40, y2: 15 }, { t: "W", x1: 46, y1: 11, x2: 66, y2: 15 }], elev: { tee: 0, basket: 12 },
+		  note: "Curls around two ponds on the right to an elevated green." }
+	]
 }];

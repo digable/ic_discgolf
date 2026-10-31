@@ -74,7 +74,7 @@ function povCell(i, row, C) {
 	if (row >= POV.horizon) {
 		var fd = POV.camH * POV.f / (row - POV.horizon + 0.5) / C.off;
 		var t = fd > POV.maxD ? "," : tileAt(H, { x: S.lie.x + C.ca * fd, y: S.lie.y + C.sa * fd });
-		g = t === "." ? ["\xB1", 10] : (isOB(t) && t !== "O" ? ["\xB1", 8] : ["\xB0", 2]);
+		g = t === "." ? ["\xB1", 10] : (t === "W" ? GLYPH.W : (isOB(t) && t !== "O" ? ["\xB1", 8] : ["\xB0", 2]));
 	}
 	if (d < 1e8 && row <= C.base && row >= C.crown) {
 		if (row >= C.trunkTop) g = [d < 12 ? "\xDB" : (d < 28 ? "\xB2" : "\xB1"), d < 28 ? 3 : 8];

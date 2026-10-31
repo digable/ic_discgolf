@@ -55,8 +55,8 @@ function topCell(p) {
 
 function topGlyph(c, r) {
 	var w = topWorld(c, r), d = hyp(w.x - S.H.basket.x, w.y - S.H.basket.y), t = tileAt(S.H, w);
-	var g = isTrees(t) ? ["\xE7", 10] : (isOB(t) && t !== "O" ? ["\xB1", 8] : (d < PUTT_M ? ["\xB1", 10] : ["\xB0", 2]));
-	if (!isTrees(t)) {
+	var g = isTrees(t) ? ["\xE7", 10] : (t === "W" ? GLYPH.W : (isOB(t) && t !== "O" ? ["\xB1", 8] : (d < PUTT_M ? ["\xB1", 10] : ["\xB0", 2])));
+	if (!isTrees(t) && t !== "W") {
 		if (Math.abs(d - C1_M) < 0.8) g = ["\xFA", 15 | 0x20];
 		else if (Math.abs(d - PUTT_M) < 1.0) g = ["\xFA", 7 | 0x20];
 	}
@@ -394,7 +394,20 @@ function putt() {
 	if (!made && along < 0 && PT.dz < -2) along -= 1 + rnd() * 2;   // past a downhill basket it rolls away
 	var endLat = made ? 0 : (kind === "cage" ? lateral : puttLat(1 - along / Math.max(PT.dist, 0.5)));
 	puttFlight(kind === "spit" ? "miss" : kind, along, endLat);
-	if (!made) S.lie = { x: H.basket.x + PT.bx * along + PT.rx * endLat, y: H.basket.y + PT.by * along + PT.ry * endLat };
+	if (!made) {
+		var from = { x: S.lie.x, y: S.lie.y };
+		S.lie = { x: H.basket.x + PT.bx * along + PT.rx * endLat, y: H.basket.y + PT.by * along + PT.ry * endLat };
+		// A miss that ends in water or out of bounds (an island green, say): one penalty
+		// throw, and putt again from where this putt was taken
+		var endT = tileAt(H, S.lie);
+		if (isOB(endT)) {
+			S.strokes++;
+			S.lie = from;
+			msg(line + " \x01h\x01r" + (endT === "W" ? "In the water!" : "Out of bounds!") + "\x01n +1, putt again from your spot.");
+			waitKey("Press any key");
+			return false;
+		}
+	}
 	msg(line + (made ? "" : "\x01n  " + ft(pinDist()) + " ft away.  \x01k\x01h" + puttWhy(kind, need, thrown, over)));
 	waitKey("Press any key");
 	return made;
