@@ -26,8 +26,14 @@ var STATUS_Y = BAR_Y + 3;
 var HOT_ATTR = 11 | 0x80;  // hotkey letters: yellow, underlined (terminals without underlines just show yellow)
 
 // ---- Player model ---------------------------------------------------------
-var ARM_BH = 10;         // backhand arm speed: fully powers a speed-10 disc
-var ARM_FH = 9;          // forehand arm speed
+// Skill levels: backhand / forehand arm speed (an arm of 10 fully powers a speed-10 disc)
+// and a distance scale. Regular is a typical recreational player: about 160 ft with a
+// putter, 235 with a midrange, 270 with a fairway driver and 300-330 with a distance driver,
+// which they can't get up to speed (so it barely turns and fades early). Pro is a strong arm.
+var LEVELS = {
+	reg: { name: "Regular", bh: 6,  fh: 5.5, dist: 0.88 },
+	pro: { name: "Pro",     bh: 10, fh: 9,   dist: 1 }
+};
 var OFF_HAND = 0.7;      // non-dominant hand: 70% of the arm speed...
 var OFF_ACC = 1.6;       // ...and 60% bigger release errors
 var OVER_ACC = 1.5;      // an overswing makes release errors 50% bigger

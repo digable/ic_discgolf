@@ -18,7 +18,7 @@ function windText() { return S.wind.mph ? S.wind.mph + " mph to " + S.wind.to : 
 // How far a disc flies at 100% power for this thrower (meters, flat, no wind)
 function discRange(d, style, dom) {
 	var arm = armSpeed(style, dom);
-	var r = (30 + d.n[0] * 7 + d.n[1] * 4) * Math.min(1, 0.6 + 0.4 * arm / d.n[0]);
+	var r = (30 + d.n[0] * 7 + d.n[1] * 4) * Math.min(1, 0.6 + 0.4 * arm / d.n[0]) * level().dist;
 	return style === "HM" ? r * HAMMER_RANGE : r;
 }
 

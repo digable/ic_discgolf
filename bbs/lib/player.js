@@ -7,6 +7,7 @@
 var player = {
 	hand: "R",           // dominant hand
 	style: "BH",         // usual throw
+	level: "reg",        // skill level: "reg" or "pro" (see LEVELS)
 	puttView: "side",    // side, top or pov
 	bag: ["KC Aviar", "Zone", "Buzzz", "Teebird", "Leopard3", "Destroyer"]
 };
@@ -30,7 +31,8 @@ function bagChanged() { bagCache = null; }
 
 function puttDisc() { return bagDiscs()[0]; }
 function domHand() { return S.hand === player.hand; }   // throwing with the dominant hand
-function armSpeed(style, dom) { return (style === "FH" ? ARM_FH : ARM_BH) * (dom ? 1 : OFF_HAND); }
+function level() { return LEVELS[player.level] || LEVELS.reg; }
+function armSpeed(style, dom) { var L = level(); return (style === "FH" ? L.fh : L.bh) * (dom ? 1 : OFF_HAND); }
 
 function handName(h) { return h === "R" ? "Right" : "Left"; }
 function styleName(s) { return s === "BH" ? "Backhand" : (s === "FH" ? "Forehand" : "Hammer"); }

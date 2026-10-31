@@ -34,7 +34,7 @@ function titleScreen() {
 	put(17, 8, "\x01n\x01k\x01h" + new Array(47).join("\xC4"));
 	put(17, 9, "\x01nA 3-click swing meter disc golf door");
 	put(17, 11, "\x01hCourse  \x01n" + COURSES[0].name + " \x01k\x01h- " + COURSES[0].where);
-	put(17, 12, "\x01hPlayer  \x01n" + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower");
+	put(17, 12, "\x01hPlayer  \x01n" + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
 	var items = ["~Play " + COURSES[0].name + " (" + COURSES[0].holes.length + " holes)", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
 	for (var i = 0; i < items.length; i++) put(19, 14 + i, "\x01n" + items[i]);
 	put(19, 20, "\x01n\x01k\x01hChoose: ");
@@ -53,6 +53,11 @@ function setup(first) {
 	put(3, 9, "\x01h\x01c  " + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/hammer.", 76);
 	var spin = (player.hand === "R") === (player.style === "BH");
 	put(3, 10, "\x01n  Your " + styleName(player.style).toLowerCase() + " fades to the \x01h" + (spin ? "left" : "right") + "\x01n and turns over to the \x01h" + (spin ? "right" : "left") + "\x01n.");
+	put(3, 12, "\x01nHow far do you throw?   ~Regular   ~Pro");
+	for (;;) { var k3 = key().toUpperCase(); if (k3 === "R" || k3 === "P") { player.level = k3 === "P" ? "pro" : "reg"; break; } if (k3 === "\r") break; }
+	put(3, 13, "\x01h\x01c  " + level().name + ".\x01n \x01k\x01h" + (player.level === "pro"
+		? "A big arm: drivers fly 400+ ft and turn over at speed."
+		: "A typical rec arm: ~300 ft drives; fast drivers barely turn and fade early."), 76);
 	waitKey("Press any key");
 }
 

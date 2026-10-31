@@ -69,7 +69,7 @@ On digiweb the door runs from the published folder instead (see the main README,
 - **Elevation:** add `elev` to a hole, in feet, such as
   `elev: { tee: 0, basket: -12, hills: [[40, 6, 5, 8]] }`. Each hill is `[column, row, radius, height]`;
   use a negative height for a dip.
-- **Meter and player tuning:** the constants in `lib/config.js` (`SWEEP_SEC`, `ARM_BH`, `OFF_HAND`,
+- **Meter and player tuning:** the constants in `lib/config.js` (`SWEEP_SEC`, `LEVELS`, `OFF_HAND`,
   `PUTT_M`, and so on).
 
 After editing, refresh the web page to play your changes; **Restart** reloads the game.
