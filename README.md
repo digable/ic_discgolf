@@ -10,6 +10,29 @@ meter. The same game script runs in two places:
 
 Six courses at five real disc golf parks in Iowa and Missouri (see [Courses](#courses)).
 
+## Players and saved settings
+
+- **On the BBS** you play under your BBS alias, and your settings (hand, usual throw,
+  level, flight path, putting view and disc bag) are saved for next time:
+  - **First visit:** player setup, then **Continue** saves it ("Saved for next time").
+  - **Coming back:** a welcome-back screen shows your saved settings: **Play with
+    these** (Enter) or **Change settings** (player setup with your answers filled in,
+    saved when you continue).
+  - **Player setup** from the title screen saves the same way. Leaving the bag screen
+    after changing your bag asks "Save this bag for next time? Y/n". The putting view
+    is remembered when a round ends.
+  - If the save service doesn't answer, you play with the defaults and a note says
+    settings won't be saved today.
+- **On the web** you type the name you'll play under (the same rules as a new BBS
+  alias: up to 25 characters, starting with a letter, no double spaces or trailing
+  space). Web settings aren't saved.
+- **Shared games** (cross-play, coming later): web players' names are tagged so they
+  can't pass for a BBS player: "Digable (web)", then "Digable (web01)", "Digable
+  (web02)" for more web players with the same name (`webName()` in `api/_names.js`).
+
+Saves are kept by the save service (`server.js`), in SQLite, keyed by the BBS alias
+like IC Zombies' saves. See [The save service](#the-save-service).
+
 ## Courses
 
 **Play** opens a course menu: press the course's number, or Up/Down and Enter.
@@ -106,7 +129,11 @@ mailing address's town.
 | `scripts/` | The emulator, as ES modules (listed below). |
 | `vendor/acorn.js` | JavaScript parser the web page uses to run the door script in the browser (acorn 8.12.1, MIT license). |
 | `vendor/acorn-LICENSE.txt` | acorn's license. |
+| `server.js` | The disc golf service: serves the game files and the BBS door's save API (Node built-ins only). See "The save service". |
+| `api/` | The service's routes and database: `players.js` (the save API), `_db.js` (SQLite: players, rate limits), `_names.js` (player name rules and web-name tags), `_helpers.js` (door check, client address), `_rateLimit.js`. |
+| `package.json` | `npm start` runs `server.js`. No dependencies. |
 | `deploy/update-discgolf.sh` | The script digiweb runs to publish a push (see "Automatic deploys"). |
+| `deploy/ic-discgolf.service`, `deploy/nginx-discgolf.conf` | The service's systemd unit and the nginx change for it, to install once (see "The save service"). |
 
 The emulator in `scripts/`:
 
@@ -138,16 +165,18 @@ Then open `https://your-site/discgolf/`.
 - Keep the folders together; the page loads its styles, scripts and the door from them.
 - The page must be served over http or https. Opening `index.html` straight from disk won't load the game, because browsers block that.
 - The page pulls its fonts from Google Fonts. Without internet access it falls back to system fonts and still works.
-- It's all static files, so GitHub Pages works too: enable Pages for the repo and the game is at `https://YOU.github.io/ic_discgolf/`.
+- The web game is all static files, so GitHub Pages works too: enable Pages for the repo and the game is at `https://YOU.github.io/ic_discgolf/`. Only BBS saving needs the save service.
 
 ### Try it on your own computer first
 
 ```sh
 cd ic_discgolf
-python3 -m http.server 8000
+npm start
 ```
 
-Then open http://localhost:8000 in a browser.
+Then open http://localhost:3002 in a browser. `npm start` runs `server.js`, which
+needs Node 22.13 or newer for its built-in SQLite (or the `sqlite3` module). Any
+other static web server works too for the web game.
 
 ## Install the door on Synchronet
 
@@ -159,10 +188,12 @@ your xtrn folder and add it in SCFG with the command line `?discgolf.js`.
 Every push to `main` runs `.github/workflows/deploy.yaml`, the same setup as IC
 Zombies: it joins Tailscale and SSHes to digiweb with a key that can only run
 `sudo update-discgolf.sh`. That script pulls `main` into `/srv/src/ic_discgolf`
-and copies just the game files (`index.html`, `styles/`, `scripts/`, the door in
-`bbs/`, and `vendor/`) to `/srv/apps/ic_discgolf`. nginx serves that folder as
-[discgolf.sodamachine.net](https://discgolf.sodamachine.net), and the BBS door runs
-from its `bbs/` folder, so one push updates both.
+and copies just the game and server files (`index.html`, `styles/`, `scripts/`, the
+door in `bbs/`, `vendor/`, `server.js`, `api/` and `package.json`) to
+`/srv/apps/ic_discgolf`, then restarts the save service. The player database isn't
+in that folder (it's `/var/lib/ic-discgolf/saves.db`), so a deploy never touches it. The service serves that folder as
+[discgolf.sodamachine.net](https://discgolf.sodamachine.net) behind nginx, and the BBS
+door runs from its `bbs/` folder, so one push updates both.
 
 The copy of `update-discgolf.sh` that runs is the one in `/usr/local/bin/`, not
 the repo's. When `deploy/update-discgolf.sh` changes, copy it there again.
@@ -181,6 +212,75 @@ One-time setup (the full steps are in the digiweb setup guide, "Adding another g
 4. In SCFG, point the door at the published folder: Start-up Directory
    `/srv/apps/ic_discgolf/bbs` (all the settings are in
    [`bbs/README.md`](bbs/README.md#install-on-synchronet)).
+5. Set up the save service (next section).
+
+## The save service
+
+`server.js` serves the game files (like IC Zombies' server, it never serves `data/`,
+`api/`, `deploy/`, `server.js`, `package.json` or dotfiles) and runs the save API the
+BBS door uses. Player settings are in SQLite at `DB_FILE`: `/var/lib/ic-discgolf/saves.db`
+on digiweb (set by the systemd unit). Without `DB_FILE` it falls back to
+`data/discgolf.db`, which is only for trying it locally. SQLite comes from the `sqlite3`
+module if it's installed (Debian:
+`sudo apt install node-sqlite3`), otherwise from Node's built-in `node:sqlite`
+(Node 22.13+).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3002` | Listen port (IC Zombies has 3000) |
+| `HOST` | `127.0.0.1` | Listen address; nginx on the same machine forwards to it |
+| `DB_FILE` | `data/discgolf.db` (local testing only) | SQLite database path: `/var/lib/ic-discgolf/saves.db` on digiweb |
+| `DOOR_KEY` | none | The secret the BBS door sends with every save request. Without it, nothing can be saved. |
+
+**Who can save.** Only the BBS door: `/api/players` requests need the door key
+(`X-Door-Key`) and must come straight from the same machine, not through nginx.
+Anything else gets the same 404 as a route that doesn't exist, and failed attempts
+are rate limited. Web players can't read or change a BBS player's settings, now or
+once cross-play adds public game routes.
+
+**One-time setup on digiweb** (after the steps in "Automatic deploys"):
+
+1. Node and SQLite: `sudo apt install nodejs node-sqlite3`.
+2. A user for the service:
+   `sudo useradd --system --no-create-home --shell /usr/sbin/nologin discgolf`.
+   Its database folder, `/var/lib/ic-discgolf`, is created by systemd when the
+   service starts (`StateDirectory`, owned by `discgolf`, mode 700).
+3. The door key, in two places only root and the BBS can read:
+   ```sh
+   KEY=$(openssl rand -hex 32)
+   echo "DOOR_KEY=$KEY" | sudo tee /etc/ic-discgolf.env >/dev/null && sudo chmod 600 /etc/ic-discgolf.env
+   printf '[api]\nurl = http://127.0.0.1:3002\nkey = %s\n' "$KEY" | sudo tee /sbbs/ctrl/discgolf.ini >/dev/null
+   sudo chown sbbs /sbbs/ctrl/discgolf.ini && sudo chmod 600 /sbbs/ctrl/discgolf.ini
+   ```
+   (Use your Synchronet `ctrl` folder and BBS user if they differ.)
+4. The service: `sudo cp /srv/src/ic_discgolf/deploy/ic-discgolf.service /etc/systemd/system/`,
+   then `sudo systemctl daemon-reload && sudo systemctl enable --now ic-discgolf`.
+   Check it with `curl -s http://127.0.0.1:3002/ | head -3`; the log
+   (`journalctl -u ic-discgolf`) should say it's using `/var/lib/ic-discgolf/saves.db`.
+5. nginx: in the discgolf.sodamachine.net site, replace the `root`/`try_files` lines
+   with the `location` block in `deploy/nginx-discgolf.conf` (it must set
+   `X-Forwarded-For`), then `sudo nginx -t && sudo systemctl reload nginx`.
+6. Copy the new `deploy/update-discgolf.sh` to `/usr/local/bin/` (it publishes the
+   server files and restarts the service).
+7. Backups: the Atom's weekly `/usr/local/bin/digiweb-backup.sh` (not in any repo)
+   backs it up the same way as Studio Boss's database. Add this right after its
+   "Same for IC Studio Boss" block:
+   ```sh
+   # Same for IC Disc Golf (player saves)
+   rm -f /root/ic-discgolf-saves.db
+   if [ -f /var/lib/ic-discgolf/saves.db ] && command -v sqlite3 >/dev/null; then
+       sqlite3 /var/lib/ic-discgolf/saves.db ".backup /root/ic-discgolf-saves.db"
+   fi
+   ```
+   and these lines to its `tar` list:
+   ```sh
+   /root/ic-discgolf-saves.db \
+   /etc/systemd/system/ic-discgolf.service \
+   /etc/ic-discgolf.env \
+   ```
+   `.backup` makes a safe copy while the service is running (a plain `cp` could catch
+   the database mid-write). `/sbbs/ctrl/discgolf.ini` is already covered: the backup
+   includes all of `/sbbs/ctrl`.
 
 ## Editing the game
 
@@ -197,8 +297,9 @@ your own computer first").
 - Course holes are drawn from descriptions, not surveyed (see [Courses](#courses)).
   Turkey Creek has no elevation yet, and the High Bridge river and bridge aren't
   in play.
-- Player setup and bag aren't saved between visits yet.
-- No multiplayer or tournaments yet.
+- Settings are saved for BBS players only; web players start fresh each visit.
+- The scorecard shows the first 8 characters of a player's name.
+- No multiplayer, cross-play or tournaments yet.
 
 ## Credits
 

@@ -5,6 +5,9 @@
 
 // ---- Player ---------------------------------------------------------------
 var player = {
+	name: "",            // the BBS alias, or the name a web player typed (see signIn)
+	handle: "",          // slugOf(name) for BBS players, the key for their saved settings; "" on the web
+	canSave: false,      // a BBS player and the save service answered
 	hand: "R",           // dominant hand
 	style: "BH",         // usual throw
 	level: "reg",        // skill level: "reg" or "pro" (see LEVELS)

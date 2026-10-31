@@ -138,7 +138,8 @@ export function makeEnv() {
   }
   const bbs = { get online() { return !st.dead; }, sys_status: 0, node_num: 1, get time_left() { return 3600; }, nodesync() {}, log_str() {} };
   const system = { get timer() { return performance.now() / 1000; }, name: "Emulator BBS", operator: "Sysop", node_list: [], get secondary_timer() { return performance.now() / 1000; } };
-  const user = { alias: "Tester", name: "Test Caller", number: 1, handle: "Tester", security: { level: 50 }, settings: 0 };
+  // Nobody's logged in on the web (user number 0): the door asks for a name and doesn't save
+  const user = { alias: "", name: "", number: 0, handle: "", security: { level: 0 }, settings: 0 };
   const js = { get terminated() { return st.dead; }, auto_terminate: true, exec_dir: "./", on_exit() {}, global: null, gc() {} };
 
   return {

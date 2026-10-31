@@ -2,3 +2,12 @@ CLAUDE.md
 .claude/
 settings.json
 /data/
+node_modules/
+# Player databases and local secrets (the door key lives in /etc/ic-discgolf.env and ctrl/discgolf.ini)
+data/
+*.db
+*.db-shm
+*.db-wal
+*.ini
+*.env
+.env

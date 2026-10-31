@@ -21,6 +21,7 @@ load(js.exec_dir + "lib/courses.js");
 load(js.exec_dir + "lib/screen.js");
 load(js.exec_dir + "lib/meter.js");
 load(js.exec_dir + "lib/player.js");
+load(js.exec_dir + "lib/saves.js");
 load(js.exec_dir + "lib/holes.js");
 load(js.exec_dir + "lib/state.js");
 load(js.exec_dir + "lib/hud.js");
@@ -34,16 +35,16 @@ load(js.exec_dir + "lib/menus.js");
 // ---- Main ----------------------------------------------------------------------
 console.write("\x1b[?25l");
 try {
-	setup(true);
+	signIn();
 	for (;;) {
 		if (!bbs.online || js.terminated) break;
 		var choice = titleScreen();
 		if (choice === "P") {
 			var ci = courseMenu();
-			if (ci >= 0) { player.course = ci; playRound(COURSES[ci]); }
+			if (ci >= 0) { player.course = ci; playRound(COURSES[ci]); savePuttView(); }
 		}
-		else if (choice === "S") setup(false);
-		else if (choice === "B") bagScreen();
+		else if (choice === "S") { setup(false); saveSetup(); }
+		else if (choice === "B") { var before = player.bag.join("|"); bagScreen(); offerBagSave(before); }
 		else if (choice === "H") howTo();
 		else if (choice === "Q") break;
 	}

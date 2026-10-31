@@ -14,7 +14,8 @@ keep to that style when you edit it.
 | `lib/courses.js` | The courses and their holes. The comment at the top explains each field; each course's details are in the main README, "Courses". |
 | `lib/screen.js` | Basics, raw ANSI output (tracks cursor and color) and key input. |
 | `lib/meter.js` | Lag measurement and the 3-click swing meter. |
-| `lib/player.js` | The player: hands, throws and the bag. |
+| `lib/player.js` | The player: name, hands, throws and the bag. |
+| `lib/saves.js` | Saved settings for BBS players: loads and saves them through the save service (`../server.js`) using Synchronet's `http.js`. |
 | `lib/holes.js` | Building a hole from the course data: trees, lies and elevation. |
 | `lib/state.js` | Round and shot state, wind and disc range. |
 | `lib/hud.js` | Header, messages, key help and the disc/throw/wind panel. |
@@ -23,7 +24,7 @@ keep to that style when you edit it.
 | `lib/flight.js` | Disc flight, throwing a shot and PDGA optional relief. |
 | `lib/putt.js` | Putting: side, overhead and from-the-player views. |
 | `lib/round.js` | Playing a hole, the scorecard and a full round. |
-| `lib/menus.js` | Title screen, player setup, bag and how to play. |
+| `lib/menus.js` | Title screen, signing in (BBS alias or a typed web name, welcome back), player setup, bag and how to play. |
 
 ## How the files fit together
 
@@ -59,6 +60,19 @@ On digiweb the door runs from the published folder instead (see the main README,
 | Native Executable/Script | No |
 | BBS Drop File Type | None |
 | Multiple Concurrent Users | Yes |
+
+**Saved settings.** Players are named after their BBS alias. To save their settings between visits, the
+door needs the save service (main README, "The save service") and `ctrl/discgolf.ini`, readable only by
+the BBS:
+
+```ini
+[api]
+url = http://127.0.0.1:3002
+key = (the service's DOOR_KEY)
+```
+
+Without it (or if the service doesn't answer) the door still runs; players just start from the defaults
+each visit.
 
 ## Editing the game
 

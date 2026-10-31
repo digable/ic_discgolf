@@ -28,16 +28,21 @@ function bigText(str, x, y, colors) {
 	}
 }
 
+// A message for the next title screen ("Saved for next time."), shown once
+var notice = "";
+
 function titleScreen() {
 	cls();
 	bigText("DISC GOLF", 17, 2, [14, 11]);
 	put(17, 8, "\x01n\x01k\x01h" + new Array(47).join("\xC4"));
 	put(17, 9, "\x01nA 3-click swing meter disc golf door");
 	put(17, 11, "\x01hCourses \x01n" + COURSES.length + " \x01k\x01h- pick one when you play");
-	put(17, 12, "\x01hPlayer  \x01n" + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
+	put(17, 12, "\x01hPlayer  \x01h\x01c" + player.name);
+	put(17, 13, "\x01n        " + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
 	var items = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
-	for (var i = 0; i < items.length; i++) put(19, 14 + i, "\x01n" + items[i]);
-	put(19, 20, "\x01n\x01k\x01hChoose: ");
+	for (var i = 0; i < items.length; i++) put(19, 15 + i, "\x01n" + items[i]);
+	if (notice) { put(19, 23, notice, 60); notice = ""; }
+	put(19, 21, "\x01n\x01k\x01hChoose: ");
 	return key().toUpperCase();
 }
 
@@ -138,7 +143,9 @@ function drawSetupRow(i, focus) {
 function setup(first) {
 	cls();
 	put(3, 2, "\x01h\x01wPLAYER SETUP");
-	put(3, 3, "\x01n\x01k\x01h" + (first ? "A few questions before you head to the first tee." : "Changes take effect right away."));
+	put(3, 3, "\x01n\x01k\x01h" + (!player.canSave ? (player.handle ? "The save server isn't answering: these settings won't be saved."
+		: "Settings aren't saved on the web version.")
+		: (first ? "A few questions before you head to the first tee. Saved for next time." : "Changes are saved for next time.")), 76);
 	put(3, 22, "\x01n\x01hUp/Down\x01n pick a question   \x01hLeft/Right\x01n or a letter: answer   \x01hENTER\x01n continue", 76);
 	var f = 0, i;
 	for (i = 0; i <= SETUP.length; i++) drawSetupRow(i, i === f);
@@ -156,6 +163,118 @@ function setup(first) {
 		}
 		if (changed) { for (i = 0; i <= SETUP.length; i++) drawSetupRow(i, i === f); }   // the throw's note depends on the hand
 		else if (f !== old) { drawSetupRow(old, false); drawSetupRow(f, true); }
+	}
+}
+
+// ---- Signing in ----------------------------------------------------------------------
+// Who's playing. A BBS user plays under their alias and gets their saved settings back (or
+// sets them up the first time); a web player types a name, and nothing is saved.
+function signIn() {
+	if (typeof user === "undefined" || !user.number) {   // the web version: nobody's logged in
+		player.name = askName();
+		setup(true);
+		return;
+	}
+	player.name = user.alias;
+	player.handle = slugOf(user.alias);
+	var got = loadSettings();
+	player.canSave = got !== "off";
+	if (got === "off") notice = "\x01h\x01ySave server not answering: settings won't be saved today.";
+	if (got === "loaded" && welcomeBack() === "play") return;
+	setup(got !== "loaded");
+	saveSetup();
+}
+
+// After player setup: saves its answers (the bag and putting view save on their own)
+function saveSetup() {
+	if (!player.canSave) return;
+	notice = saveSettings(["hand", "style", "level", "flightPath"]) ? "\x01h\x01gSaved for next time."
+		: "\x01h\x01yCouldn't save: the save server didn't answer.";
+}
+
+// Leaving the bag screen with a different bag: offers to save it (ENTER or Y saves)
+function offerBagSave(before) {
+	if (!player.canSave || player.bag.join("|") === before) return;
+	put(3, 24, "\x01h\x01wSave this bag for next time? \x01h\x01cY\x01n/N", 77);
+	for (;;) {
+		var k = key().toUpperCase();
+		if (k === "N" || k === "\x1b") return;
+		if (k === "Y" || k === "\r") break;
+	}
+	notice = saveSettings(["bag"]) ? "\x01h\x01gBag saved for next time." : "\x01h\x01yCouldn't save: the save server didn't answer.";
+}
+
+// A BBS player with saved settings: play with them (ENTER) or change them first.
+// Returns "play" or "change".
+var PUTT_VIEW_NAMES = { side: "Side", top: "Overhead", pov: "From the player" };
+
+function welcomeBack() {
+	cls();
+	put(3, 2, "\x01h\x01wWELCOME BACK, " + player.name.toUpperCase());
+	put(3, 3, "\x01n\x01k\x01hYour saved settings");
+	var rows = [["Hand", handName(player.hand) + "-handed"], ["Usual throw", styleName(player.style)],
+		["Level", level().name], ["Flight path", player.flightPath ? "Shown" : "Hidden"],
+		["Putting view", PUTT_VIEW_NAMES[player.puttView]]], i, j;
+	for (i = 0; i < rows.length; i++) put(5, 5 + i, "\x01n\x01k\x01h" + pad(rows[i][0], 14) + "\x01n" + rows[i][1]);
+	var bag = [], line = "";                  // the bag, wrapped to fit
+	for (i = 0; i < player.bag.length; i++) {
+		var add = (line ? ", " : "") + player.bag[i];
+		if (line && line.length + add.length > 58) { bag.push(line + ","); line = player.bag[i]; }
+		else line += add;
+	}
+	bag.push(line);
+	for (i = 0; i < bag.length; i++) put(5, 11 + i, "\x01n\x01k\x01h" + (i ? blank(14) : pad("Bag", 14)) + "\x01n" + bag[i]);
+	var opts = [" ~Play with these ", " ~Change settings "], sel = 0;
+	put(5, 18, "\x01h\x01cLeft/Right\x01n pick   \x01h\x01cENTER\x01n choose", 70);
+	for (;;) {
+		var s = moveTo(5, 16);
+		for (j = 0; j < opts.length; j++)
+			s += ca(j === sel ? opts[j].replace("~", "") : opts[j], j === sel ? 0x4F : 7)[0] + text("   ", 7);
+		out(s);
+		var k = key(), ku = k.toUpperCase();
+		if (ku === "P") return "play";                       // letters before arrows: L is also Right (isRight)
+		if (ku === "C") return "change";
+		if (k === "\r") return sel ? "change" : "play";
+		if (isLeft(k) || isRight(k)) sel = 1 - sel;
+	}
+}
+
+// Web players type the name they'll play under (BBS players use their alias), with the same rules
+// as a new BBS user's alias (Synchronet's check_name; the server's copy is in ../api/_names.js).
+var MAX_NAME = 25;   // Synchronet's LEN_ALIAS
+
+// Why a name can't be used, or "" if it can
+function nameProblem(name) {
+	if (!name) return "Type your name first.";
+	if (name.length > MAX_NAME) return "At most " + MAX_NAME + " characters.";
+	if (!/^[\x20-\x7e]*$/.test(name)) return "Letters, digits, spaces and punctuation only.";
+	if (!/^[A-Za-z]/.test(name)) return "Start with a letter.";
+	if (name.charAt(name.length - 1) === " ") return "No space at the end.";
+	if (name.indexOf("  ") >= 0) return "No double spaces.";
+	return "";
+}
+
+function askName() {
+	cls();
+	put(3, 2, "\x01h\x01wWELCOME TO DISC GOLF");
+	put(3, 4, "\x01nWhat's your name? It goes on your scorecard.");
+	put(3, 5, "\x01n\x01k\x01hUp to " + MAX_NAME + " characters, starting with a letter.");
+	put(3, 11, "\x01h\x01cENTER\x01n continue   \x01h\x01cBACKSPACE\x01n erase", 76);
+	var name = "", hint = "";
+	for (;;) {
+		out(moveTo(5, 7) + text(" " + name, 0x4F) + text("_", 0x4B) + text(blank(MAX_NAME - name.length), 0x4F) + setAttr(7));
+		put(5, 9, hint ? "\x01h\x01y" + hint : "", 70);
+		var k = key(), c = k.length === 1 ? k.charCodeAt(0) : 0, add = name + k;
+		hint = "";
+		if (k === "\r") {
+			name = name.replace(/ +$/, "");                 // a space at the end is just dropped
+			hint = nameProblem(name);
+			if (!hint) return name;
+		}
+		else if (k === "\b" || k === "\x7f") name = name.slice(0, -1);
+		else if (c < 32 || c > 126) continue;              // arrows and other keys
+		else if (k === " " && (name === "" || name.charAt(name.length - 1) === " ")) hint = name ? "No double spaces." : "Start with a letter.";
+		else if ((hint = nameProblem(add.replace(/ +$/, ""))) === "") name = add;
 	}
 }
 

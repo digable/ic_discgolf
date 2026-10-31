@@ -102,7 +102,7 @@ function scorecard(cur, final) {
 
 // One block of the card: holes a..z-1, at screen row y, gap rows apart
 function scoreBlock(a, z, last, cur, y, gap) {
-	var rows = [["HOLE", "\x01h"], ["FEET", "\x01n\x01k\x01h"], ["PAR", "\x01n"], [user.alias || "YOU", "\x01h\x01c"]];
+	var rows = [["HOLE", "\x01h"], ["FEET", "\x01n\x01k\x01h"], ["PAR", "\x01n"], [player.name || "YOU", "\x01h\x01c"]];
 	var i0 = last ? 0 : a, i, ft_ = 0, par = 0, tot = 0;
 	for (i = i0; i < z; i++) { ft_ += R.holes[i].ft; par += R.holes[i].par; tot += R.strokes[i] || 0; }
 	for (var r = 0; r < rows.length; r++) {

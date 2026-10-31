@@ -1,0 +1,36 @@
+# systemd unit for the disc golf service: server.js serves the game files and the BBS door's save
+# API (see README, "The save service"). Install it once:
+#
+#   sudo cp deploy/ic-discgolf.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now ic-discgolf
+#
+# DOOR_KEY comes from /etc/ic-discgolf.env (root-only), never from the repo. The player database is
+# /var/lib/ic-discgolf/saves.db: systemd creates that folder for the service (StateDirectory), so
+# deploys never touch it.
+
+[Unit]
+Description=IC Disc Golf (game files and the BBS save service)
+After=network.target
+
+[Service]
+Type=simple
+User=discgolf
+Group=discgolf
+WorkingDirectory=/srv/apps/ic_discgolf
+Environment=PORT=3002
+Environment=HOST=127.0.0.1
+Environment=DB_FILE=/var/lib/ic-discgolf/saves.db
+EnvironmentFile=/etc/ic-discgolf.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+
+# It only needs to write its database (StateDirectory is writable under ProtectSystem=strict)
+StateDirectory=ic-discgolf
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
