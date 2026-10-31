@@ -1170,8 +1170,56 @@ function povPuttGlyph(c, r) {
 	return g;
 }
 
-function povPuttAimCol() {
-	return clamp(PP_CX + Math.round(Math.atan2(PT.aim, PT.dist) / (POV.fov / MAP_W) * 2), MAP_X + 2, MAP_X + MAP_W - 3);
+// One scale for everything in the basket view. The basket drawing is as wide as the cage
+// (1.1 m, the "off the band" zone), so sideways distances at the basket use that scale, and
+// the aim line, the flight and the misses all line up with what you see. Nearer points use
+// true perspective (columns by X/Z, rows by 1/Z), so a straight line stays straight.
+function povPuttGeom() {
+	var P = {}, W = PT.art[0][0].length;
+	P.sc = W / 1.1;                                  // columns per meter at the basket
+	P.zc = 1.5;                                      // camera this far behind the release
+	P.Zb = PT.dist + P.zc;
+	P.F = P.sc * P.Zb;
+	P.pRow = PP_AIM_ROW;                             // ground at the player
+	P.bRow = PT.artTop + PT.art.length;              // ground under the basket
+	P.B = (P.pRow - P.bRow) / (1 / P.zc - 1 / P.Zb);
+	P.A = P.pRow - P.B / P.zc;
+	P.cRow = PT.artTop + (W === 7 ? 2 : 1);          // chains
+	P.tRow = PT.artTop + (W === 7 ? 4 : 2);          // tray
+	P.hB = (P.bRow - P.cRow) / (P.B / P.Zb / 1.6);   // chain height, in this view's meters
+	P.hTop = (P.bRow - PT.artTop + 1) / (P.B / P.Zb / 1.6);
+	PT.pv = P;
+}
+
+// Screen cell for a point X m right of the line, u of the way to the basket (1 = basket), Y m up
+function povProj(X, u, Y) {
+	var P = PT.pv, Z = P.zc + PT.dist * u;
+	return { c: Math.round(PP_CX + X * P.F / Z), r: Math.round(P.A + P.B / Z - Y * P.B / Z / 1.6) };
+}
+
+// Background behind the disc and its trail: sky blue above the horizon, grass green below
+function povBg(r) { return r < PP_HORIZON ? 0x40 : 0x20; }
+
+function povOnScreen(p) { return p.c >= MAP_X && p.c < MAP_X + MAP_W && p.r >= MAP_Y && p.r < MAP_Y + MAP_H - 1; }
+
+// Is this cell part of the basket drawing?
+function povOnArt(c, r) {
+	var art = PT.art, w = art[0][0].length, left = PP_CX - Math.floor(w / 2);
+	return r >= PT.artTop && r < PT.artTop + art.length && c >= left && c < left + w && art[r - PT.artTop][0].charAt(c - left) !== " ";
+}
+
+// The aim line on the ground, and a + where it reaches the basket at chain height
+function povAimLine() {
+	var s = "", i, p, last = null;
+	for (i = 1; i <= 24; i++) {
+		p = povProj(PT.aim * i / 24, i / 24, 0);
+		if (!povOnScreen(p) || (last && p.c === last.c && p.r === last.r) || povOnArt(p.c, p.r)) continue;
+		s += moveTo(p.c, p.r) + text("\xFA", 13 | povBg(p.r));
+		last = p;
+	}
+	p = povProj(PT.aim, 1, PT.pv.hB);
+	if (povOnScreen(p)) s += moveTo(p.c, p.r) + text("+", 13 | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
+	out(s + setAttr(7));
 }
 
 // Paints the whole map area; glyph(c, r) takes screen columns and rows
@@ -1188,13 +1236,18 @@ function drawPuttScene() {
 		out(moveTo(pc.c, pc.r) + text("\xFE", 15));
 		put(TOP.cx - 13, TOP.cy - 4, "\x01n\x01k\x01hC1 " + ft(C1_M) + " ft", 0);
 		put(TOP.cx + 19, TOP.cy + 6, "\x01n\x01k\x01hC2 " + ft(PUTT_M) + " ft", 0);
-		var ac = topCell({ x: S.H.basket.x + PT.rx * PT.aim, y: S.H.basket.y + PT.ry * PT.aim });
-		if (PT.aim) out(moveTo(ac.c, ac.r) + text("+", 13));
+		var ac = topCell({ x: S.H.basket.x + PT.rx * PT.aim, y: S.H.basket.y + PT.ry * PT.aim }), ai, ap, al = "";
+		for (ai = 1; ai < 16; ai++) {
+			ap = topCell(puttWorld(ai / 16, PT.aim * ai / 16));
+			if ((ap.c !== pc.c || ap.r !== pc.r) && (ap.c !== TOP.cx || ap.r !== TOP.cy)) al += moveTo(ap.c, ap.r) + text("\xFA", 13);
+		}
+		out(al + (PT.aim ? moveTo(ac.c, ac.r) + text("+", 13) : "") + setAttr(7));
 	} else if (player.puttView === "pov") {
 		PT.art = povPuttArt(PT.dist);
 		PT.artTop = MAP_Y + 1 + (PT.dist < 7 ? 0 : (PT.dist < 13 ? 2 : 3)) - clamp(Math.round(PT.dz / 3), -1, 2);
 		paintScene(povPuttGlyph);
-		out(moveTo(povPuttAimCol(), PP_AIM_ROW) + text("^", 13) + setAttr(7));
+		povPuttGeom();
+		povAimLine();
 	} else {
 		paintScene(sideGlyph);
 		put(puttCol(C1_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC1", 0);
@@ -1220,12 +1273,38 @@ function aimText() {
 function puttPanel(d) {
 	showPanel([
 		"\x01n\x01hPutter \x01c" + d.name,
-		discSpecLine(d),
+		"\x01n\x01k\x01h" + fadeText(),
 		handLine(),
 		"\x01n\x01hAim   \x01n" + aimText(),
 		"\x01n\x01k\x01h" + puttWindText(),
 		"\x01n\x01h~View  \x01n" + (player.puttView === "top" ? "overhead" : (player.puttView === "pov" ? "from player" : "side"))
 	]);
+}
+
+// How much the putter fades at the end, in meters (negative = left). Backhand from the
+// right hand (or forehand from the left) spins clockwise and fades left; the others fade right.
+function puttFade() {
+	var dir = ((S.hand === "R") === (S.style !== "FH")) ? -1 : 1;
+	return dir * puttDisc().n[3] * 0.06 * clamp(PT.dist / 10, 0.3, 1.5);
+}
+
+function fadeText() {
+	var f = puttFade(), v = Math.round(Math.abs(f) * FT * 10) / 10;
+	return v < 0.1 ? "Flies straight" : "Fades " + (f < 0 ? "left " : "right ") + v + " ft";
+}
+
+// Sideways position along the putt (meters right of the straight line), u = 0 at the hand,
+// 1 at the basket: aim and timing set the line, wind bends it gradually, fade hooks it late.
+// Past the basket it carries on in the direction it was going.
+function puttLat(u) {
+	var c = PT.comp, a = c.aim + c.timing;
+	if (u <= 1) return a * u + c.drift * u * u + c.fade * u * u * u;
+	return a + c.drift + c.fade + (a + 2 * c.drift + 3 * c.fade) * (u - 1);
+}
+
+// World point u of the way from the player to the basket, lat m to the player's right
+function puttWorld(u, lat) {
+	return { x: S.H.basket.x + PT.bx * PT.dist * (1 - u) + PT.rx * lat, y: S.H.basket.y + PT.by * PT.dist * (1 - u) + PT.ry * lat };
 }
 
 // Putting meter ticks every 10 ft; full power (66 ft) at the white mark
@@ -1247,49 +1326,89 @@ function drawPuttScreen() {
 	puttPanel(d);
 }
 
-// Animates a putt. endLat/endAlong: where it ends, relative to the basket
-// (meters right of the line / meters short of the basket; negative = long).
-function puttFlight(made, along, lat) {
-	var n = 14, prev = null, i, c, r, g;
-	if (player.puttView === "top") {
-		var a = topCell(S.lie), b = made ? { c: TOP.cx, r: TOP.cy } : topCell({ x: S.H.basket.x + PT.bx * along + PT.rx * lat, y: S.H.basket.y + PT.by * along + PT.ry * lat });
+// Animates a putt. kind: made, cage, short, over or miss. along: where it ends, meters short of
+// the basket (negative = past it); lat: meters right of the line where it ends.
+// The disc leaves a dotted trail, so the whole path stays on screen next to the basket.
+function puttFlight(kind, along, lat) {
+	var made = kind === "made", uEnd = 1 - along / Math.max(PT.dist, 0.5), pts = [], i, n, u, p;
+	if (player.puttView === "pov") {
+		var P = PT.pv, Y0 = 0.9, arc = PT.dist > 10 ? 0.5 : 0.2;
+		var Yb = kind === "over" ? P.hTop + 0.6 : P.hB;
+		var uTo = kind === "short" ? uEnd : 1;
+		n = 22;
 		for (i = 1; i <= n; i++) {
-			c = Math.round(a.c + (b.c - a.c) * i / n); r = Math.round(a.r + (b.r - a.r) * i / n);
-			var sb = "";
-			if (prev) sb = moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]);
-			else { g = topGlyph(a.c, a.r); sb = moveTo(a.c, a.r) + text(g[0], g[1]); }
-			prev = { c: c, r: r, g: topGlyph(c, r) };
-			out(sb + moveTo(c, r) + text("\xFE", 15));
+			u = uTo * i / n;
+			var Y = kind === "short" ? Y0 * (1 - i / n) + arc * Math.sin(i / n * Math.PI) : Y0 + (Yb - Y0) * i / n + arc * Math.sin(i / n * Math.PI);
+			pts.push({ p: povProj(puttLat(u), u, Y), u: u });
+		}
+		if (made) pts.push({ p: { c: pts[pts.length - 1].p.c, r: P.tRow }, u: 1 });
+		else if (kind === "cage") {
+			for (i = 1; i <= 6; i++) { u = 1 + (uEnd - 1) * i / 6; pts.push({ p: povProj(lat, u, P.hB * (1 - i / 6)), u: u }); }
+		} else if (kind !== "short") {
+			for (i = 1; i <= 8; i++) { u = 1 + (uEnd - 1) * i / 8; pts.push({ p: povProj(puttLat(u), u, Yb * (1 - i / 8)), u: u }); }
+		}
+		// Behind the basket (past it) the drawing covers the disc; in front, the disc covers the drawing.
+		function dot(q, on) { return moveTo(q.c, q.r) + text("\xFA", (on ? 15 : 7) | (povOnArt(q.c, q.r) ? 0 : povBg(q.r))); }
+		var prev = null, prevU = 0, s, hidden = false;
+		for (i = 0; i < pts.length; i++) {
+			p = pts[i].p;
+			if (!povOnScreen(p) || (prev && prev.c === p.c && prev.r === p.r)) continue;
+			hidden = pts[i].u > 1.02 && povOnArt(p.c, p.r);
+			s = prev ? dot(prev, false) : "";
+			if (!hidden) s += moveTo(p.c, p.r) + text(pts[i].u < 0.55 ? "\xFE" : "\xF9", 15 | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
+			out(s);
+			prev = hidden ? null : p; prevU = pts[i].u;
 			mswait(PUTT_FRAME_MS);
 		}
+		if (prev) out(moveTo(prev.c, prev.r) + text(prevU < 0.55 || made ? "\xFE" : "\xF9", 15 | (povOnArt(prev.c, prev.r) ? 0 : povBg(prev.r))));
+		out(setAttr(7));
 		return;
 	}
-	if (player.puttView === "pov") {
-		var c0 = povPuttAimCol(), r0 = PP_AIM_ROW, c1 = made ? PP_CX : clamp(PP_CX + Math.round(lat * 4), MAP_X + 1, MAP_X + MAP_W - 2);
-		var r1 = made ? PT.artTop + 2 : clamp(PT.artTop + PT.art.length + Math.round(along * 0.6), MAP_Y + 6, MAP_Y + 14);
-		for (i = 1; i <= n; i++) {
-			c = Math.round(c0 + (c1 - c0) * i / n); r = Math.round(r0 + (r1 - r0) * i / n - Math.sin(i / n * Math.PI) * 2);
-			var sb2 = prev ? moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) : "";
-			prev = { c: c, r: r, g: povPuttGlyph(c, r) };
-			out(sb2 + moveTo(c, r) + text("\xFE", 15 | (r < PP_HORIZON ? 0x40 : 0)));
+	if (player.puttView === "top") {
+		n = 16;
+		var uMain = kind === "short" ? uEnd : 1;
+		for (i = 1; i <= n; i++) { u = uMain * i / n; pts.push(topCell(puttWorld(u, made ? puttLat(u) * (1 - i / n) : puttLat(u)))); }
+		if (kind === "cage") pts.push(topCell(puttWorld(uEnd, lat)));
+		else if (!made && kind !== "short") for (i = 1; i <= 5; i++) { u = 1 + (uEnd - 1) * i / 5; pts.push(topCell(puttWorld(u, puttLat(u)))); }
+		var pv = topCell(S.lie), st;
+		// trail dots on the overhead view keep the grass behind them
+		for (i = 0; i < pts.length; i++) {
+			p = pts[i];
+			if (p.c === pv.c && p.r === pv.r) continue;
+			st = moveTo(pv.c, pv.r) + ((pv.c === TOP.cx && pv.r === TOP.cy) ? text("\xE8", 11) : text("\xFA", 15 | 0x20));
+			out(st + moveTo(p.c, p.r) + text("\xFE", 15));
+			pv = p;
 			mswait(PUTT_FRAME_MS);
 		}
 		return;
 	}
 	var cA = PT.p0, cB = made ? PV_BX : (along >= 0 ? puttCol(along) : Math.min(MAP_X + MAP_W - 2, PV_BX + Math.round(-along * PV_SCALE)));
-	var rA = sideGround(cA) - 1;
-	g = sideGlyph(cA, rA);
-	out(moveTo(cA, rA) + text(g[0], g[1]));
+	var prev3 = null, c, r;
+	out(moveTo(cA, sideGround(cA) - 1) + text(sideGlyph(cA, sideGround(cA) - 1)[0], sideGlyph(cA, sideGround(cA) - 1)[1]));
+	n = 14;
 	for (i = 1; i <= n; i++) {
-		var u = i / n; c = Math.round(cA + (cB - cA) * u);
+		u = i / n; c = Math.round(cA + (cB - cA) * u);
 		var gnd = sideGround(c) - 1, chain = MAP_Y + 5 - PT.rise;
-		r = made ? Math.round(gnd + (chain - gnd) * Math.sin(u * Math.PI / 2)) : gnd - Math.round(Math.sin(u * Math.PI) * 5);
-		var sb3 = prev ? moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) : "";
-		prev = { c: c, r: r, g: sideGlyph(c, r) };
+		r = made ? Math.round(gnd + (chain - gnd) * Math.sin(u * Math.PI / 2)) : gnd - Math.round(Math.sin(u * Math.PI) * (kind === "over" ? 7 : 5));
+		var sb3 = prev3 ? moveTo(prev3.c, prev3.r) + (sideGlyph(prev3.c, prev3.r)[0] === " " ? text("\xFA", 8) : text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1])) : "";
+		prev3 = { c: c, r: r };
 		out(sb3 + moveTo(c, r) + text("\xFE", 15));
 		mswait(PUTT_FRAME_MS);
 	}
-	if (made) out(moveTo(prev.c, prev.r) + text(prev.g[0], prev.g[1]) + moveTo(PV_BX, MAP_Y + 7 - PT.rise) + text("\xFE", 15));
+	if (made) out(moveTo(prev3.c, prev3.r) + text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1]) + moveTo(PV_BX, MAP_Y + 7 - PT.rise) + text("\xFE", 15));
+}
+
+// Why a putt missed, from the parts that moved it off line (or from the power)
+function puttWhy(kind, need, thrown, over) {
+	if (kind === "short") return "Needed " + ft(need) + " ft, the putt went " + ft(thrown) + ".";
+	if (kind === "over") return "Too hard: about " + ft(over) + " ft more than it needed.";
+	if (kind === "spit") return "Too much speed for the chains (" + ft(over) + " ft extra).";
+	var c = PT.comp, parts = [["aim", c.aim], ["timing", c.timing], ["fade", c.fade], ["wind", c.drift]], list = [], i, v;
+	for (i = 0; i < parts.length; i++) {
+		v = Math.round(Math.abs(parts[i][1]) * FT * 10) / 10;
+		if (v >= 0.1) list.push(parts[i][0] + " " + v + (parts[i][1] < 0 ? " L" : " R"));
+	}
+	return list.join(", ");
 }
 
 // Sets up the putt from the current lie
@@ -1310,7 +1429,8 @@ function putt() {
 	if (PT.dist < 1.2) {
 		status("Tap-in range. \x01hSPACE\x01n to drop it in.");
 		for (;;) { var k0 = key(); if (k0 === " ") break; }
-		puttFlight(true, 0, 0);
+		PT.comp = { aim: 0, timing: 0, drift: 0, fade: 0 };
+		puttFlight("made", 0, 0);
 		S.strokes++;
 		msg("\x01h\x01gDrop-in.");
 		return true;
@@ -1337,31 +1457,31 @@ function putt() {
 	var thrown = (sw.power / 100) * PUTT_M * (sw.whiff ? 0.6 : 1);
 	var over = thrown - need;
 	var err = sw.whiff ? (rnd() - 0.5) * 0.4 : sw.accuracy * 0.03 * accMul + (rnd() - 0.5) * 0.01;
-	var drift = PT.cross * PT.dist * 0.025;
-	var lateral = Math.sin(err) * PT.dist + drift + PT.aim;   // meters right of the basket
-	var made = false, line;
-	if (over < -0.15) line = "\x01n\x01yShort.";
+	PT.comp = { aim: PT.aim, timing: Math.sin(err) * PT.dist, drift: PT.cross * PT.dist * 0.025, fade: puttFade() };
+	var lateral = puttLat(1);                                 // meters right of the basket
+	var made = false, line, kind;
+	if (over < -0.15) { line = "\x01n\x01yShort."; kind = "short"; }
 	else if (Math.abs(lateral) <= 0.35 && over <= 6) {
 		var spit = over <= 1.5 ? 0.04 : 0.04 + (over - 1.5) * 0.08;
-		if (rnd() < spit) line = "\x01h\x01rSpit out of the chains!";
-		else { made = true; line = "\x01h\x01gCHAINS!"; }
+		if (rnd() < spit) { line = "\x01h\x01rSpit out of the chains!"; kind = "spit"; }
+		else { made = true; line = "\x01h\x01gCHAINS!"; kind = "made"; }
 	} else if (Math.abs(lateral) <= 0.55 && over <= 6) {
-		if (rnd() < 0.35) { made = true; line = "\x01h\x01gOff the band and in!"; }
-		else line = "\x01n\x01yHits the cage.";
-	} else if (over > 6) line = "\x01n\x01ySailed over the basket.";
-	else line = "\x01n\x01yMissed " + (lateral < 0 ? "left." : "right.");
+		if (rnd() < 0.35) { made = true; line = "\x01h\x01gOff the band and in!"; kind = "made"; }
+		else { line = "\x01n\x01yHits the cage."; kind = "cage"; }
+	} else if (over > 6) { line = "\x01n\x01ySailed over the basket."; kind = "over"; }
+	else { line = "\x01n\x01yMissed " + (lateral < 0 ? "left." : "right."); kind = "miss"; }
 
 	// where the disc ends up: meters short of the basket (negative = past it)
 	var along;
 	if (made) along = 0;
 	else if (over < -0.15) along = -over;
-	else if (line.indexOf("cage") >= 0) along = 0.3 + rnd() * 1.2;
+	else if (kind === "cage") along = 0.3 + rnd() * 1.2;
 	else along = -Math.min(Math.max(over, 1), 8) * 0.6;
 	if (!made && along < 0 && PT.dz < -2) along -= 1 + rnd() * 2;   // past a downhill basket it rolls away
-	var endLat = made ? 0 : lateral * (1 + Math.abs(along) / Math.max(PT.dist, 1));
-	puttFlight(made, along, endLat);
+	var endLat = made ? 0 : (kind === "cage" ? lateral : puttLat(1 - along / Math.max(PT.dist, 0.5)));
+	puttFlight(kind === "spit" ? "miss" : kind, along, endLat);
 	if (!made) S.lie = { x: H.basket.x + PT.bx * along + PT.rx * endLat, y: H.basket.y + PT.by * along + PT.ry * endLat };
-	msg(line + (made ? "" : "\x01n  " + ft(pinDist()) + " ft away."));
+	msg(line + (made ? "" : "\x01n  " + ft(pinDist()) + " ft away.  \x01k\x01h" + puttWhy(kind, need, thrown, over)));
 	waitKey("Press any key");
 	return made;
 }
