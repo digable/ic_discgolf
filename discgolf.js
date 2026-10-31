@@ -344,7 +344,7 @@ function swingMeter(lag) {
 var player = {
 	hand: "R",           // dominant hand
 	style: "BH",         // usual throw
-	underline: true,     // underline hotkey letters
+	underline: true,     // underline hotkey letters (always on; terminals without underlines just show them in yellow)
 	puttView: "side",    // side, top or pov
 	bag: ["KC Aviar", "Zone", "Buzzz", "Teebird", "Leopard3", "Destroyer"]
 };
@@ -1503,10 +1503,6 @@ function setup(first) {
 	put(3, 9, "\x01h\x01c  " + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/hammer.", 76);
 	var spin = (player.hand === "R") === (player.style === "BH");
 	put(3, 10, "\x01n  Your " + styleName(player.style).toLowerCase() + " fades to the \x01h" + (spin ? "left" : "right") + "\x01n and turns over to the \x01h" + (spin ? "right" : "left") + "\x01n.");
-	put(3, 12, "\x01nUnderline the hotkey letters, like \x01h~Disc\x01n?   ~Yes   ~No");
-	put(3, 13, "\x01n\x01k\x01h  Some BBS terminals don't show underlines, or show them as a color change.");
-	for (;;) { var k3 = key().toUpperCase(); if (k3 === "Y" || k3 === "N") { player.underline = k3 === "Y"; break; } if (k3 === "\r" && !first) break; }
-	put(3, 14, "\x01h\x01c  " + (player.underline ? "Hotkeys underlined: " : "Hotkeys in color only: ") + "\x01n~Disc ~Throw ~Hand", 70);
 	waitKey("Press any key");
 }
 

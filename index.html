@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="A Genesis-style disc golf door for Synchronet BBS, playable in the browser.">
-<title>Disc Golf Door</title>
+<title>IC Disc Golf Emulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -64,6 +64,11 @@ code { font-family: var(--mono); font-size: 12px; color: var(--fg); }
 .keys { position: relative; }
 .kb-in { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; font-size: 16px; }
 #kbBtn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+/* While the phone keyboard is up, it does the typing: hide the other on-screen keys so the
+   screen and the keyboard both fit, and leave just the button that closes it. */
+body.kb-open .keys .key:not(#kbBtn) { display: none; }
+body.kb-open .under > p { display: none; }
+body.kb-open #kbBtn { font-size: 20px; }
 .key:active { background: var(--accent); color: #000; }
 
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -114,8 +119,8 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
 <body>
 <div class="wrap">
   <header>
-    <h1>Disc Golf Door</h1>
-    <p>A disc golf door for Synchronet, played here on an emulated 80×25 ANSI screen with the same 3-click meter. It runs the real discgolf.js file, starting at Turkey Creek in Iowa City. Pick your hand and throw, choose a disc, aim with the arrow keys and press <kbd>SPACE</kbd> to throw. On a phone, tap <kbd>abc</kbd> (or the screen) for the keyboard when it asks for a letter.</p>
+    <h1>IC Disc Golf Emulator</h1>
+    <p>A disc golf door for Synchronet, played here on an emulated 80×25 ANSI screen with the same 3-click meter. It runs the real discgolf.js file, starting at Turkey Creek in Iowa City. Pick your hand and throw, choose a disc, aim with the arrow keys and press <kbd>SPACE</kbd> to throw. On a phone, tap <kbd>abc</kbd> (or the screen) to type with your phone's keyboard.</p>
   </header>
 
   <div class="main">
@@ -794,8 +799,31 @@ td.empty { font-family: var(--ui); color: var(--muted); white-space: normal; }
     if (document.activeElement === kbIn) kbIn.blur(); else kbIn.focus({ preventScroll: true });
   });
   kbBtn.addEventListener("click", (e) => { if (e.detail === 0) kbIn.focus({ preventScroll: true }); });
-  kbIn.addEventListener("focus", () => kbBtn.setAttribute("aria-pressed", "true"));
-  kbIn.addEventListener("blur", () => kbBtn.setAttribute("aria-pressed", "false"));
+  // Keyboard up: hide the other keys and move the terminal to the top of what's still visible.
+  // Keyboard down: put everything back.
+  const vv = window.visualViewport;
+  let kbShown = false, fullH = 0;
+  function screenToTop() {
+    const top = $("bezel").getBoundingClientRect().top + window.scrollY - 8;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }
+  kbIn.addEventListener("focus", () => {
+    kbBtn.setAttribute("aria-pressed", "true");
+    kbBtn.textContent = "hide keyboard";
+    document.body.classList.add("kb-open");
+    kbShown = false; fullH = vv ? vv.height : window.innerHeight;
+    screenToTop();
+  });
+  kbIn.addEventListener("blur", () => {
+    kbBtn.setAttribute("aria-pressed", "false");
+    kbBtn.textContent = "abc";
+    document.body.classList.remove("kb-open");
+  });
+  if (vv) vv.addEventListener("resize", () => {
+    if (document.activeElement !== kbIn) return;
+    if (vv.height < fullH * 0.8) { kbShown = true; screenToTop(); }      // keyboard came up
+    else if (kbShown && vv.height > fullH * 0.9) kbIn.blur();           // closed with the phone's back/down key
+  });
   kbIn.addEventListener("beforeinput", (e) => {
     if (e.inputType === "deleteContentBackward") { e.preventDefault(); pressKey("\b"); }
     else if (e.inputType === "insertLineBreak") { e.preventDefault(); pressKey("\r"); }
