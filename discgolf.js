@@ -1102,7 +1102,11 @@ var PV_SCALE = 50 / PUTT_M;     // columns per meter (side view)
 var PP_CX = 40;                 // center column of the overhead and player views
 var PP_HORIZON = MAP_Y + 5;     // horizon row in the view from the player
 var PP_AIM_ROW = MAP_Y + 14;    // aim mark / disc start row in the view from the player
-var PUTT_FRAME_MS = 45;         // putt animation frame time
+var PUTT_FRAME_MS = 45;
+// Putt path colors, the same in all three views, picked to stand out from the grass and sky:
+// the trail is yellow dots on red, the aim line magenta, the disc white.
+var PUTT_TRAIL = 11 | 0x10, PUTT_AIM = 13, PUTT_DISC = 15;
+var PUTT_TRAIL_CH = "\xF9";         // putt animation frame time
 var PT = null;                  // putt state
 
 function puttCol(m) { return Math.max(MAP_X + 2, PV_BX - Math.round(m * PV_SCALE)); }
@@ -1197,8 +1201,8 @@ function povProj(X, u, Y) {
 	return { c: Math.round(PP_CX + X * P.F / Z), r: Math.round(P.A + P.B / Z - Y * P.B / Z / 1.6) };
 }
 
-// Background behind the disc and its trail: sky blue above the horizon, grass green below
-function povBg(r) { return r < PP_HORIZON ? 0x40 : 0x20; }
+// Background behind the disc, its trail and the aim line: sky blue above the horizon, black on the grass
+function povBg(r) { return r < PP_HORIZON ? 0x40 : 0; }
 
 function povOnScreen(p) { return p.c >= MAP_X && p.c < MAP_X + MAP_W && p.r >= MAP_Y && p.r < MAP_Y + MAP_H - 1; }
 
@@ -1214,11 +1218,11 @@ function povAimLine() {
 	for (i = 1; i <= 24; i++) {
 		p = povProj(PT.aim * i / 24, i / 24, 0);
 		if (!povOnScreen(p) || (last && p.c === last.c && p.r === last.r) || povOnArt(p.c, p.r)) continue;
-		s += moveTo(p.c, p.r) + text("\xFA", 13 | povBg(p.r));
+		s += moveTo(p.c, p.r) + text("\xFA", PUTT_AIM | povBg(p.r));
 		last = p;
 	}
 	p = povProj(PT.aim, 1, PT.pv.hB);
-	if (povOnScreen(p)) s += moveTo(p.c, p.r) + text("+", 13 | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
+	if (povOnScreen(p)) s += moveTo(p.c, p.r) + text("+", PUTT_AIM | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
 	out(s + setAttr(7));
 }
 
@@ -1233,15 +1237,15 @@ function drawPuttScene() {
 	if (player.puttView === "top") {
 		paintScene(topGlyph);
 		var pc = topCell(S.lie);
-		out(moveTo(pc.c, pc.r) + text("\xFE", 15));
+		out(moveTo(pc.c, pc.r) + text("\xFE", PUTT_DISC));
 		put(TOP.cx - 13, TOP.cy - 4, "\x01n\x01k\x01hC1 " + ft(C1_M) + " ft", 0);
 		put(TOP.cx + 19, TOP.cy + 6, "\x01n\x01k\x01hC2 " + ft(PUTT_M) + " ft", 0);
 		var ac = topCell({ x: S.H.basket.x + PT.rx * PT.aim, y: S.H.basket.y + PT.ry * PT.aim }), ai, ap, al = "";
 		for (ai = 1; ai < 16; ai++) {
 			ap = topCell(puttWorld(ai / 16, PT.aim * ai / 16));
-			if ((ap.c !== pc.c || ap.r !== pc.r) && (ap.c !== TOP.cx || ap.r !== TOP.cy)) al += moveTo(ap.c, ap.r) + text("\xFA", 13);
+			if ((ap.c !== pc.c || ap.r !== pc.r) && (ap.c !== TOP.cx || ap.r !== TOP.cy)) al += moveTo(ap.c, ap.r) + text("\xFA", PUTT_AIM);
 		}
-		out(al + (PT.aim ? moveTo(ac.c, ac.r) + text("+", 13) : "") + setAttr(7));
+		out(al + (PT.aim ? moveTo(ac.c, ac.r) + text("+", PUTT_AIM) : "") + setAttr(7));
 	} else if (player.puttView === "pov") {
 		PT.art = povPuttArt(PT.dist);
 		PT.artTop = MAP_Y + 1 + (PT.dist < 7 ? 0 : (PT.dist < 13 ? 2 : 3)) - clamp(Math.round(PT.dz / 3), -1, 2);
@@ -1252,7 +1256,7 @@ function drawPuttScene() {
 		paintScene(sideGlyph);
 		put(puttCol(C1_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC1", 0);
 		put(puttCol(PUTT_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC2", 0);
-		out(moveTo(PT.p0, sideGround(PT.p0) - 1) + text("\xFE", 15));
+		out(moveTo(PT.p0, sideGround(PT.p0) - 1) + text("\xFE", PUTT_DISC));
 	}
 	var circle = PT.dist <= C1_M ? "inside Circle 1" : "Circle 2 - jump putt";
 	var slope = elevText(PT.dz);
@@ -1327,7 +1331,7 @@ function drawPuttScreen() {
 }
 
 // A trail dot left behind the disc in the basket view
-function povTrailDot(q) { return moveTo(q.c, q.r) + text("\xFA", 7 | (povOnArt(q.c, q.r) ? 0 : povBg(q.r))); }
+function povTrailDot(q) { return moveTo(q.c, q.r) + text(PUTT_TRAIL_CH, PUTT_TRAIL); }
 
 // Animates a putt. kind: made, cage, short, over or miss. along: where it ends, meters short of
 // the basket (negative = past it); lat: meters right of the line where it ends.
@@ -1357,12 +1361,12 @@ function puttFlight(kind, along, lat) {
 			if (!povOnScreen(p) || (prev && prev.c === p.c && prev.r === p.r)) continue;
 			hidden = pts[i].u > 1.02 && povOnArt(p.c, p.r);
 			s = prev ? povTrailDot(prev) : "";
-			if (!hidden) s += moveTo(p.c, p.r) + text(pts[i].u < 0.55 ? "\xFE" : "\xF9", 15 | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
+			if (!hidden) s += moveTo(p.c, p.r) + text(pts[i].u < 0.55 ? "\xFE" : "\xF9", PUTT_DISC | (povOnArt(p.c, p.r) ? 0 : povBg(p.r)));
 			out(s);
 			prev = hidden ? null : p; prevU = pts[i].u;
 			mswait(PUTT_FRAME_MS);
 		}
-		if (prev) out(moveTo(prev.c, prev.r) + text(prevU < 0.55 || made ? "\xFE" : "\xF9", 15 | (povOnArt(prev.c, prev.r) ? 0 : povBg(prev.r))));
+		if (prev) out(moveTo(prev.c, prev.r) + text(prevU < 0.55 || made ? "\xFE" : "\xF9", PUTT_DISC | (povOnArt(prev.c, prev.r) ? 0 : povBg(prev.r))));
 		out(setAttr(7));
 		return;
 	}
@@ -1377,8 +1381,8 @@ function puttFlight(kind, along, lat) {
 		for (i = 0; i < pts.length; i++) {
 			p = pts[i];
 			if (p.c === pv.c && p.r === pv.r) continue;
-			st = moveTo(pv.c, pv.r) + ((pv.c === TOP.cx && pv.r === TOP.cy) ? text("\xE8", 11) : text("\xFA", 15 | 0x20));
-			out(st + moveTo(p.c, p.r) + text("\xFE", 15));
+			st = moveTo(pv.c, pv.r) + ((pv.c === TOP.cx && pv.r === TOP.cy) ? text("\xE8", 11) : text(PUTT_TRAIL_CH, PUTT_TRAIL));
+			out(st + moveTo(p.c, p.r) + text("\xFE", PUTT_DISC));
 			pv = p;
 			mswait(PUTT_FRAME_MS);
 		}
@@ -1392,9 +1396,9 @@ function puttFlight(kind, along, lat) {
 		u = i / n; c = Math.round(cA + (cB - cA) * u);
 		var gnd = sideGround(c) - 1, chain = MAP_Y + 5 - PT.rise;
 		r = made ? Math.round(gnd + (chain - gnd) * Math.sin(u * Math.PI / 2)) : gnd - Math.round(Math.sin(u * Math.PI) * (kind === "over" ? 7 : 5));
-		var sb3 = prev3 ? moveTo(prev3.c, prev3.r) + (sideGlyph(prev3.c, prev3.r)[0] === " " ? text("\xFA", 8) : text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1])) : "";
+		var sb3 = prev3 ? moveTo(prev3.c, prev3.r) + (sideGlyph(prev3.c, prev3.r)[0] === " " ? text(PUTT_TRAIL_CH, PUTT_TRAIL) : text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1])) : "";
 		prev3 = { c: c, r: r };
-		out(sb3 + moveTo(c, r) + text("\xFE", 15));
+		out(sb3 + moveTo(c, r) + text("\xFE", PUTT_DISC));
 		mswait(PUTT_FRAME_MS);
 	}
 	if (made) out(moveTo(prev3.c, prev3.r) + text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1]) + moveTo(PV_BX, MAP_Y + 7 - PT.rise) + text("\xFE", 15));
