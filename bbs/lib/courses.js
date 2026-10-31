@@ -13,11 +13,86 @@
 // elev (optional, feet) = { tee: 0, basket: -12, hills: [[col, row, radius, height]] }
 //   tee/basket heights set the overall slope; each hill is a bump (or a dip,
 //   with a negative height) centered on a map cell. Leave it out for flat.
+// An island green is a ring of water around the basket.
 //
-// Turkey Creek: hole lengths and pars from the course listing (UDisc, 2026).
-// Fairway shapes are drawn from the course descriptions (tight tunnels along
-// wood lines, road and parking in play) - not surveyed. Adjust to match the
-// real holes. No elevation is set yet: add elev to a hole once you know it.
+// Lengths and pars are real (UDisc); shapes are drawn, not surveyed. Each course's
+// details and sources are in README.md, "Courses".
+
+// High Bridge: holes 1-10 (on the bluff), shared by both layouts
+var HIGH_BRIDGE_TOP = [
+	{ par: 3, pts: [[8, 8], [68, 8]], hw: 5, rough: 3, left: "light", right: "medium",
+	  trees: [[38, 7]],
+	  note: "Park course opener. Short, but pick your line through the trees." },
+	{ par: 3, pts: [[8, 10], [40, 9], [68, 5]], hw: 5, rough: 3, left: "medium", right: "light",
+	  trees: [[30, 9]],
+	  note: "Turns left around the trees. Hyzer or forehand line." },
+	{ par: 3, pts: [[12, 6], [64, 9]], hw: 4, rough: 2, left: "dense", right: "medium",
+	  trees: [[36, 7], [46, 8]],
+	  note: "Shortest yet, and the most technical. Thread the gap." },
+	{ par: 4, pts: [[5, 4], [36, 6], [72, 11]], hw: 6, rough: 3, left: "light", right: "medium",
+	  trees: [[50, 9]],
+	  note: "First par 4. Long and bending right - set up the second shot." },
+	{ par: 4, pts: [[5, 11], [40, 10], [71, 5]], hw: 5, rough: 3, left: "medium", right: "light",
+	  trees: [[55, 8], [22, 11]],
+	  note: "Short par 4 that doglegs left. Lay up to the corner." },
+	{ par: 3, pts: [[12, 8], [64, 8]], hw: 4, rough: 2, left: "medium", right: "medium",
+	  trees: [[36, 8]],
+	  note: "Short and straight, with a tree in the middle of the fairway." },
+	{ par: 3, pts: [[10, 5], [66, 10]], hw: 4.5, rough: 2, left: "light", right: "dense",
+	  trees: [[40, 7]],
+	  note: "Angles right toward the wood line." },
+	{ par: 3, pts: [[10, 10], [66, 6]], hw: 4, rough: 2, left: "dense", right: "light",
+	  trees: [[44, 8]],
+	  note: "Drifts left. The woods hug the left side." },
+	{ par: 3, pts: [[9, 7], [42, 6], [67, 10]], hw: 4, rough: 2, left: "medium", right: "medium",
+	  trees: [[28, 7]],
+	  note: "S-curve through the park trees." },
+	{ par: 3, pts: [[9, 9], [67, 8]], hw: 5, rough: 3, left: "light", right: "light",
+	  trees: [[34, 8], [50, 9]],
+	  note: "Last of the holes on top. Open, with a couple of trees to miss." }
+];
+
+// High Bridge: holes 11-18 (the valley), Heaven and Hell only
+var HIGH_BRIDGE_BOTTOM = [
+	{ par: 4, pts: [[8, 4], [38, 7], [68, 11]], hw: 3, rough: 6, left: "dense", right: "dense",
+	  trees: [[30, 6], [50, 9]], elev: { tee: 0, basket: -30 },
+	  note: "Over the edge of the bluff and down. A par 4: placement, not power." },
+	{ par: 3, pts: [[12, 9], [64, 7]], hw: 3.5, rough: 6, left: "dense", right: "medium",
+	  trees: [[40, 8]], elev: { tee: 0, basket: -10 },
+	  note: "Still dropping toward the river. Weeds off the fairway." },
+	{ par: 3, pts: [[10, 8], [66, 8]], hw: 3.5, rough: 6, left: "medium", right: "dense",
+	  trees: [[30, 8], [46, 7]],
+	  note: "The valley floor. Fallen trees and tall grass - stay on your line." },
+	{ par: 3, pts: [[9, 6], [44, 7], [68, 11]], hw: 3.5, rough: 6, left: "dense", right: "dense",
+	  trees: [[56, 9]], elev: { tee: 0, basket: -10 },
+	  note: "Overgrown tunnel bending right, lower still." },
+	{ par: 3, pts: [[9, 10], [44, 9], [68, 5]], hw: 3.5, rough: 6, left: "dense", right: "dense",
+	  trees: [[26, 10]], elev: { tee: 0, basket: -10 },
+	  note: "The bottom of the course. Bends left through the weeds." },
+	{ par: 4, pts: [[5, 11], [36, 9], [72, 4]], hw: 4, rough: 6, left: "dense", right: "dense",
+	  trees: [[48, 8]], elev: { tee: 0, basket: 25, hills: [[24, 10, 6, 6]] },
+	  note: "The long climb back out. Two shots, both uphill." },
+	{ par: 3, pts: [[14, 8], [62, 7]], hw: 3.5, rough: 5, left: "dense", right: "medium",
+	  trees: [[38, 8]], elev: { tee: 0, basket: 15 },
+	  note: "Short but steep. Take more disc than it looks." },
+	{ par: 3, pts: [[14, 7], [62, 9]], hw: 4, rough: 5, left: "medium", right: "medium",
+	  trees: [[40, 8]], elev: { tee: 0, basket: 10 },
+	  note: "One more climb, back to the top to finish." }
+];
+
+// Copies of holes with their lengths (ft) set, one per length
+function holesWithFt(holes, ft) {
+	var out = [];
+	for (var i = 0; i < ft.length; i++) {
+		var h = {}, k;
+		for (k in holes[i]) h[k] = holes[i][k];
+		h.ft = ft[i];
+		out.push(h);
+	}
+	return out;
+}
+
+// Turkey Creek: 9 holes, par 27
 var COURSES = [{
 	name: "Turkey Creek",
 	where: "Coralville Reservoir, Iowa City, IA",
@@ -51,11 +126,7 @@ var COURSES = [{
 		  note: "Finish with a left turn. The road runs along the right side." }
 	]
 }, {
-// Wildcat Bluff: 21 holes from the short (red) tees, par 71, 7,445 ft - lengths
-// and pars from the course listing (UDisc, 2026). UDisc calls it heavily wooded
-// with elevation changes and many tight lines, rated extremely hilly. Fairway
-// shapes, bends and hills here are drawn from that description - not surveyed.
-// Adjust to match the real holes.
+// Wildcat Bluff: 21 holes, par 71 (red tees)
 	name: "Wildcat Bluff",
 	where: "Wildcat Bluff Park, Vinton, IA",
 	holes: [
@@ -124,13 +195,7 @@ var COURSES = [{
 		  note: "Uphill finish. Make your last drive count." }
 	]
 }, {
-// Eagles Crossing, Championship Course: 18 holes, par 70, 7,564 ft - lengths and
-// pars from UDisc's current layout ("Masters Invitational 2026 - Red", 2026).
-// UDisc: about 400 acres of open fields, very hilly woods and nine ponds and lakes;
-// every hole has red, white and blue tees. Where the water, woods, roads and hills
-// go is from course reviews written before the course was renumbered in 2023, so
-// some may now be on different holes. Shapes are drawn, not surveyed: adjust them
-// to match the real holes. Island greens are a ring of water around the basket.
+// Eagles Crossing, Championship Course: 18 holes, par 70 (red layout)
 	name: "Eagles Crossing",
 	where: "Championship Course, New Truxton, MO",
 	holes: [
@@ -190,11 +255,7 @@ var COURSES = [{
 		  note: "Curls around two ponds on the right to an elevated green." }
 	]
 }, {
-// Sugar Bottom: 18 holes, par 55, 5,791 ft - lengths and pars from UDisc's main
-// layout ("Main - Sugar Bottom - 7/30/2026", 2026). UDisc calls it hilly, a mix of
-// wooded and open holes, and very shaggy off the fairways (thorns). Fairway shapes,
-// bends and hills are drawn from that description - not surveyed. Adjust to match
-// the real holes.
+// Sugar Bottom: 18 holes, par 55
 	name: "Sugar Bottom",
 	where: "Sugar Bottom Rec Area, Solon, IA",
 	holes: [
@@ -253,4 +314,15 @@ var COURSES = [{
 		  trees: [[40, 9], [62, 11]], elev: { tee: 0, basket: -10, hills: [[22, 5, 7, 8]] },
 		  note: "The big finish. Over the ridge, down and right. Two big shots." }
 	]
+}, {
+// High Bridge, The Top Ten: 10 holes, par 32
+	name: "High Bridge Top Ten",
+	where: "High Bridge DGC, Eldora, IA",
+	holes: holesWithFt(HIGH_BRIDGE_TOP, [249, 251, 212, 444, 352, 210, 222, 224, 230, 243])
+}, {
+// High Bridge, Heaven and Hell: 18 holes, par 58
+	name: "High Bridge Heaven & Hell",
+	where: "High Bridge DGC, Eldora, IA",
+	holes: holesWithFt(HIGH_BRIDGE_TOP.concat(HIGH_BRIDGE_BOTTOM),
+		[249, 250, 212, 420, 352, 209, 222, 224, 231, 244, 246, 211, 226, 252, 252, 400, 184, 190])
 }];
