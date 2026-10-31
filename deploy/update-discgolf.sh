@@ -1,26 +1,35 @@
-#!/bin/sh
-# Runs on digiweb when the GitHub deploy workflow connects.
-# Install it once, outside the repo (for example /usr/local/bin/update-discgolf.sh),
-# and force the deploy key to run only this script in ~deploy/.ssh/authorized_keys:
+#!/bin/bash
+# Pull the latest Disc Golf from GitHub and publish just the game files.
+# Runs on digiweb, as root, when the GitHub deploy workflow connects (or by hand: sudo update-discgolf.sh).
 #
-#   command="/usr/local/bin/update-discgolf.sh",restrict ssh-ed25519 AAAA... discgolf-deploy
+# Install it once, outside the repo, as /usr/local/bin/update-discgolf.sh. The deploy key in
+# ~deploy/.ssh/authorized_keys is forced to run only this script:
 #
-# It keeps /srv/apps/ic_discgolf matching the main branch on GitHub.
-# Synchronet runs the door straight from that folder (Start-up Directory in SCFG).
-set -eu
+#   restrict,command="sudo /usr/local/bin/update-discgolf.sh" ssh-ed25519 AAAA... github-actions discgolf
+#
+# and /etc/sudoers.d/deploy-discgolf lets the deploy user run it:
+#
+#   deploy ALL=(root) NOPASSWD: /usr/local/bin/update-discgolf.sh
+#
+# The published folder is used twice: nginx serves it as discgolf.sodamachine.net, and Synchronet runs
+# the door from it (Start-up Directory in SCFG). Only the game files go there, never .git or the docs.
+set -euo pipefail
 
-REPO_URL="https://github.com/digable/ic_discgolf.git"
-APP_DIR="/srv/apps/ic_discgolf"
+SRC=/srv/src/ic_discgolf
+DEST=/srv/apps/ic_discgolf
 
-if [ -d "$APP_DIR/.git" ]; then
-	git -C "$APP_DIR" fetch --quiet origin main
-	# This folder is deploy-only, so local changes are thrown away.
-	git -C "$APP_DIR" reset --quiet --hard origin/main
-else
-	git clone --quiet --branch main "$REPO_URL" "$APP_DIR"
-fi
+git -C "$SRC" fetch --quiet --depth 1 origin HEAD
+git -C "$SRC" reset --quiet --hard FETCH_HEAD
 
-# Synchronet (user sbbs) only needs to read the files.
-chmod -R a+rX "$APP_DIR"
+mkdir -p "$DEST"
+rsync -a --delete \
+    --include='/index.html' \
+    --include='/discgolf.js' \
+    --include='/vendor/***' \
+    --exclude='*' \
+    "$SRC/" "$DEST/"
 
-echo "ic_discgolf deployed at $(git -C "$APP_DIR" rev-parse --short HEAD)"
+# nginx (www-data) and Synchronet (sbbs) only need to read the files.
+chmod -R a+rX "$DEST"
+
+echo "Published $(git -C "$SRC" log -1 --format='%h %s (%cd)' --date=short)"

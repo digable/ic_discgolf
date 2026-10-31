@@ -61,17 +61,24 @@ or arrow functions), so keep to that style when you edit it.
 
 Every push to `main` runs `.github/workflows/deploy.yaml`, the same setup as IC
 Zombies: it joins Tailscale and SSHes to digiweb with a key that can only run
-`update-discgolf.sh`. That script keeps `/srv/apps/ic_discgolf` matching `main`.
+`sudo update-discgolf.sh`. That script pulls `main` into `/srv/src/ic_discgolf`
+and copies just the game files (`index.html`, `discgolf.js`, `vendor/`) to
+`/srv/apps/ic_discgolf`. nginx serves that folder as
+[discgolf.sodamachine.net](https://discgolf.sodamachine.net), and the BBS door runs
+from it, so one push updates both.
 
-One-time setup:
+One-time setup (the full steps are in the digiweb setup guide, "Adding another game"):
 
-1. Copy `deploy/update-discgolf.sh` to `/usr/local/bin/` on digiweb and make it executable.
+1. Clone the repo to `/srv/src/ic_discgolf`, copy `deploy/update-discgolf.sh` to
+   `/usr/local/bin/`, make it executable and run it once.
 2. Make a new SSH key for this repo, and add its public key to `~deploy/.ssh/authorized_keys`, locked to the script:
-   `command="/usr/local/bin/update-discgolf.sh",restrict ssh-ed25519 AAAA... discgolf-deploy`
+   `restrict,command="sudo /usr/local/bin/update-discgolf.sh" ssh-ed25519 AAAA... github-actions discgolf`,
+   plus `/etc/sudoers.d/deploy-discgolf` with
+   `deploy ALL=(root) NOPASSWD: /usr/local/bin/update-discgolf.sh`.
 3. In the GitHub repo's **Settings > Secrets and variables > Actions**, add
    `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `DEPLOY_SSH_KEY` (the new private key)
    and `DEPLOY_KNOWN_HOSTS` (the same values as IC Zombies, except the key).
-4. In SCFG, point the door at the deployed folder instead of `xtrn/discgolf/`:
+4. In SCFG, point the door at the published folder instead of `xtrn/discgolf/`:
 
 | Setting | Value |
 |---|---|
