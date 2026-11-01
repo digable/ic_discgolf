@@ -294,33 +294,69 @@ function askName() {
 
 // The screen is drawn once; after that only the rows that change are redrawn
 // (a full clear on every key made the whole screen flash).
+// Left/Right picks the column the list is sorted by, R reverses it. Ties keep
+// catalog order. The sort lasts until the player hangs up.
 var BAG_ROWS = 17;          // discs shown at once
+var TYPE_ORDER = { P: 0, A: 1, M: 2, F: 3, D: 4 };
+var BAG_COLS = [            // header, width, sort value, sort order names (low first, high first)
+	{ h: "DISC",  w: 14, v: function (d) { return d.name.toUpperCase(); }, dir: ["A to Z", "Z to A"] },
+	{ h: "MAKER", w: 15, v: function (d) { return d.maker.toUpperCase(); }, dir: ["A to Z", "Z to A"] },
+	{ h: "TYPE",  w: 11, v: function (d) { return TYPE_ORDER[d.type]; }, dir: ["putters first", "drivers first"] },
+	{ h: "SPEED", w: 6,  v: function (d) { return d.n[0]; }, dir: ["low to high", "high to low"] },
+	{ h: "GLIDE", w: 6,  v: function (d) { return d.n[1]; }, dir: ["low to high", "high to low"] },
+	{ h: "TURN",  w: 5,  v: function (d) { return d.n[2]; }, dir: ["low to high", "high to low"] },
+	{ h: "FADE",  w: 4,  v: function (d) { return d.n[3]; }, dir: ["low to high", "high to low"] }
+];
+var bagSort = { col: 2, rev: false };   // catalog order: by type
 
-function drawBagTitle() {
-	put(3, 1, "\x01h\x01wYOUR BAG & DISC CATALOG  \x01n\x01k\x01h(" + player.bag.length + " of " + BAG_MAX + " slots)", 77);
+// DISCS indices in the current sort order
+function bagOrder() {
+	var c = BAG_COLS[bagSort.col], order = [], i;
+	for (i = 0; i < DISCS.length; i++) order.push(i);
+	order.sort(function (a, b) {
+		var x = c.v(DISCS[a]), y = c.v(DISCS[b]);
+		if (x !== y) return (x < y ? -1 : 1) * (bagSort.rev ? -1 : 1);
+		return a - b;                               // ties: catalog order (sort() may not be stable)
+	});
+	return order;
 }
 
-function drawBagRow(i, top, sel) {
-	var d = DISCS[i], inBag = player.bag.indexOf(d.name) >= 0;
+function drawBagTitle() {
+	put(3, 1, "\x01h\x01wYOUR BAG & DISC CATALOG  \x01n\x01k\x01h(" + player.bag.length + " of " + BAG_MAX + " slots)", 44);
+}
+
+// Column headers with the sorted one lit, and how it's sorted
+function drawBagSort() {
+	var s = "\x01n\x01k\x01h   ";
+	for (var i = 0; i < BAG_COLS.length; i++)
+		s += (i === bagSort.col ? "\x01h\x01c" : "\x01n\x01k\x01h") + pad(BAG_COLS[i].h, BAG_COLS[i].w);
+	put(3, 2, s, 77);
+	var c = BAG_COLS[bagSort.col];
+	put(47, 1, "\x01n\x01k\x01hSorted by \x01h\x01c" + c.h.toLowerCase() + "\x01n\x01k\x01h, " + c.dir[bagSort.rev ? 1 : 0], 33);
+}
+
+// Row i of the list (an index into order)
+function drawBagRow(order, i, top, sel) {
+	var d = DISCS[order[i]], inBag = player.bag.indexOf(d.name) >= 0;
 	var line = (inBag ? "\x01h\x01g\xFE " : "\x01n\x01k\x01h\xFA ") + (i === sel ? "\x01h\x01w" : "\x01n") +
 		pad(d.name, 14) + pad(d.maker, 15) + pad(TYPE_NAME[d.type], 11) +
 		pad(String(d.n[0]), 6) + pad(String(d.n[1]), 6) + pad(String(d.n[2]), 5) + d.n[3];
 	put(3, 3 + i - top, (i === sel ? "\x01h\x01c>" : " ") + line, 77);
 }
 
-function drawBagList(top, sel) {
-	for (var i = top; i < Math.min(DISCS.length, top + BAG_ROWS); i++) drawBagRow(i, top, sel);
+function drawBagList(order, top, sel) {
+	for (var i = top; i < Math.min(DISCS.length, top + BAG_ROWS); i++) drawBagRow(order, i, top, sel);
 }
 
 function bagScreen() {
-	var sel = 0, top = 0;
+	var order = bagOrder(), sel = 0, top = 0;
 	cls();
 	drawBagTitle();
-	put(3, 2, "\x01n\x01k\x01h   DISC          MAKER          TYPE       SPEED GLIDE TURN FADE", 77);
-	drawBagList(top, sel);
+	drawBagSort();
+	drawBagList(order, top, sel);
 	put(3, 21, "\x01n\x01k\x01hSpeed = how hard it must be thrown. Glide = how long it floats.", 77);
 	put(3, 22, "\x01n\x01k\x01hTurn = drift right early (for RH backhand; negative turns more). Fade = hook left at the end.", 77);
-	put(3, 24, "\x01h\x01cUp/Down\x01n move  \x01h\x01cSPACE\x01n add/remove  ~Quit", 77);
+	put(3, 24, "\x01h\x01cUp/Down\x01n move  \x01h\x01cSPACE\x01n add/remove  \x01h\x01cLeft/Right\x01n sort by  ~Reverse  ~Quit", 77);
 	for (;;) {
 		var k = key(), ku = k.toUpperCase();
 		if (isUp(k) || isDown(k)) {
@@ -329,16 +365,26 @@ function bagScreen() {
 			if (sel === old) continue;
 			if (sel < top) top = sel;
 			if (sel >= top + BAG_ROWS) top = sel - BAG_ROWS + 1;
-			if (top !== oldTop) drawBagList(top, sel);
-			else { drawBagRow(old, top, sel); drawBagRow(sel, top, sel); }
+			if (top !== oldTop) drawBagList(order, top, sel);
+			else { drawBagRow(order, old, top, sel); drawBagRow(order, sel, top, sel); }
+		}
+		else if (isLeft(k) || isRight(k) || ku === "R") {
+			if (ku === "R") bagSort.rev = !bagSort.rev;
+			else { bagSort.col = (bagSort.col + (isLeft(k) ? BAG_COLS.length - 1 : 1)) % BAG_COLS.length; bagSort.rev = false; }
+			var disc = order[sel];                  // keep the same disc selected, scrolled into view
+			order = bagOrder();
+			sel = order.indexOf(disc);
+			top = clamp(top, Math.max(0, sel - BAG_ROWS + 1), sel);
+			drawBagSort();
+			drawBagList(order, top, sel);
 		}
 		else if (k === " " || k === "\r") {
-			var nm = DISCS[sel].name, at = player.bag.indexOf(nm);
+			var nm = DISCS[order[sel]].name, at = player.bag.indexOf(nm);
 			if (at >= 0) { if (player.bag.length > 1) player.bag.splice(at, 1); }
 			else if (player.bag.length < BAG_MAX) player.bag.push(nm);
 			bagChanged();
 			drawBagTitle();
-			drawBagRow(sel, top, sel);
+			drawBagRow(order, sel, top, sel);
 		}
 		else if (ku === "Q" || k === "\x1b") return;
 	}
