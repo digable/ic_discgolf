@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-Seven courses at six real disc golf parks in Iowa and Missouri (see [Courses](#courses)).
+Eight courses at seven real disc golf parks in Iowa and Missouri (see [Courses](#courses)).
 
 ## Players and saved settings
 
@@ -46,6 +46,7 @@ like IC Zombies' saves. See [The save service](#the-save-service).
 | 5 | High Bridge Top Ten | 10 | 32 | 2,635 ft | Memorial Park, 9 Park Street, Eldora, IA 50627 |
 | 6 | High Bridge Heaven & Hell | 18 | 58 | 4,575 ft | Memorial Park, 9 Park Street, Eldora, IA 50627 |
 | 7 | Peninsula Park | 18 | 55 | 5,507 ft | Peninsula Park, Foster Rd & Ball St, Iowa City, IA 52240 |
+| 8 | Altmaier Park | 18 | 56 | 6,095 ft | Altmaier Family Park, 3444 Deer Creek Rd SE, Coralville, IA 52241 |
 
 Every course's hole lengths and pars are the real ones, from its UDisc listing
 (2026). The rest of each hole (fairway shapes and bends, woods, single trees,
@@ -134,6 +135,20 @@ mailing address's town.
   par 4 (hole 11, 503 ft). Wooded tunnels on the front nine, wide open on the back,
   and only small slopes. The river isn't in play, because no source says which
   holes it runs beside.
+
+### 8. Altmaier Park (Coralville Disc Golf)
+
+- **Where:** Altmaier Family Park in Coralville, on the old Altmaier farm, next to
+  a quarry. [Map](https://www.google.com/maps?q=41.685167,-91.617665)
+- **The course:** 18 holes, free, established 2018, designed by Jeff Harper,
+  concrete tees and Mach X baskets. Open farm fields with young trees and some
+  wooded holes, very hilly after the first three, and Clear Creek in play on
+  holes 4-6. **Opens at 11:00 am on weekdays** because of blasting at the quarry.
+  The walk back to the lot doubles back through fairways.
+- **In the game:** UDisc's "The Farm" layout, par 56, with two par 4s (hole 10,
+  432 ft, and hole 18, 690 ft uphill). Flat and open for 1-3, the creek as water
+  out of bounds on 4-6, and big climbs and drops after. Which side of each fairway
+  the creek is on is a guess.
 
 ## Files
 
@@ -326,7 +341,8 @@ your own computer first").
   [Eagles Crossing](https://udisc.com/courses/championship-course-at-eagles-crossing-JQQP),
   [Sugar Bottom](https://udisc.com/courses/sugar-bottom-rec-areas-EwqR),
   [High Bridge](https://udisc.com/courses/high-bridge-dgc-fhad),
-  [Peninsula Park](https://udisc.com/courses/peninsula-park-jLph).
+  [Peninsula Park](https://udisc.com/courses/peninsula-park-jLph),
+  [Altmaier Park](https://udisc.com/courses/coralville-disc-golf-altmaier-park-qUWO).
 - Eagles Crossing water and woods: [DG Course Review](https://dgcoursereview.com/courses/eagles-crossing.12414/reviews).
 - High Bridge park, parking and the bluff/valley split: [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426).
 - Addresses: Recreation.gov ([Turkey Creek](https://www.recreation.gov/camping/campgrounds/254086),
@@ -335,6 +351,7 @@ your own computer first").
   [Eagles Crossing](https://eaglescrossingdiscgolf.com/),
   [PDGA](https://www.pdga.com/node/24943) (Sugar Bottom's winter parking),
   [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426) (High Bridge),
-  [PDGA](https://www.pdga.com/node/26368) (Peninsula Park, and its flood-prone holes).
+  [PDGA](https://www.pdga.com/node/26368) (Peninsula Park, and its flood-prone holes),
+  [PDGA](https://www.pdga.com/node/247146) (Altmaier Park, and Clear Creek).
 - Relief rule: PDGA optional relief (one penalty throw, move back along the line of play).
 - [acorn](https://github.com/acornjs/acorn) JavaScript parser, MIT license.
