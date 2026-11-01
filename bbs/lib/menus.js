@@ -47,9 +47,12 @@ function titleScreen() {
 }
 
 // ---- Course menu ------------------------------------------------------------------
-// Opened by Play: lists every course; 1-9 picks one straight away, or Up/Down
-// and Enter. Returns the course's index, or -1 to go back to the title screen.
-// The last course played starts highlighted.
+// Opened by Play: a scrolling list of every course. Up/Down moves (the list
+// scrolls when there are more than fit), ENTER or SPACE picks. Returns the
+// course's index, or -1 to go back to the title screen. The last course played
+// starts highlighted.
+var COURSE_ROWS = 5;        // courses shown at once, 3 screen rows each
+
 function courseLines(i) {
 	var C = COURSES[i], par = 0, len = 0;
 	for (var h = 0; h < C.holes.length; h++) { par += C.holes[h].par; len += C.holes[h].ft; }
@@ -57,29 +60,40 @@ function courseLines(i) {
 		"\x01n" + C.holes.length + " holes   par " + par + "   " + String(len).replace(/\B(?=(\d{3})+$)/g, ",") + " ft"];
 }
 
-function drawCourseRow(i, on) {
-	var y = 5 + i * 3, L = courseLines(i);
-	put(3, y, (on ? "\x01h\x01c>" : " ") + " \x01h\x01y" + (i + 1) + "  " + L[0], 76);
-	put(8, y + 1, L[1], 70);
+function drawCourseRow(i, top, on) {
+	var y = 5 + (i - top) * 3, L = courseLines(i);
+	put(3, y, (on ? "\x01h\x01c> " : "  ") + L[0], 76);
+	put(5, y + 1, L[1], 72);
+}
+
+// The visible window of courses, starting at top, with "more" hints above and below
+function drawCourseList(top, sel) {
+	var n = Math.min(COURSE_ROWS, COURSES.length);
+	for (var i = top; i < top + n; i++) drawCourseRow(i, top, i === sel);
+	put(5, 4, top > 0 ? "\x01n\x01k\x01h(more above)" : "", 20);
+	put(5, 5 + n * 3 - 1, top + n < COURSES.length ? "\x01n\x01k\x01h(more below)" : "", 20);
 }
 
 function courseMenu() {
 	if (COURSES.length === 1) return 0;
-	var sel = clamp(player.course, 0, COURSES.length - 1), i;
+	var sel = clamp(player.course, 0, COURSES.length - 1);
+	var n = Math.min(COURSE_ROWS, COURSES.length);
+	var top = clamp(sel - n + 1, 0, COURSES.length - n);
 	cls();
-	put(3, 2, "\x01h\x01wCHOOSE A COURSE");
-	for (i = 0; i < COURSES.length; i++) drawCourseRow(i, i === sel);
-	put(3, 6 + COURSES.length * 3, "\x01n\x01h1-" + COURSES.length + "\x01n pick   \x01hUp/Down\x01n + \x01hENTER\x01n   ~Quit back to the clubhouse", 76);
+	put(3, 2, "\x01h\x01wCHOOSE A COURSE  \x01n\x01k\x01h" + COURSES.length + " courses");
+	drawCourseList(top, sel);
+	put(3, 6 + n * 3, "\x01n\x01hUp/Down\x01n move   \x01hENTER\x01n play   ~Quit back to the clubhouse", 76);
 	for (;;) {
-		var k = key(), ku = k.toUpperCase(), n = Number(k);
-		if (n >= 1 && n <= COURSES.length) return n - 1;
-		if (k === "\r") return sel;
+		var k = key(), ku = k.toUpperCase();
+		if (k === "\r" || k === " ") return sel;
 		if (ku === "Q" || k === "\x1b") return -1;
 		if (isUp(k) || isDown(k)) {
-			var old = sel;
+			var old = sel, oldTop = top;
 			sel = (sel + (isUp(k) ? COURSES.length - 1 : 1)) % COURSES.length;
-			drawCourseRow(old, false);
-			drawCourseRow(sel, true);
+			if (sel < top) top = sel;
+			if (sel >= top + n) top = sel - n + 1;
+			if (top !== oldTop) drawCourseList(top, sel);
+			else { drawCourseRow(old, top, false); drawCourseRow(sel, top, true); }
 		}
 	}
 }
@@ -278,32 +292,53 @@ function askName() {
 	}
 }
 
+// The screen is drawn once; after that only the rows that change are redrawn
+// (a full clear on every key made the whole screen flash).
+var BAG_ROWS = 17;          // discs shown at once
+
+function drawBagTitle() {
+	put(3, 1, "\x01h\x01wYOUR BAG & DISC CATALOG  \x01n\x01k\x01h(" + player.bag.length + " of " + BAG_MAX + " slots)", 77);
+}
+
+function drawBagRow(i, top, sel) {
+	var d = DISCS[i], inBag = player.bag.indexOf(d.name) >= 0;
+	var line = (inBag ? "\x01h\x01g\xFE " : "\x01n\x01k\x01h\xFA ") + (i === sel ? "\x01h\x01w" : "\x01n") +
+		pad(d.name, 14) + pad(d.maker, 15) + pad(TYPE_NAME[d.type], 11) +
+		pad(String(d.n[0]), 6) + pad(String(d.n[1]), 6) + pad(String(d.n[2]), 5) + d.n[3];
+	put(3, 3 + i - top, (i === sel ? "\x01h\x01c>" : " ") + line, 77);
+}
+
+function drawBagList(top, sel) {
+	for (var i = top; i < Math.min(DISCS.length, top + BAG_ROWS); i++) drawBagRow(i, top, sel);
+}
+
 function bagScreen() {
-	var sel = 0, top = 0, ROWS = 17;
+	var sel = 0, top = 0;
+	cls();
+	drawBagTitle();
+	put(3, 2, "\x01n\x01k\x01h   DISC          MAKER          TYPE       SPEED GLIDE TURN FADE", 77);
+	drawBagList(top, sel);
+	put(3, 21, "\x01n\x01k\x01hSpeed = how hard it must be thrown. Glide = how long it floats.", 77);
+	put(3, 22, "\x01n\x01k\x01hTurn = drift right early (for RH backhand; negative turns more). Fade = hook left at the end.", 77);
+	put(3, 24, "\x01h\x01cUp/Down\x01n move  \x01h\x01cSPACE\x01n add/remove  ~Quit", 77);
 	for (;;) {
-		cls();
-		put(3, 1, "\x01h\x01wYOUR BAG & DISC CATALOG  \x01n\x01k\x01h(" + player.bag.length + " of " + BAG_MAX + " slots)", 77);
-		put(3, 2, "\x01n\x01k\x01h   DISC          MAKER          TYPE       SPEED GLIDE TURN FADE", 77);
-		if (sel < top) top = sel;
-		if (sel >= top + ROWS) top = sel - ROWS + 1;
-		for (var i = top; i < Math.min(DISCS.length, top + ROWS); i++) {
-			var d = DISCS[i], inBag = player.bag.indexOf(d.name) >= 0;
-			var line = (inBag ? "\x01h\x01g\xFE " : "\x01n\x01k\x01h\xFA ") + (i === sel ? "\x01h\x01w" : "\x01n") +
-				pad(d.name, 14) + pad(d.maker, 15) + pad(TYPE_NAME[d.type], 11) +
-				pad(String(d.n[0]), 6) + pad(String(d.n[1]), 6) + pad(String(d.n[2]), 5) + d.n[3];
-			put(3, 3 + i - top, (i === sel ? "\x01h\x01c>" : " ") + line, 77);
-		}
-		put(3, 21, "\x01n\x01k\x01hSpeed = how hard it must be thrown. Glide = how long it floats.", 77);
-		put(3, 22, "\x01n\x01k\x01hTurn = drift right early (for RH backhand; negative turns more). Fade = hook left at the end.", 77);
-		put(3, 24, "\x01h\x01cUp/Down\x01n move  \x01h\x01cSPACE\x01n add/remove  ~Quit", 77);
 		var k = key(), ku = k.toUpperCase();
-		if (isUp(k)) sel = Math.max(0, sel - 1);
-		else if (isDown(k)) sel = Math.min(DISCS.length - 1, sel + 1);
+		if (isUp(k) || isDown(k)) {
+			var old = sel, oldTop = top;
+			sel = isUp(k) ? Math.max(0, sel - 1) : Math.min(DISCS.length - 1, sel + 1);
+			if (sel === old) continue;
+			if (sel < top) top = sel;
+			if (sel >= top + BAG_ROWS) top = sel - BAG_ROWS + 1;
+			if (top !== oldTop) drawBagList(top, sel);
+			else { drawBagRow(old, top, sel); drawBagRow(sel, top, sel); }
+		}
 		else if (k === " " || k === "\r") {
 			var nm = DISCS[sel].name, at = player.bag.indexOf(nm);
 			if (at >= 0) { if (player.bag.length > 1) player.bag.splice(at, 1); }
 			else if (player.bag.length < BAG_MAX) player.bag.push(nm);
 			bagChanged();
+			drawBagTitle();
+			drawBagRow(sel, top, sel);
 		}
 		else if (ku === "Q" || k === "\x1b") return;
 	}

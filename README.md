@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-Six courses at five real disc golf parks in Iowa and Missouri (see [Courses](#courses)).
+Seven courses at six real disc golf parks in Iowa and Missouri (see [Courses](#courses)).
 
 ## Players and saved settings
 
@@ -35,7 +35,7 @@ like IC Zombies' saves. See [The save service](#the-save-service).
 
 ## Courses
 
-**Play** opens a course menu: press the course's number, or Up/Down and Enter.
+**Play** opens a scrolling course list: Up/Down to move, Enter (or Space) to play.
 
 | # | Course | Holes | Par | Length | Address |
 |---|---|---|---|---|---|
@@ -45,6 +45,7 @@ like IC Zombies' saves. See [The save service](#the-save-service).
 | 4 | Sugar Bottom | 18 | 55 | 5,791 ft | Sugar Bottom Day Use Area, 2192 Mehaffey Bridge Rd NE, Solon, IA 52333 |
 | 5 | High Bridge Top Ten | 10 | 32 | 2,635 ft | Memorial Park, 9 Park Street, Eldora, IA 50627 |
 | 6 | High Bridge Heaven & Hell | 18 | 58 | 4,575 ft | Memorial Park, 9 Park Street, Eldora, IA 50627 |
+| 7 | Peninsula Park | 18 | 55 | 5,507 ft | Peninsula Park, Foster Rd & Ball St, Iowa City, IA 52240 |
 
 Every course's hole lengths and pars are the real ones, from its UDisc listing
 (2026). The rest of each hole (fairway shapes and bends, woods, single trees,
@@ -118,6 +119,21 @@ mailing address's town.
     bottom eight have tight fairways, heavy rough and dense woods, dropping about
     60 ft (holes 11-15) and climbing about 50 ft back out (16-18). The river and
     the bridge aren't in play, because no source says which holes they're near.
+
+### 7. Peninsula Park
+
+- **Where:** Peninsula Park, an Iowa City park on a bend of the Iowa River, off
+  Foster Rd at Ball St. Park in the lot (port-o-potty, no drinking water).
+  [Map](https://www.google.com/maps?q=41.67257,-91.55853)
+- **The course:** 18 holes, free, established 2006, concrete tees, two baskets
+  per hole (A and B). Mostly flat. The front nine is mostly in the woods; the back
+  nine is more open and runs along the river. Shaggy off the fairways; watch for
+  poison ivy and nettles. Hole 5 and holes 11-16 are prone to flooding, so check
+  conditions before you go.
+- **In the game:** UDisc's "Red Tees to Orange Baskets" layout, par 55 with one
+  par 4 (hole 11, 503 ft). Wooded tunnels on the front nine, wide open on the back,
+  and only small slopes. The river isn't in play, because no source says which
+  holes it runs beside.
 
 ## Files
 
@@ -295,8 +311,8 @@ your own computer first").
 ## Known limits
 
 - Course holes are drawn from descriptions, not surveyed (see [Courses](#courses)).
-  Turkey Creek has no elevation yet, and the High Bridge river and bridge aren't
-  in play.
+  Turkey Creek has no elevation yet, and the river isn't in play at High Bridge
+  (nor the bridge) or Peninsula Park.
 - Settings are saved for BBS players only; web players start fresh each visit.
 - The scorecard shows the first 8 characters of a player's name.
 - No multiplayer, cross-play or tournaments yet.
@@ -309,7 +325,8 @@ your own computer first").
   [Wildcat Bluff](https://udisc.com/courses/wildcat-bluff-I1rO),
   [Eagles Crossing](https://udisc.com/courses/championship-course-at-eagles-crossing-JQQP),
   [Sugar Bottom](https://udisc.com/courses/sugar-bottom-rec-areas-EwqR),
-  [High Bridge](https://udisc.com/courses/high-bridge-dgc-fhad).
+  [High Bridge](https://udisc.com/courses/high-bridge-dgc-fhad),
+  [Peninsula Park](https://udisc.com/courses/peninsula-park-jLph).
 - Eagles Crossing water and woods: [DG Course Review](https://dgcoursereview.com/courses/eagles-crossing.12414/reviews).
 - High Bridge park, parking and the bluff/valley split: [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426).
 - Addresses: Recreation.gov ([Turkey Creek](https://www.recreation.gov/camping/campgrounds/254086),
@@ -317,6 +334,7 @@ your own computer first").
   [Benton County Conservation](https://mycountyparks.com/County/Benton/Park/Wildcat-Bluff-Recreation-Area.aspx),
   [Eagles Crossing](https://eaglescrossingdiscgolf.com/),
   [PDGA](https://www.pdga.com/node/24943) (Sugar Bottom's winter parking),
-  [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426) (High Bridge).
+  [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426) (High Bridge),
+  [PDGA](https://www.pdga.com/node/26368) (Peninsula Park, and its flood-prone holes).
 - Relief rule: PDGA optional relief (one penalty throw, move back along the line of play).
 - [acorn](https://github.com/acornjs/acorn) JavaScript parser, MIT license.
