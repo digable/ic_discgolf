@@ -19,7 +19,7 @@ function windText() { return S.wind.mph ? S.wind.mph + " mph to " + S.wind.to : 
 function discRange(d, style, dom) {
 	var arm = armSpeed(style, dom);
 	var r = (30 + d.n[0] * 7 + d.n[1] * 4) * Math.min(1, 0.6 + 0.4 * arm / d.n[0]) * level().dist;
-	return style === "HM" ? r * HAMMER_RANGE : r;
+	return style === "TH" ? r * TOMAHAWK_RANGE : r;
 }
 
 // Caddie: the slowest disc in the bag that reaches the basket with room to spare

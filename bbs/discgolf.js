@@ -1,7 +1,7 @@
 // discgolf.js - Disc golf door for Synchronet BBS
 //
 // A Genesis-style disc golf game built on the 3-click swing meter from
-// golfmeter.js. Pick a disc, a hand, a throw (backhand, forehand or hammer)
+// golfmeter.js. Pick a disc, a hand, a throw (backhand, forehand or tomahawk)
 // and a release angle, aim with the arrow keys, then:
 //   SPACE 1: start the reach-back      SPACE 2: set power
 //   SPACE 3: release as the marker comes back through the yellow zone

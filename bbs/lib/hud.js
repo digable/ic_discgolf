@@ -40,8 +40,8 @@ function helpLine(mode) {
 
 function throwLabel() { return S.pitch ? "Pitch-out" : styleName(S.style); }
 
-// A hammer ignores the release angle (see applyAngle)
-function angleLine() { return "\x01n\x01h~Angle \x01n" + (S.style === "HM" ? "\x01k\x01h- (hammer)" : angleName(S.angle)); }
+// A tomahawk ignores the release angle (see applyAngle)
+function angleLine() { return "\x01n\x01h~Angle \x01n" + (S.style === "TH" ? "\x01k\x01h- (tomahawk)" : angleName(S.angle)); }
 
 // Panel lines shared by the throw and putt panels
 // How far this disc flies at 100% for the current throw and hand (matches the range mark on the map)

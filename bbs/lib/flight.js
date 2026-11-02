@@ -15,9 +15,9 @@ function throwShape(pf, over) {
 	var cw = (S.hand === "R") === (S.style !== "FH");    // clockwise spin: fades left
 	var ar = armSpeed(S.style, dom) / n[0] * pf;
 	var sh = {
-		pf: pf, ar: ar, hammer: S.style === "HM",
+		pf: pf, ar: ar, tomahawk: S.style === "TH",
 		fadeSide: cw ? -1 : 1,                           // in right-positive terms
-		hamSide: S.hand === "R" ? 1 : -1,                // a righty's hammer curves right
+		tomSide: S.hand === "R" ? -1 : 1,                // a righty's tomahawk flips and finishes left
 		dist: Math.max(1, discRange(d, S.style, dom) * pf),
 		effTurn: n[2] * clamp(ar, 0, 1.4),               // turn shows up only at speed
 		effFade: n[3] + Math.max(0, 0.8 - ar) * 2,       // underpowered discs fade early
@@ -30,13 +30,13 @@ function throwShape(pf, over) {
 
 // Hyzer and anhyzer release angles (applied after wind, as the throw always has)
 function applyAngle(sh) {
-	if (!sh.hammer && S.angle === "H") { sh.effTurn *= 0.4; sh.angTerm = 0.08; }
-	else if (!sh.hammer && S.angle === "A") { sh.effTurn -= 0.8; sh.angTerm = -0.08; }
+	if (!sh.tomahawk && S.angle === "H") { sh.effTurn *= 0.4; sh.angTerm = 0.08; }
+	else if (!sh.tomahawk && S.angle === "A") { sh.effTurn -= 0.8; sh.angTerm = -0.08; }
 }
 
 // Sideways offset (meters right of the line) u of the way along a flight of length dist
 function curveLat(sh, u, dist, cross) {
-	if (sh.hammer) return sh.hamSide * dist * 0.12 * u * u + cross * dist * 0.02 * u;
+	if (sh.tomahawk) return sh.tomSide * dist * 0.12 * u * u + cross * dist * 0.02 * u;
 	var ts = u < 0.75 ? (u / 0.75) * (u / 0.75) : 1;
 	var fs = u < 0.55 ? 0 : ((u - 0.55) / 0.45) * ((u - 0.55) / 0.45);
 	return (sh.effFade * dist * 0.05 * fs + sh.effTurn * dist * 0.035 * ts + sh.angTerm * dist * u * u) * sh.fadeSide + cross * dist * 0.012 * u;
@@ -60,7 +60,7 @@ function fly(sw) {
 	var H = S.H, d = curDisc(), speed = d.n[0];
 	var dom = domHand(), pitch = S.pitch;
 	var sh = throwShape((sw.power || 0) / 100, sw.over);
-	var hammer = sh.hammer, pf = sh.pf, fadeSide = sh.fadeSide, dist = sh.dist;
+	var tomahawk = sh.tomahawk, pf = sh.pf, fadeSide = sh.fadeSide, dist = sh.dist;
 
 	var dir = throwDir(), dx = dir.x, dy = dir.y;
 	var rx = -dy, ry = dx;
@@ -77,7 +77,7 @@ function fly(sw) {
 	applyAngle(sh);
 
 	// Release timing: early = toward the fade side, late = toward the turn side
-	var accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1) * (hammer ? 1.4 : 1) * (pitch ? 0.7 : 1);
+	var accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1) * (tomahawk ? 1.4 : 1) * (pitch ? 0.7 : 1);
 	var err;
 	if (sw.whiff) err = (rnd() - 0.5) * 0.6;
 	else {
@@ -97,14 +97,14 @@ function fly(sw) {
 		var t = tileAt(H, p);
 		if (!isOB(t)) lastIn = p;
 		var bd = hyp(p.x - H.basket.x, p.y - H.basket.y);
-		if (u > 0.5 && bd < 0.7 && !hammer) {
+		if (u > 0.5 && bd < 0.7 && !tomahawk) {
 			res.basket = true;
 			if (rnd() < 0.7) { res.end = { x: H.basket.x, y: H.basket.y }; res.inBasket = true; return finish(res, path); }
 			res.end = { x: H.basket.x - fx * (1 + rnd()), y: H.basket.y + (rnd() - 0.5) * 2 };
 			return finish(res, path);
 		}
-		// trees: a hammer flies over them until it comes down
-		if ((!hammer || u > 0.8) && hyp(p.x - S.lie.x, p.y - S.lie.y) > POV.clearing && trunkAt(H, p, discR)) {
+		// trees: a tomahawk flies over them until it comes down
+		if ((!tomahawk || u > 0.8) && hyp(p.x - S.lie.x, p.y - S.lie.y) > POV.clearing && trunkAt(H, p, discR)) {
 			res.tree = true;
 			if (rnd() < 0.3) res.end = { x: p.x + fx * (1 + rnd() * 4) + gx * (rnd() - 0.5) * 5, y: p.y + fy * (1 + rnd() * 4) + gy * (rnd() - 0.5) * 5 };
 			else res.end = { x: p.x - fx * (0.5 + rnd() * 2.5) + gx * (rnd() - 0.5) * 4, y: p.y - fy * (0.5 + rnd() * 2.5) + gy * (rnd() - 0.5) * 4 };
@@ -114,8 +114,8 @@ function fly(sw) {
 		}
 	}
 	var end = path[path.length - 1];
-	// skip along the fairway (not hammers or pitch-outs)
-	if (tileAt(H, end) === "." && !sw.whiff && !hammer && !pitch) {
+	// skip along the fairway (not tomahawks or pitch-outs)
+	if (tileAt(H, end) === "." && !sw.whiff && !tomahawk && !pitch) {
 		var sk = speed * 0.4 * pf;
 		end = { x: end.x + fx * sk + gx * fadeSide * sk * 0.3, y: end.y + fy * sk + gy * fadeSide * sk * 0.3 };
 		path.push(end);
@@ -203,7 +203,7 @@ function throwShot() {
 	var trail = animate(res.path);
 	var start = { x: S.lie.x, y: S.lie.y };
 	var dist = hyp(res.end.x - start.x, res.end.y - start.y);
-	var how = S.pitch ? "pitch-out" : (S.style === "HM" ? "hammer" : "");
+	var how = S.pitch ? "pitch-out" : (S.style === "TH" ? "tomahawk" : "");
 	var line = "\x01h\x01c" + d.name + (how ? " " + how : "") + "\x01n " + (sw.whiff ? "\x01h\x01rshanked\x01n, " : "") + ft(dist) + " ft. ";
 	if (sw.over) line = "\x01h\x01rOverswing! \x01n" + line;
 	S.pitch = false;

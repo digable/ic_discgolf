@@ -8,7 +8,7 @@ function playHole(idx) {
 	var H = R.holes[idx];
 	S = {
 		H: H, lie: { x: H.tee.x, y: H.tee.y }, aim: { x: H.basket.x, y: H.basket.y },
-		strokes: 0, disc: 0, hand: S ? S.hand : player.hand, style: S ? (S.style === "HM" ? player.style : S.style) : player.style,
+		strokes: 0, disc: 0, hand: S ? S.hand : player.hand, style: S ? (S.style === "TH" ? player.style : S.style) : player.style,
 		angle: "F", wind: newWind(), showAim: true, pitch: false, view: null, pov: null, marks: null, lastMsg: ""
 	};
 	PT = null;
@@ -30,7 +30,7 @@ function playHole(idx) {
 		if (needDraw) {
 			if (!S.view) { S.view = lieInTrees() ? "pov" : "map"; S.pov = null; }
 			if (S.view === "pov" && S.lastMsg.indexOf("trees") < 0 && !S.pov)
-				S.lastMsg = S.lastMsg ? S.lastMsg + " \x01n\x01yIn the trees." : "\x01n\x01yIn the trees.\x01n Find a gap, hammer, pitch out (~Throw) or take relief.";
+				S.lastMsg = S.lastMsg ? S.lastMsg + " \x01n\x01yIn the trees." : "\x01n\x01yIn the trees.\x01n Find a gap, tomahawk, pitch out (~Throw) or take relief.";
 			drawShotScreen();
 			needDraw = false;
 		}

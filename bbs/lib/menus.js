@@ -114,7 +114,7 @@ var SETUP = [
 		get: function () { return player.style; }, set: function (v) { player.style = v; },
 		note: function () {
 			var spin = (player.hand === "R") === (player.style === "BH");
-			return ["\x01h\x01c" + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/hammer.",
+			return ["\x01h\x01c" + styleName(player.style) + ".\x01n \x01k\x01hOn any shot, H switches hands and T cycles BH/FH/tomahawk.",
 				"\x01nYour " + styleName(player.style).toLowerCase() + " fades to the \x01h" + (spin ? "left" : "right") + "\x01n and turns over to the \x01h" + (spin ? "right" : "left") + "\x01n."];
 		} },
 	{ y: 12, q: "How far do you throw?", opts: [["reg", "~Regular"], ["pro", "~Pro"]],
@@ -401,8 +401,8 @@ function howTo() {
 		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
 		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind; dots",
 		"            trace its flight, obstacles on red (Player setup can hide them).",
-		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and hammer. A hammer flies over the",
-		"            trees and comes down hard; it goes about two-thirds as far.",
+		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and tomahawk. A tomahawk flies over",
+		"            the trees, curls left (righty) and goes about two-thirds as far.",
 		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
 		"\x01h\x01cAngle\x01n       ~A cycles flat, hyzer and anhyzer.",
 		"\x01h\x01cTrees\x01n       In the trees you see the view from your lie. Left/Right picks a",

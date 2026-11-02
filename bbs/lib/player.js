@@ -40,5 +40,5 @@ function level() { return LEVELS[player.level] || LEVELS.reg; }
 function armSpeed(style, dom) { var L = level(); return (style === "FH" ? L.fh : L.bh) * (dom ? 1 : OFF_HAND); }
 
 function handName(h) { return h === "R" ? "Right" : "Left"; }
-function styleName(s) { return s === "BH" ? "Backhand" : (s === "FH" ? "Forehand" : "Hammer"); }
+function styleName(s) { return s === "BH" ? "Backhand" : (s === "FH" ? "Forehand" : "Tomahawk"); }
 function angleName(a) { return a === "H" ? "Hyzer" : (a === "A" ? "Anhyzer" : "Flat"); }
