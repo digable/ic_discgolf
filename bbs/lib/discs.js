@@ -54,4 +54,4 @@ var DISC_BY_NAME = {};
 for (var di = 0; di < DISCS.length; di++) DISC_BY_NAME[DISCS[di].name] = DISCS[di];
 
 // What the toggle keys cycle through
-var HANDS = ["R", "L"], STYLES = ["BH", "FH", "HM"], ANGLES = ["F", "H", "A"], PUTT_VIEWS = ["side", "top", "pov"];
+var HANDS = ["R", "L"], STYLES = ["BH", "FH", "HM"], ANGLES = ["F", "H", "A"], PUTT_VIEWS = ["top", "pov"];

@@ -30,7 +30,7 @@ function playHole(idx) {
 		if (needDraw) {
 			if (!S.view) { S.view = lieInTrees() ? "pov" : "map"; S.pov = null; }
 			if (S.view === "pov" && S.lastMsg.indexOf("trees") < 0 && !S.pov)
-				S.lastMsg = S.lastMsg ? S.lastMsg + " \x01n\x01yIn the trees." : "\x01n\x01yIn the trees.\x01n Find a gap, hammer, pitch out or take relief.";
+				S.lastMsg = S.lastMsg ? S.lastMsg + " \x01n\x01yIn the trees." : "\x01n\x01yIn the trees.\x01n Find a gap, hammer, pitch out (~Throw) or take relief.";
 			drawShotScreen();
 			needDraw = false;
 		}
@@ -44,10 +44,9 @@ function playHole(idx) {
 		}
 		if (ku >= "1" && ku <= "9" && Number(ku) <= bagDiscs().length) S.disc = Number(ku) - 1;
 		else if (ku === "D") S.disc = (S.disc + 1) % bagDiscs().length;
-		else if (ku === "T") S.style = cycle(STYLES, S.style);
+		else if (ku === "T") nextThrow();
 		else if (ku === "H") S.hand = cycle(HANDS, S.hand);
 		else if (ku === "A") S.angle = cycle(ANGLES, S.angle);
-		else if (ku === "P") S.pitch = !S.pitch;
 		else if (ku === "V") {
 			if (S.view === "pov") { S.view = "map"; povSetAim(); }
 			else { S.view = "pov"; povStart(); }

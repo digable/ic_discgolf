@@ -22,7 +22,7 @@ keep to that style when you edit it.
 | `lib/map.js` | The overhead hole map, with the range mark and the flight path to it. |
 | `lib/pov.js` | The view from the player's lie, and the shot screen. |
 | `lib/flight.js` | Disc flight, throwing a shot and PDGA optional relief. |
-| `lib/putt.js` | Putting: side, overhead and from-the-player views. |
+| `lib/putt.js` | Putting: overhead and from-the-player views. |
 | `lib/round.js` | Playing a hole, the scorecard and a full round. |
 | `lib/menus.js` | Title screen, signing in (BBS alias or a typed web name, welcome back), player setup, bag and how to play. |
 
@@ -31,8 +31,8 @@ keep to that style when you edit it.
 `discgolf.js` pulls in each file with `load(js.exec_dir + "lib/name.js")`. On Synchronet that runs the
 file in the door's global scope, so everything it defines is visible to the others. The library files
 only define things (constants, data and functions); nothing runs until the main loop at the bottom of
-`discgolf.js`. Order still matters for constants that use earlier ones (`PV_SCALE` in `putt.js` uses
-`PUTT_M` from `config.js`), so add new files to the list in a sensible place.
+`discgolf.js`. Order still matters for constants that use earlier ones (`PP_HORIZON` in `putt.js` uses
+`MAP_Y` from `config.js`), so add new files to the list in a sensible place.
 
 The web page does the same: it fetches `discgolf.js`, finds those `load(...)` lines and puts each file's
 text in its place, then runs the result as one script. Only lines written exactly as

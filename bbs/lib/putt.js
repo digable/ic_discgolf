@@ -1,44 +1,18 @@
-// discgolf.js: Putting: side, overhead and from-the-player views.
+// discgolf.js: Putting: overhead and from-the-player views.
 // Loaded by ../discgolf.js. ES5 for Synchronet (no let/const/arrows).
 
 "use strict";
 
 // ---- Putting -----------------------------------------------------------------
-var PV_BX = 66;                 // basket column in the side view
-var PV_GROUND = MAP_Y + 13;     // ground row (flat)
-var PV_SCALE = 50 / PUTT_M;     // columns per meter (side view)
 var PP_CX = 40;                 // center column of the overhead and player views
 var PP_HORIZON = MAP_Y + 5;     // horizon row in the view from the player
 var PP_AIM_ROW = MAP_Y + 14;    // aim mark / disc start row in the view from the player
-var PUTT_FRAME_MS = 45;
-// Putt path colors, the same in all three views, picked to stand out from the grass and sky:
+var PUTT_FRAME_MS = 45;         // putt animation frame time
+// Putt path colors, the same in both views, picked to stand out from the grass and sky:
 // the trail is yellow dots on red, the aim line magenta, the disc white.
 var PUTT_TRAIL = 11 | 0x10, PUTT_AIM = 13, PUTT_DISC = 15;
-var PUTT_TRAIL_CH = "\xF9";         // putt animation frame time
+var PUTT_TRAIL_CH = "\xF9";
 var PT = null;                  // putt state
-
-function puttCol(m) { return Math.max(MAP_X + 2, PV_BX - Math.round(m * PV_SCALE)); }
-
-// Side view ground height (rows) at a column, sloping up to an uphill basket
-function sideGround(c) {
-	var p0 = PT.p0, rise = PT.rise;
-	var k = c <= p0 ? 0 : (c >= PV_BX ? rise : Math.round(rise * (c - p0) / (PV_BX - p0)));
-	return PV_GROUND - k;
-}
-
-// What the side view shows at a screen cell (also used to repaint behind the disc)
-function sideGlyph(c, r) {
-	var B = PV_BX, y = r - MAP_Y + PT.rise, gr = sideGround(c);
-	if (y === 4 && c >= B - 3 && c <= B + 3) return ["\xDB", 11];
-	if ((y === 5 || y === 6) && c >= B - 2 && c <= B + 2) return ["\xB3", 7];
-	if (y === 7 && (c === B - 3 || c === B + 3)) return ["\xDB", 3];
-	if (y === 7 && c > B - 3 && c < B + 3) return ["\xDC", 3];
-	if (y === 8 && c >= B - 2 && c <= B + 2) return ["\xDF", 3];
-	if (c === B && r < gr && y >= 9) return ["\xB3", 7];
-	if (r === gr) return ["\xDC", 2];
-	if (r > gr) return ["\xB0", 2];
-	return [" ", 7];
-}
 
 // Overhead putting view: the putt line runs up the screen to the basket
 var TOP = { cx: PP_CX, cy: MAP_Y + 6, colM: 1.25, rowM: 2.5 };
@@ -142,7 +116,7 @@ function paintScene(glyph) {
 }
 
 function drawPuttScene() {
-	if (player.puttView === "top") {
+	if (player.puttView !== "pov") {
 		paintScene(topGlyph);
 		var pc = topCell(S.lie);
 		out(moveTo(pc.c, pc.r) + text("\xFE", PUTT_DISC));
@@ -154,21 +128,16 @@ function drawPuttScene() {
 			if ((ap.c !== pc.c || ap.r !== pc.r) && (ap.c !== TOP.cx || ap.r !== TOP.cy)) al += moveTo(ap.c, ap.r) + text("\xFA", PUTT_AIM);
 		}
 		out(al + (PT.aim ? moveTo(ac.c, ac.r) + text("+", PUTT_AIM) : "") + setAttr(7));
-	} else if (player.puttView === "pov") {
+	} else {
 		PT.art = povPuttArt(PT.dist);
 		PT.artTop = MAP_Y + 1 + (PT.dist < 7 ? 0 : (PT.dist < 13 ? 2 : 3)) - clamp(Math.round(PT.dz / 3), -1, 2);
 		paintScene(povPuttGlyph);
 		povPuttGeom();
 		povAimLine();
-	} else {
-		paintScene(sideGlyph);
-		put(puttCol(C1_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC1", 0);
-		put(puttCol(PUTT_M) - 1, PV_GROUND + 2, "\x01n\x01k\x01hC2", 0);
-		out(moveTo(PT.p0, sideGround(PT.p0) - 1) + text("\xFE", PUTT_DISC));
 	}
 	var circle = PT.dist <= C1_M ? "inside Circle 1" : "Circle 2 - jump putt";
 	var slope = elevText(PT.dz);
-	put(MAP_X + 1, MAP_Y + (player.puttView === "side" ? 1 : 15), "\x01h\x01wPUTT \x01y" + ft(PT.dist) + " ft \x01n" + circle + (slope ? "  \x01h\x01c" + slope : ""), 0, player.puttView === "side" ? 0 : 0x20);
+	put(MAP_X + 1, MAP_Y + 15, "\x01h\x01wPUTT \x01y" + ft(PT.dist) + " ft \x01n" + circle + (slope ? "  \x01h\x01c" + slope : ""), 0, 0x20);
 }
 
 function puttWindText() {
@@ -189,7 +158,7 @@ function puttPanel(d) {
 		handLine(),
 		"\x01n\x01hAim   \x01n" + aimText(),
 		"\x01n\x01k\x01h" + puttWindText(),
-		"\x01n\x01h~View  \x01n" + (player.puttView === "top" ? "overhead" : (player.puttView === "pov" ? "from player" : "side"))
+		"\x01n\x01h~View  \x01n" + (player.puttView === "pov" ? "from player" : "overhead")
 	]);
 }
 
@@ -278,38 +247,21 @@ function puttFlight(kind, along, lat) {
 		out(setAttr(7));
 		return;
 	}
-	if (player.puttView === "top") {
-		n = 16;
-		var uMain = kind === "short" ? uEnd : 1;
-		for (i = 1; i <= n; i++) { u = uMain * i / n; pts.push(topCell(puttWorld(u, made ? puttLat(u) * (1 - i / n) : puttLat(u)))); }
-		if (kind === "cage") pts.push(topCell(puttWorld(uEnd, lat)));
-		else if (!made && kind !== "short") for (i = 1; i <= 5; i++) { u = 1 + (uEnd - 1) * i / 5; pts.push(topCell(puttWorld(u, puttLat(u)))); }
-		var pv = topCell(S.lie), st;
-		// trail dots on the overhead view keep the grass behind them
-		for (i = 0; i < pts.length; i++) {
-			p = pts[i];
-			if (p.c === pv.c && p.r === pv.r) continue;
-			st = moveTo(pv.c, pv.r) + ((pv.c === TOP.cx && pv.r === TOP.cy) ? text("\xE8", 11) : text(PUTT_TRAIL_CH, PUTT_TRAIL));
-			out(st + moveTo(p.c, p.r) + text("\xFE", PUTT_DISC));
-			pv = p;
-			mswait(PUTT_FRAME_MS);
-		}
-		return;
-	}
-	var cA = PT.p0, cB = made ? PV_BX : (along >= 0 ? puttCol(along) : Math.min(MAP_X + MAP_W - 2, PV_BX + Math.round(-along * PV_SCALE)));
-	var prev3 = null, c, r;
-	out(moveTo(cA, sideGround(cA) - 1) + text(sideGlyph(cA, sideGround(cA) - 1)[0], sideGlyph(cA, sideGround(cA) - 1)[1]));
-	n = 14;
-	for (i = 1; i <= n; i++) {
-		u = i / n; c = Math.round(cA + (cB - cA) * u);
-		var gnd = sideGround(c) - 1, chain = MAP_Y + 5 - PT.rise;
-		r = made ? Math.round(gnd + (chain - gnd) * Math.sin(u * Math.PI / 2)) : gnd - Math.round(Math.sin(u * Math.PI) * (kind === "over" ? 7 : 5));
-		var sb3 = prev3 ? moveTo(prev3.c, prev3.r) + (sideGlyph(prev3.c, prev3.r)[0] === " " ? text(PUTT_TRAIL_CH, PUTT_TRAIL) : text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1])) : "";
-		prev3 = { c: c, r: r };
-		out(sb3 + moveTo(c, r) + text("\xFE", PUTT_DISC));
+	n = 16;
+	var uMain = kind === "short" ? uEnd : 1;
+	for (i = 1; i <= n; i++) { u = uMain * i / n; pts.push(topCell(puttWorld(u, made ? puttLat(u) * (1 - i / n) : puttLat(u)))); }
+	if (kind === "cage") pts.push(topCell(puttWorld(uEnd, lat)));
+	else if (!made && kind !== "short") for (i = 1; i <= 5; i++) { u = 1 + (uEnd - 1) * i / 5; pts.push(topCell(puttWorld(u, puttLat(u)))); }
+	var pv = topCell(S.lie), st;
+	// trail dots on the overhead view keep the grass behind them
+	for (i = 0; i < pts.length; i++) {
+		p = pts[i];
+		if (p.c === pv.c && p.r === pv.r) continue;
+		st = moveTo(pv.c, pv.r) + ((pv.c === TOP.cx && pv.r === TOP.cy) ? text("\xE8", 11) : text(PUTT_TRAIL_CH, PUTT_TRAIL));
+		out(st + moveTo(p.c, p.r) + text("\xFE", PUTT_DISC));
+		pv = p;
 		mswait(PUTT_FRAME_MS);
 	}
-	if (made) out(moveTo(prev3.c, prev3.r) + text(sideGlyph(prev3.c, prev3.r)[0], sideGlyph(prev3.c, prev3.r)[1]) + moveTo(PV_BX, MAP_Y + 7 - PT.rise) + text("\xFE", 15));
 }
 
 // Why a putt missed, from the parts that moved it off line (or from the power)
@@ -331,7 +283,7 @@ function puttSetup() {
 	var bx = (S.lie.x - H.basket.x) / (dist || 1), by = (S.lie.y - H.basket.y) / (dist || 1);
 	var dz = heightAt(H, H.basket) - heightAt(H, S.lie);
 	// bx,by: from the basket back toward the player; rx,ry: the player's right
-	PT = { dist: dist, bx: bx, by: by, rx: by, ry: -bx, dz: dz, rise: clamp(Math.round(dz / 2), -2, 4), p0: puttCol(dist), aim: 0 };
+	PT = { dist: dist, bx: bx, by: by, rx: by, ry: -bx, dz: dz, aim: 0 };
 	PT.cross = S.wind.x * PT.rx + S.wind.y * PT.ry;
 }
 
@@ -358,7 +310,7 @@ function putt() {
 		if (isLeft(k) || isRight(k)) {
 			PT.aim = clamp(PT.aim + (isLeft(k) ? -0.15 : 0.15), -3, 3);
 			puttPanel(d);
-			if (player.puttView !== "side") { drawPuttScene(); }
+			drawPuttScene();
 			continue;
 		}
 		if (ku === "Q") { if (confirmQuit("\x01hSPACE\x01n to start your putt")) return null; continue; }

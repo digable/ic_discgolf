@@ -11,7 +11,7 @@ var player = {
 	hand: "R",           // dominant hand
 	style: "BH",         // usual throw
 	level: "reg",        // skill level: "reg" or "pro" (see LEVELS)
-	puttView: "side",    // side, top or pov
+	puttView: "top",     // top (overhead) or pov (from the player)
 	flightPath: true,    // dots on the map from the lie to the range mark
 	course: 0,           // the last course played (starts highlighted in the course menu)
 	bag: ["KC Aviar", "Zone", "Buzzz", "Teebird", "Leopard3", "Destroyer"]

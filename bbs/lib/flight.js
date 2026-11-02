@@ -294,6 +294,7 @@ function relief() {
 		else if (k === "\r" && !isOB(tileAt(H, spots[at]))) {
 			S.strokes++;
 			S.lie = spots[at];
+			S.pitch = false;                             // out of the woods: no pitch-out
 			S.aim = { x: H.basket.x, y: H.basket.y };
 			S.showAim = true;
 			S.pov = null;

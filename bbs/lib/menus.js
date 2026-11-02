@@ -220,7 +220,7 @@ function offerBagSave(before) {
 
 // A BBS player with saved settings: play with them (ENTER) or change them first.
 // Returns "play" or "change".
-var PUTT_VIEW_NAMES = { side: "Side", top: "Overhead", pov: "From the player" };
+var PUTT_VIEW_NAMES = { top: "Overhead", pov: "From the player" };
 
 function welcomeBack() {
 	cls();
@@ -406,11 +406,11 @@ function howTo() {
 		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
 		"\x01h\x01cAngle\x01n       ~A cycles flat, hyzer and anhyzer.",
 		"\x01h\x01cTrees\x01n       In the trees you see the view from your lie. Left/Right picks a",
-		"            line; the panel shows how wide the gap is. ~Pitch-out is a short,",
-		"            safe throw back to the fairway. ~Relief (PDGA optional relief):",
-		"            +1 throw, move back along the line from the basket.",
+		"            line; the panel shows the gap. ~Throw adds a pitch-out: short and",
+		"            safe, back to the fairway. ~Relief (PDGA optional relief): +1",
+		"            throw, move back along the line from the basket.",
 		"\x01h\x01cView\x01n        ~V switches between the map and the view from your lie.",
-		"\x01h\x01cPutting\x01n     Inside " + ft(PUTT_M) + " ft you putt. ~V cycles side, overhead and from-the-",
+		"\x01h\x01cPutting\x01n     Inside " + ft(PUTT_M) + " ft you putt. ~V switches between overhead and from-the-",
 		"            player views. Left/Right aims off the basket to play the wind.",
 		"            The meter is marked in feet; the small \x01h\x01y\xE8\x01n on it is the basket.",
 		"\x01h\x01cHills\x01n       Downhill throws fly farther; uphill putts need more power.",

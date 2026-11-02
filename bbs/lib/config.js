@@ -20,8 +20,8 @@ var MAX_LAG_COMP = 0.25; // never compensate more than 250 ms of lag
 var SCR_W = 80;          // screen width
 var MAP_X = 2, MAP_Y = 2, MAP_W = 78, MAP_H = 16;  // hole map: rows 2-17
 var MSG_Y = 18;          // shot results
-var HELP_Y = 19;         // key help
-var PANEL_X = 60, PANEL_Y = 20;  // disc / throw / wind panel, rows 20-25
+var HELP_Y = 19;         // key help, left of the panel
+var PANEL_X = 60, PANEL_Y = 19, PANEL_H = 7;  // disc / throw / wind panel, rows 19-25
 var STATUS_Y = BAR_Y + 3;
 var HOT_ATTR = 11 | 0x80;  // hotkey letters: yellow, underlined (terminals without underlines just show yellow)
 var BLINK = 0x100;         // blinking (terminals using iCE colors show a bright background instead)

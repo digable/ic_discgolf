@@ -29,6 +29,15 @@ function caddiePick() {
 	for (var i = 0; i < b.length; i++) if (discRange(b[i], S.style, dom) >= pin * 1.1) { S.disc = i; break; }
 }
 
+// The throws ~T cycles through. In the woods there's one more: a pitch-out ("PO"), a short,
+// safe backhand back to the fairway (S.pitch; it lasts one throw).
+function throwChoices() { return lieInTrees() ? STYLES.concat(["PO"]) : STYLES; }
+function nextThrow() {
+	var t = cycle(throwChoices(), S.pitch ? "PO" : S.style);
+	S.pitch = t === "PO";
+	S.style = S.pitch ? "BH" : t;
+}
+
 function curDisc() { var b = bagDiscs(); return b[clamp(S.disc, 0, b.length - 1)]; }
 function pinDist() { return hyp(S.H.basket.x - S.lie.x, S.H.basket.y - S.lie.y); }
 function lieInTrees() { return isTrees(tileAt(S.H, S.lie)); }

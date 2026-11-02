@@ -28,19 +28,20 @@ function msg(m) {
 	put(1, MSG_Y, " " + S.lastMsg, SCR_W);
 }
 
+// Keys not already shown in the panel (Disc, Hand, Throw, Angle and the putting View are hotkeys
+// there). The panel starts on this row, so the help stops short of it.
 function helpLine(mode) {
 	var t;
-	if (mode === "putt") t = " ~View  ~Hand  ~Scorecard  ~Quit   \x01k\x01hLeft/Right aim   SPACE putt";
-	else if (mode === "relief") t = " \x01hArrows\x01n slide back/forward   \x01hENTER\x01n take this spot   \x01hESC\x01n cancel";
-	else t = " ~Disc ~Throw ~Hand ~Angle ~Pitch ~View ~Relief ~Scorecard ~Quit  \x01k\x01h1-8 disc  Arrows " + (S.view === "pov" ? "turn" : "aim");
-	put(1, HELP_Y, "\x01n\x01w" + t, 79);
+	if (mode === "putt") t = " ~Scorecard  ~Quit   \x01k\x01hLeft/Right aim   SPACE putt";
+	else if (mode === "relief") t = " \x01hArrows\x01n slide   \x01hENTER\x01n take this spot   \x01hESC\x01n cancel";
+	else t = " ~View ~Relief ~Scorecard ~Quit  \x01k\x01h1-8 disc  Arrows " + (S.view === "pov" ? "turn" : "aim");
+	put(1, HELP_Y, "\x01n\x01w" + t, PANEL_X - 2);
 }
 
-function throwLabel() {
-	if (S.pitch) return "Pitch-out \x01k\x01h" + (S.style === "HM" ? "BH" : S.style);
-	if (S.style === "HM") return "Hammer";
-	return styleName(S.style) + " \x01k\x01h" + angleName(S.angle);
-}
+function throwLabel() { return S.pitch ? "Pitch-out" : styleName(S.style); }
+
+// A hammer ignores the release angle (see applyAngle)
+function angleLine() { return "\x01n\x01h~Angle \x01n" + (S.style === "HM" ? "\x01k\x01h- (hammer)" : angleName(S.angle)); }
 
 // Panel lines shared by the throw and putt panels
 // How far this disc flies at 100% for the current throw and hand (matches the range mark on the map)
@@ -48,7 +49,8 @@ function maxRange(d) { return discRange(d, S.style, domHand()) * (S.pitch ? PITC
 function discSpecLine(d) { return "\x01n\x01k\x01hMax \x01n\x01c" + pad(ft(maxRange(d)) + " ft", 7) + "\x01n" + d.n.join("/"); }
 function handLine() { return "\x01n\x01h~Hand  \x01n" + handName(S.hand) + (domHand() ? "" : " \x01h\x01r(off)"); }
 
-function showPanel(lines) { for (var i = 0; i < lines.length; i++) put(PANEL_X, PANEL_Y + i, lines[i], 20); }
+// Draws the panel; rows it doesn't use are cleared
+function showPanel(lines) { for (var i = 0; i < PANEL_H; i++) put(PANEL_X, PANEL_Y + i, lines[i] || "", 20); }
 
 function panel() {
 	var d = curDisc(), pin = pinDist();
@@ -56,7 +58,8 @@ function panel() {
 		"\x01n\x01h~Disc  \x01c" + d.name,
 		discSpecLine(d),
 		handLine(),
-		"\x01n\x01h~Throw \x01n" + throwLabel()
+		"\x01n\x01h~Throw \x01n" + throwLabel(),
+		angleLine()
 	];
 	if (S.view === "pov" && S.pov) {
 		var gi = gapInfo(S.pov.aimCol);
