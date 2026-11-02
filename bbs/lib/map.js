@@ -32,13 +32,15 @@ function terrainBg(t) {
 
 function aimCell() { return S.showAim ? cellOf(S.H, S.aim) : null; }
 
-// The range mark and the flight to it: where the current disc goes on a perfect, flat 100%
-// throw. Only the disc's flight numbers shape it (plus the hand and throw, which set which way
-// it curves, and a pitch-out's power cap). No wind, release angle, terrain, trees, skips or rolls.
+// The range mark and the flight to it: where the current disc goes on a perfect 100% throw.
+// The disc's flight numbers shape it, with the hand and throw (which way it curves), the release
+// angle (hyzer, flat or anhyzer) and a pitch-out's power cap. No wind, terrain, trees, skips or rolls.
 // Returns { rc: the mark's cell (past: it flies off the map), path: "c,r" -> order along the flight }.
 function rangeMarks() {
 	if (!S.showAim || S.view === "pov") return NO_MARKS;
-	var sh = throwShape(1, false), step = S.H.S / 2 / sh.dist, lc = cellOf(S.H, S.lie);
+	var sh = throwShape(1, false);
+	applyAngle(sh);
+	var step = S.H.S / 2 / sh.dist, lc = cellOf(S.H, S.lie);
 	var cells = [], seen = {}, off = false, m = { rc: null, path: {} }, c, k, i, n = 0;
 	for (var u = step; u < 1; u += step) {
 		c = cellOf(S.H, idealPoint(sh, u));

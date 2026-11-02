@@ -49,7 +49,7 @@ function throwDir() {
 	return { x: dx / L, y: dy / L };
 }
 
-// Where a perfect 100% throw ends up with no wind, terrain or trees: the disc's curve only.
+// Where a perfect throw of shape sh ends up with no wind, terrain or trees: its curve only.
 // u can stop short of 1 to walk back along the flight.
 function idealPoint(sh, u) {
 	var dir = throwDir(), lat = curveLat(sh, u, sh.dist, 0);
