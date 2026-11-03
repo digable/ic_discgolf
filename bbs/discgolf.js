@@ -14,20 +14,25 @@
 "use strict";
 require("sbbsdefs.js", "K_NONE");
 
-// The game, in the order it was written. Each file only defines things; the main loop below runs it.
+// Each file only defines things; the main loop below runs it.
+// The game's rules: no screen, keys or waiting, so any front end can use them.
 load(js.exec_dir + "lib/config.js");
+load(js.exec_dir + "lib/util.js");
 load(js.exec_dir + "lib/discs.js");
 load(js.exec_dir + "lib/courses.js");
-load(js.exec_dir + "lib/screen.js");
-load(js.exec_dir + "lib/meter.js");
 load(js.exec_dir + "lib/player.js");
-load(js.exec_dir + "lib/saves.js");
 load(js.exec_dir + "lib/holes.js");
 load(js.exec_dir + "lib/state.js");
+load(js.exec_dir + "lib/flight.js");
+load(js.exec_dir + "lib/rules.js");
+// The door: the ANSI screens and keys that play those rules on a BBS.
+load(js.exec_dir + "lib/screen.js");
+load(js.exec_dir + "lib/meter.js");
+load(js.exec_dir + "lib/saves.js");
 load(js.exec_dir + "lib/hud.js");
 load(js.exec_dir + "lib/map.js");
 load(js.exec_dir + "lib/pov.js");
-load(js.exec_dir + "lib/flight.js");
+load(js.exec_dir + "lib/shot.js");
 load(js.exec_dir + "lib/putt.js");
 load(js.exec_dir + "lib/round.js");
 load(js.exec_dir + "lib/menus.js");

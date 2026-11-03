@@ -42,6 +42,7 @@ var TOMAHAWK_RANGE = 0.65; // a tomahawk flies 65% as far as a flat backhand
 var PITCH_POWER = 0.4;   // a pitch-out tops out at 40% power
 var PUTT_M = 20;         // inside 20 m (66 ft) you putt (circle 2)
 var C1_M = 10;           // circle 1: 10 m (33 ft)
+var CLEARING_M = 2.2;    // trees closer than this to the lie don't block a throw (or the view from it)
 var BAG_MAX = 8;
 var FT = 3.28084;        // feet per meter
 var MPH_TO_MS = 0.447;   // meters per second per mph

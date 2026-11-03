@@ -6,22 +6,32 @@ files in its emulated terminal, so there's only one copy of the game.
 The door is written for Synchronet's JavaScript engine (ES5: no `let`, `const` or arrow functions), so
 keep to that style when you edit it.
 
+The files come in two groups. **The rules** don't draw, read keys or wait: they change the game state
+and return what happened, so any front end (this door, or a future web or multiplayer version) can
+play by exactly the same rules. **The door** is the ANSI screens and keys that play those rules on a
+BBS. Keep the split: a rule goes in a rules file, never in a door loop.
+
 | File | What it does |
 |---|---|
 | `discgolf.js` | The door you install. Loads everything in `lib/`, in order, then runs the main menu. |
+| **The rules** | |
 | `lib/config.js` | Tuning: the swing meter, the 80×25 screen layout and the player model (arm speed, off hand, putting range). |
+| `lib/util.js` | Basics: math, text padding and seeded random numbers. |
 | `lib/discs.js` | The disc catalog, with each maker's published speed, glide, turn and fade. |
 | `lib/courses.js` | The courses and their holes. The comment at the top explains each field; each course's details are in the main README, "Courses". |
-| `lib/screen.js` | Basics, raw ANSI output (tracks cursor and color) and key input. |
-| `lib/meter.js` | Lag measurement and the 3-click swing meter. |
 | `lib/player.js` | The player: name, hands, throws and the bag. |
-| `lib/saves.js` | Saved settings for BBS players: loads and saves them through the save service (`../server.js`) using Synchronet's `http.js`. |
 | `lib/holes.js` | Building a hole from the course data: trees, lies and elevation. |
-| `lib/state.js` | Round and shot state, wind and disc range. |
-| `lib/hud.js` | Header, messages, key help and the disc/throw/wind panel. |
+| `lib/state.js` | The game state (`R` the round, `S` the hole being played, `PT` the putt), wind, disc range and the caddie. |
+| `lib/flight.js` | Disc flight: how a throw curves, and where it ends up. |
+| `lib/rules.js` | Playing it: start a round or hole, aim, throw, take relief, putt. Each changes the state and returns what happened. |
+| **The door** | |
+| `lib/screen.js` | The clock, raw ANSI output (tracks cursor and color) and key input. |
+| `lib/meter.js` | Lag measurement and the 3-click swing meter. |
+| `lib/saves.js` | Saved settings for BBS players: loads and saves them through the save service (`../server.js`) using Synchronet's `http.js`. |
+| `lib/hud.js` | What the door is showing (`V`: map or view from the lie, the range mark, the message), the header, messages, key help and the disc/throw/wind panel. |
 | `lib/map.js` | The overhead hole map, with the range mark and the flight path to it. |
 | `lib/pov.js` | The view from the player's lie, and the shot screen. |
-| `lib/flight.js` | Disc flight, throwing a shot and PDGA optional relief. |
+| `lib/shot.js` | The throw (swing, the flight on the map, what happened) and the relief screen. |
 | `lib/putt.js` | Putting: overhead and from-the-player views. |
 | `lib/round.js` | Playing a hole, the scorecard and a full round. |
 | `lib/menus.js` | Title screen, signing in (BBS alias or a typed web name, welcome back), player setup, bag and how to play. |
@@ -32,7 +42,9 @@ keep to that style when you edit it.
 file in the door's global scope, so everything it defines is visible to the others. The library files
 only define things (constants, data and functions); nothing runs until the main loop at the bottom of
 `discgolf.js`. Order still matters for constants that use earlier ones (`PP_HORIZON` in `putt.js` uses
-`MAP_Y` from `config.js`), so add new files to the list in a sensible place.
+`MAP_Y` from `config.js`), so add new files to the list in a sensible place: rules files before the
+door's. The rules files load and play on their own in plain Node (`vm.runInContext`, no stubs needed),
+which is a quick way to test a rule change.
 
 The web page does the same: it fetches `discgolf.js`, finds those `load(...)` lines and puts each file's
 text in its place, then runs the result as one script. Only lines written exactly as

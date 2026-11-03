@@ -3,14 +3,12 @@
 
 "use strict";
 
-// ---- Screen pieces -------------------------------------------------------
-// Strokes over (+) or under (-) par for the holes finished so far
-function roundToPar() {
-	var rel = 0;
-	for (var i = 0; i < R.strokes.length; i++) if (R.strokes[i]) rel += R.strokes[i] - R.holes[i].par;
-	return rel;
-}
+// ---- What the door is showing --------------------------------------------
+// Kept apart from the game (R and S in state.js) so the rules never depend on the screen.
+// Set up for each hole by playHole.
+var V = null;  // { view: "map" | "pov" | null (pick one), pov, marks, showAim, lastMsg }
 
+// ---- Screen pieces -------------------------------------------------------
 function header(extra) {
 	var rel = roundToPar(), rs = rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel));
 	var h = " " + R.course.name.toUpperCase() + "   HOLE " + S.H.num + "   PAR " + S.H.par + "   " + S.H.ft + " FT" +
@@ -24,8 +22,8 @@ function header(extra) {
 }
 
 function msg(m) {
-	if (m !== undefined) S.lastMsg = m;
-	put(1, MSG_Y, " " + S.lastMsg, SCR_W);
+	if (m !== undefined) V.lastMsg = m;
+	put(1, MSG_Y, " " + V.lastMsg, SCR_W);
 }
 
 // Keys not already shown in the panel (Disc, Hand, Throw, Angle and the putting View are hotkeys
@@ -34,7 +32,7 @@ function helpLine(mode) {
 	var t;
 	if (mode === "putt") t = " ~Scorecard  ~Quit   \x01k\x01hLeft/Right aim   SPACE putt";
 	else if (mode === "relief") t = " \x01hArrows\x01n slide   \x01hENTER\x01n take this spot   \x01hESC\x01n cancel";
-	else t = " ~View ~Relief ~Scorecard ~Quit  \x01k\x01h1-8 disc  Arrows " + (S.view === "pov" ? "turn" : "aim");
+	else t = " ~View ~Relief ~Scorecard ~Quit  \x01k\x01h1-8 disc  Arrows " + (V.view === "pov" ? "turn" : "aim");
 	put(1, HELP_Y, "\x01n\x01w" + t, PANEL_X - 2);
 }
 
@@ -61,8 +59,8 @@ function panel() {
 		"\x01n\x01h~Throw \x01n" + throwLabel(),
 		angleLine()
 	];
-	if (S.view === "pov" && S.pov) {
-		var gi = gapInfo(S.pov.aimCol);
+	if (V.view === "pov" && V.pov) {
+		var gi = gapInfo(V.pov.aimCol);
 		lines.push("\x01n\x01hGap \x01n" + ft(gi.width) + " ft, clear " + (gi.clear > POV.maxD ? "far" : ft(gi.clear)));
 		lines.push("\x01n\x01hBasket \x01n" + bearingText());
 	} else {

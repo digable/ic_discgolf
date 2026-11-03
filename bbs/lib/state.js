@@ -4,8 +4,10 @@
 "use strict";
 
 // ---- Round state ------------------------------------------------------------
-var R = null;  // { course, holes[], strokes[], lag }
-var S = null;  // current hole/shot state
+// The game itself, with nothing about the screen in it (the door's view is V, in hud.js).
+var R = null;   // the round: { course, holes[], strokes[] } (the door adds lag)
+var S = null;   // the hole being played: { H, lie, aim, strokes, disc, hand, style, angle, wind, pitch }
+var PT = null;  // the putt being lined up (see puttSetup)
 
 function newWind() {
 	var dirs = [[0, -1, "N"], [1, -1, "NE"], [1, 0, "E"], [1, 1, "SE"], [0, 1, "S"], [-1, 1, "SW"], [-1, 0, "W"], [-1, -1, "NW"]];
@@ -40,4 +42,21 @@ function nextThrow() {
 
 function curDisc() { var b = bagDiscs(); return b[clamp(S.disc, 0, b.length - 1)]; }
 function pinDist() { return hyp(S.H.basket.x - S.lie.x, S.H.basket.y - S.lie.y); }
+function inPuttRange() { return pinDist() <= PUTT_M; }
 function lieInTrees() { return isTrees(tileAt(S.H, S.lie)); }
+
+function lieName(t) {
+	if (t === ".") return "in the fairway";
+	if (t === ",") return "in the rough";
+	if (isTrees(t)) return "in the trees";
+	if (t === "S") return "on the tee";
+	if (t === "B") return "at the basket";
+	return "";
+}
+
+// Strokes over (+) or under (-) par for the holes finished so far
+function roundToPar() {
+	var rel = 0;
+	for (var i = 0; i < R.strokes.length; i++) if (R.strokes[i]) rel += R.strokes[i] - R.holes[i].par;
+	return rel;
+}

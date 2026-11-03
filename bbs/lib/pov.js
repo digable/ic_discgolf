@@ -6,10 +6,10 @@
 // ---- View from the player (POV) -----------------------------------------
 // Raycasts the hole's trunks for each screen column and floor-casts the
 // ground below the horizon.
-var POV = { horizon: MAP_Y + 5, fov: 70 * Math.PI / 180, camH: 1.6, f: 32, maxD: 60, clearing: 2.2 };
+var POV = { horizon: MAP_Y + 5, fov: 70 * Math.PI / 180, camH: 1.6, f: 32, maxD: 60 };
 
 function colOffset(i) { return (i + 0.5 - MAP_W / 2) / MAP_W * POV.fov; }   // screen column's angle off center
-function colAngle(i) { return S.pov.ang + colOffset(i); }
+function colAngle(i) { return V.pov.ang + colOffset(i); }
 
 function povHits(H, from, ang) {
 	var hit = [], near = [], tr = H.trunks, reach = POV.maxD + 1, i, j;
@@ -17,7 +17,7 @@ function povHits(H, from, ang) {
 	// far out is beyond maxD along any ray that could touch it)
 	for (j = 0; j < tr.length; j++) {
 		var tx = tr[j].x - from.x, ty = tr[j].y - from.y, td = hyp(tx, ty);
-		if (td >= POV.clearing && td <= reach) near.push({ vx: tx, vy: ty, rad: tr[j].rad });
+		if (td >= CLEARING_M && td <= reach) near.push({ vx: tx, vy: ty, rad: tr[j].rad });
 	}
 	for (i = 0; i < MAP_W; i++) {
 		var a = ang + colOffset(i), ca_ = Math.cos(a), sa = Math.sin(a), best = 1e9;
@@ -32,7 +32,7 @@ function povHits(H, from, ang) {
 }
 
 function drawPOV() {
-	var H = S.H, from = S.lie, P = S.pov, i, r;
+	var H = S.H, from = S.lie, P = V.pov, i, r;
 	P.hit = povHits(H, from, P.ang);
 	var bx = H.basket.x - from.x, by = H.basket.y - from.y;
 	P.bd = hyp(bx, by);
@@ -60,9 +60,9 @@ function drawPOV() {
 // What povCell needs for a column, worked out once per column: the ray's
 // direction and the rows of the nearest trunk's base, trunk top and crown
 function povColumn(i) {
-	var a = colAngle(i), d = S.pov.hit[i];
+	var a = colAngle(i), d = V.pov.hit[i];
 	return {
-		ca: Math.cos(a), sa: Math.sin(a), off: Math.cos(a - S.pov.ang),
+		ca: Math.cos(a), sa: Math.sin(a), off: Math.cos(a - V.pov.ang),
 		base: POV.horizon + POV.camH * POV.f / d,
 		trunkTop: POV.horizon - (2.6 - POV.camH) * POV.f / d,
 		crown: POV.horizon - (9 - POV.camH) * POV.f / d
@@ -70,7 +70,7 @@ function povColumn(i) {
 }
 
 function povCell(i, row, C) {
-	var H = S.H, P = S.pov, d = P.hit[i], g = [" ", 0x40];
+	var H = S.H, P = V.pov, d = P.hit[i], g = [" ", 0x40];
 	if (row >= POV.horizon) {
 		var fd = POV.camH * POV.f / (row - POV.horizon + 0.5) / C.off;
 		var t = fd > POV.maxD ? "," : tileAt(H, { x: S.lie.x + C.ca * fd, y: S.lie.y + C.sa * fd });
@@ -90,7 +90,7 @@ function povCell(i, row, C) {
 
 // Dotted aim line up the ground to where the line is blocked
 function povAimOverlay(col, on) {
-	var P = S.pov, s = "";
+	var P = V.pov, s = "";
 	if (col < 0 || col >= MAP_W) return;
 	for (var r = 0; r < MAP_H; r++) {
 		var row = MAP_Y + r, g = P.buf[r][col];
@@ -107,7 +107,7 @@ function povAimOverlay(col, on) {
 // Basket marker across the top: over the basket when it's in view (seen or
 // hidden by trees), a small arrow at the edge when it isn't.
 function basketMarker() {
-	var P = S.pov, lab = "\xE8 " + ft(P.bd) + " ft", y = MAP_Y;
+	var P = V.pov, lab = "\xE8 " + ft(P.bd) + " ft", y = MAP_Y;
 	if (P.bcol >= 0 && P.bcol < MAP_W) {
 		var x = clamp(MAP_X + P.bcol - Math.floor(lab.length / 2), MAP_X, MAP_X + MAP_W - lab.length);
 		put(x, y, "\x01h\x01y" + lab, 0, 0x40);
@@ -121,7 +121,7 @@ function basketMarker() {
 }
 
 function gapInfo(col) {
-	var P = S.pov, c = clamp(col, 0, MAP_W - 1), clear = P.hit[c], need = Math.min(clear, 12) * 0.8, l = c, r = c;
+	var P = V.pov, c = clamp(col, 0, MAP_W - 1), clear = P.hit[c], need = Math.min(clear, 12) * 0.8, l = c, r = c;
 	while (l > 0 && P.hit[l - 1] >= need) l--;
 	while (r < MAP_W - 1 && P.hit[r + 1] >= need) r++;
 	var w = (r - l + 1) / MAP_W * POV.fov, at = Math.min(clear, 12);
@@ -129,23 +129,23 @@ function gapInfo(col) {
 }
 
 function bearingText() {
-	var P = S.pov, deg = Math.round((P.bang - colOffset(P.aimCol)) * 180 / Math.PI);
+	var P = V.pov, deg = Math.round((P.bang - colOffset(P.aimCol)) * 180 / Math.PI);
 	return Math.abs(deg) < 1 ? "on your line" : Math.abs(deg) + "\xF8 " + (deg < 0 ? "left" : "right");
 }
 
 // Points S.aim along the POV aim column
 function povSetAim() {
-	var a = colAngle(S.pov.aimCol), d = Math.max(pinDist(), 15);
+	var a = colAngle(V.pov.aimCol), d = Math.max(pinDist(), 15);
 	S.aim = { x: S.lie.x + Math.cos(a) * d, y: S.lie.y + Math.sin(a) * d };
 }
 
 function povStart() {
 	var a = Math.atan2(S.aim.y - S.lie.y, S.aim.x - S.lie.x);
-	S.pov = { ang: a, aimCol: MAP_W / 2 - 1 };
+	V.pov = { ang: a, aimCol: MAP_W / 2 - 1 };
 }
 
 function povTurn(dc) {
-	var P = S.pov, nc = P.aimCol + dc;
+	var P = V.pov, nc = P.aimCol + dc;
 	if (nc < 4 || nc > MAP_W - 5) {
 		P.ang = colAngle(nc);   // re-center the view on the new line
 		P.aimCol = MAP_W / 2 - 1;
@@ -162,9 +162,9 @@ function povTurn(dc) {
 // ---- Shot screen -----------------------------------------------------------
 function drawShotScreen() {
 	cls();
-	if (S.view === "pov") {
+	if (V.view === "pov") {
 		header(lieInTrees() ? "IN THE TREES" : "VIEW FROM YOUR LIE");
-		if (!S.pov) povStart();
+		if (!V.pov) povStart();
 		drawPOV();
 		povSetAim();
 	} else {

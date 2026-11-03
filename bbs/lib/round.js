@@ -5,32 +5,25 @@
 
 // ---- Playing a hole --------------------------------------------------------
 function playHole(idx) {
-	var H = R.holes[idx];
-	S = {
-		H: H, lie: { x: H.tee.x, y: H.tee.y }, aim: { x: H.basket.x, y: H.basket.y },
-		strokes: 0, disc: 0, hand: S ? S.hand : player.hand, style: S ? (S.style === "TH" ? player.style : S.style) : player.style,
-		angle: "F", wind: newWind(), showAim: true, pitch: false, view: null, pov: null, marks: null, lastMsg: ""
-	};
-	PT = null;
-	caddiePick();
-	S.lastMsg = "\x01n" + H.def.note;
+	var H = startHole(idx).H;
+	V = { view: null, pov: null, marks: null, showAim: true, lastMsg: "\x01n" + H.def.note };
 	var needDraw = true;
 
 	for (;;) {
-		if (pinDist() <= PUTT_M) {
+		if (inPuttRange()) {
 			var made = putt();
 			if (made === null) return null;
 			if (made) return S.strokes;
-			if (pinDist() <= PUTT_M) continue;
+			if (inPuttRange()) continue;
 			S.aim = { x: H.basket.x, y: H.basket.y };
-			S.view = null; S.pov = null;
+			V.view = null; V.pov = null;
 			needDraw = true;
 			continue;
 		}
 		if (needDraw) {
-			if (!S.view) { S.view = lieInTrees() ? "pov" : "map"; S.pov = null; }
-			if (S.view === "pov" && S.lastMsg.indexOf("trees") < 0 && !S.pov)
-				S.lastMsg = S.lastMsg ? S.lastMsg + " \x01n\x01yIn the trees." : "\x01n\x01yIn the trees.\x01n Find a gap, tomahawk, pitch out (~Throw) or take relief.";
+			if (!V.view) { V.view = lieInTrees() ? "pov" : "map"; V.pov = null; }
+			if (V.view === "pov" && V.lastMsg.indexOf("trees") < 0 && !V.pov)
+				V.lastMsg = V.lastMsg ? V.lastMsg + " \x01n\x01yIn the trees." : "\x01n\x01yIn the trees.\x01n Find a gap, tomahawk, pitch out (~Throw) or take relief.";
 			drawShotScreen();
 			needDraw = false;
 		}
@@ -38,7 +31,7 @@ function playHole(idx) {
 		if (k === " ") {
 			var r = throwShot();
 			if (r === "in") return S.strokes;
-			S.view = null; S.pov = null;
+			V.view = null; V.pov = null;
 			needDraw = true;
 			continue;
 		}
@@ -48,27 +41,22 @@ function playHole(idx) {
 		else if (ku === "H") S.hand = cycle(HANDS, S.hand);
 		else if (ku === "A") S.angle = cycle(ANGLES, S.angle);
 		else if (ku === "V") {
-			if (S.view === "pov") { S.view = "map"; povSetAim(); }
-			else { S.view = "pov"; povStart(); }
+			if (V.view === "pov") { V.view = "map"; povSetAim(); }
+			else { V.view = "pov"; povStart(); }
 			needDraw = true;
 			continue;
 		}
 		else if (ku === "R") { relief(); needDraw = true; continue; }
 		else if (ku === "S") { scorecard(idx, false); needDraw = true; continue; }
 		else if (ku === "Q") { if (confirmQuit("\x01hSPACE\x01n to throw")) return null; continue; }
-		else if (S.view === "pov" && (isLeft(k) || isRight(k))) { povTurn(isLeft(k) ? -1 : 1); panel(); continue; }
-		else if (S.view !== "pov" && (isLeft(k) || isRight(k) || isUp(k) || isDown(k))) {
-			if (isLeft(k)) S.aim.x -= H.S;
-			else if (isRight(k)) S.aim.x += H.S;
-			else if (isUp(k)) S.aim.y -= 2 * H.S;
-			else S.aim.y += 2 * H.S;
-			S.aim.x = clamp(S.aim.x, 0, (MAP_W - 1) * H.S);
-			S.aim.y = clamp(S.aim.y, 0, (MAP_H - 1) * 2 * H.S);
+		else if (V.view === "pov" && (isLeft(k) || isRight(k))) { povTurn(isLeft(k) ? -1 : 1); panel(); continue; }
+		else if (V.view !== "pov" && (isLeft(k) || isRight(k) || isUp(k) || isDown(k))) {
+			moveAim(isLeft(k) ? -1 : (isRight(k) ? 1 : 0), isUp(k) ? -1 : (isDown(k) ? 1 : 0));
 			var a0 = cellOf(H, oldAim), a1 = cellOf(H, S.aim);
 			if (a0.c !== a1.c || a0.r !== a1.r) out(drawCell(a0.c, a0.r) + drawCell(a1.c, a1.r));
 		}
 		else continue;
-		if (S.view !== "pov") updateRangeMark();
+		if (V.view !== "pov") updateRangeMark();
 		panel();
 	}
 }
@@ -136,11 +124,9 @@ function playRound(course) {
 	put(3, 5, "\x01nMeasuring your connection...");
 	var lag = measureLag();
 	put(3, 5, "\x01nLag compensation: " + Math.round(lag * 1000) + " ms", 60);
-	R = { course: course, holes: [], strokes: [], lag: lag };
-	S = null;
-	for (var i = 0; i < course.holes.length; i++) { R.holes.push(buildHole(course.holes[i], i)); R.strokes.push(0); }
+	startRound(course).lag = lag;
 	mswait(600);
-	for (i = 0; i < R.holes.length; i++) {
+	for (var i = 0; i < R.holes.length; i++) {
 		var st = playHole(i);
 		if (st === null) return;
 		R.strokes[i] = st;

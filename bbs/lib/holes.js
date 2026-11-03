@@ -133,15 +133,3 @@ function elevText(dFt) {
 	var d = Math.round(dFt);
 	return Math.abs(d) < 2 ? "" : (d > 0 ? "up " + d + " ft" : "down " + (-d) + " ft");
 }
-
-var GLYPH = {
-	".": ["\xB1", 10],   // fairway
-	",": ["\xB0", 2],    // rough
-	"T": ["\xE7", 10],   // tree
-	"#": ["\xE7", 0x20], // woods: dark trees on green
-	"R": ["\xB1", 8],    // road (OB)
-	"P": ["\xB0", 7],    // parking lot (OB)
-	"W": ["\xF7", 12],   // water (OB)
-	"S": ["\xDB", 7],    // tee pad
-	"B": ["\xE8", 11]    // basket
-};

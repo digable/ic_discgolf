@@ -12,7 +12,6 @@ var PUTT_FRAME_MS = 45;         // putt animation frame time
 // the trail is yellow dots on red, the aim line magenta, the disc white.
 var PUTT_TRAIL = 11 | 0x10, PUTT_AIM = 13, PUTT_DISC = 15;
 var PUTT_TRAIL_CH = "\xF9";
-var PT = null;                  // putt state
 
 // Overhead putting view: the putt line runs up the screen to the basket
 var TOP = { cx: PP_CX, cy: MAP_Y + 6, colM: 1.25, rowM: 2.5 };
@@ -162,30 +161,9 @@ function puttPanel(d) {
 	]);
 }
 
-// How much the putter fades at the end, in meters (negative = left). Backhand from the
-// right hand (or forehand from the left) spins clockwise and fades left; the others fade right.
-function puttFade() {
-	var dir = ((S.hand === "R") === (S.style !== "FH")) ? -1 : 1;
-	return dir * puttDisc().n[3] * 0.06 * clamp(PT.dist / 10, 0.3, 1.5);
-}
-
 function fadeText() {
 	var f = puttFade(), v = Math.round(Math.abs(f) * FT * 10) / 10;
 	return v < 0.1 ? "Flies straight" : "Fades " + (f < 0 ? "left " : "right ") + v + " ft";
-}
-
-// Sideways position along the putt (meters right of the straight line), u = 0 at the hand,
-// 1 at the basket: aim and timing set the line, wind bends it gradually, fade hooks it late.
-// Past the basket it carries on in the direction it was going.
-function puttLat(u) {
-	var c = PT.comp, a = c.aim + c.timing;
-	if (u <= 1) return a * u + c.drift * u * u + c.fade * u * u * u;
-	return a + c.drift + c.fade + (a + 2 * c.drift + 3 * c.fade) * (u - 1);
-}
-
-// World point u of the way from the player to the basket, lat m to the player's right
-function puttWorld(u, lat) {
-	return { x: S.H.basket.x + PT.bx * PT.dist * (1 - u) + PT.rx * lat, y: S.H.basket.y + PT.by * PT.dist * (1 - u) + PT.ry * lat };
 }
 
 // Putting meter ticks every 10 ft; full power (66 ft) at the white mark
@@ -252,7 +230,7 @@ function puttFlight(kind, along, lat) {
 	for (i = 1; i <= n; i++) { u = uMain * i / n; pts.push(topCell(puttWorld(u, made ? puttLat(u) * (1 - i / n) : puttLat(u)))); }
 	if (kind === "cage") pts.push(topCell(puttWorld(uEnd, lat)));
 	else if (!made && kind !== "short") for (i = 1; i <= 5; i++) { u = 1 + (uEnd - 1) * i / 5; pts.push(topCell(puttWorld(u, puttLat(u)))); }
-	var pv = topCell(S.lie), st;
+	var pv = topCell(puttWorld(0, 0)), st;   // where it was putted from (S.lie has moved on)
 	// trail dots on the overhead view keep the grass behind them
 	for (i = 0; i < pts.length; i++) {
 		p = pts[i];
@@ -277,27 +255,26 @@ function puttWhy(kind, need, thrown, over) {
 	return list.join(", ");
 }
 
-// Sets up the putt from the current lie
-function puttSetup() {
-	var H = S.H, dist = pinDist();
-	var bx = (S.lie.x - H.basket.x) / (dist || 1), by = (S.lie.y - H.basket.y) / (dist || 1);
-	var dz = heightAt(H, H.basket) - heightAt(H, S.lie);
-	// bx,by: from the basket back toward the player; rx,ry: the player's right
-	PT = { dist: dist, bx: bx, by: by, rx: by, ry: -bx, dz: dz, aim: 0 };
-	PT.cross = S.wind.x * PT.rx + S.wind.y * PT.ry;
+// What the putt did, for the message line
+function puttLine(p) {
+	if (p.kind === "made") return p.band ? "\x01h\x01gOff the band and in!" : "\x01h\x01gCHAINS!";
+	if (p.kind === "short") return "\x01n\x01yShort.";
+	if (p.kind === "spit") return "\x01h\x01rSpit out of the chains!";
+	if (p.kind === "cage") return "\x01n\x01yHits the cage.";
+	if (p.kind === "over") return "\x01n\x01ySailed over the basket.";
+	return "\x01n\x01yMissed " + (p.lateral < 0 ? "left." : "right.");
 }
 
 // One putt. Returns true when it's in, null to quit the round.
 function putt() {
-	var H = S.H, d = puttDisc();
+	var d = puttDisc();
 	puttSetup();
 	drawPuttScreen();
-	if (PT.dist < 1.2) {
+	if (isTapIn()) {
 		status("Tap-in range. \x01hSPACE\x01n to drop it in.");
 		for (;;) { var k0 = key(); if (k0 === " ") break; }
-		PT.comp = { aim: 0, timing: 0, drift: 0, fade: 0 };
+		tapIn();
 		puttFlight("made", 0, 0);
-		S.strokes++;
 		msg("\x01h\x01gDrop-in.");
 		return true;
 	}
@@ -308,7 +285,7 @@ function putt() {
 		if (ku === "V") { player.puttView = cycle(PUTT_VIEWS, player.puttView); drawPuttScreen(); status("\x01hSPACE\x01n to start your putt"); continue; }
 		if (ku === "S") { scorecard(S.H.num - 1, false); drawPuttScreen(); status("\x01hSPACE\x01n to start your putt"); continue; }
 		if (isLeft(k) || isRight(k)) {
-			PT.aim = clamp(PT.aim + (isLeft(k) ? -0.15 : 0.15), -3, 3);
+			aimPutt(isLeft(k) ? -0.15 : 0.15);
 			puttPanel(d);
 			drawPuttScene();
 			continue;
@@ -316,51 +293,14 @@ function putt() {
 		if (ku === "Q") { if (confirmQuit("\x01hSPACE\x01n to start your putt")) return null; continue; }
 		if (k === " ") break;
 	}
-	var sw = swingMeter(R.lag);
-	S.strokes++;
-	var dom = domHand(), accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1);
-	var need = PT.dist + PT.dz / FT;                          // uphill plays longer
-	var thrown = (sw.power / 100) * PUTT_M * (sw.whiff ? 0.6 : 1);
-	var over = thrown - need;
-	var err = sw.whiff ? (rnd() - 0.5) * 0.4 : sw.accuracy * 0.03 * accMul + (rnd() - 0.5) * 0.01;
-	PT.comp = { aim: PT.aim, timing: Math.sin(err) * PT.dist, drift: PT.cross * PT.dist * 0.025, fade: puttFade() };
-	var lateral = puttLat(1);                                 // meters right of the basket
-	var made = false, line, kind;
-	if (over < -0.15) { line = "\x01n\x01yShort."; kind = "short"; }
-	else if (Math.abs(lateral) <= 0.35 && over <= 6) {
-		var spit = over <= 1.5 ? 0.04 : 0.04 + (over - 1.5) * 0.08;
-		if (rnd() < spit) { line = "\x01h\x01rSpit out of the chains!"; kind = "spit"; }
-		else { made = true; line = "\x01h\x01gCHAINS!"; kind = "made"; }
-	} else if (Math.abs(lateral) <= 0.55 && over <= 6) {
-		if (rnd() < 0.35) { made = true; line = "\x01h\x01gOff the band and in!"; kind = "made"; }
-		else { line = "\x01n\x01yHits the cage."; kind = "cage"; }
-	} else if (over > 6) { line = "\x01n\x01ySailed over the basket."; kind = "over"; }
-	else { line = "\x01n\x01yMissed " + (lateral < 0 ? "left." : "right."); kind = "miss"; }
-
-	// where the disc ends up: meters short of the basket (negative = past it)
-	var along;
-	if (made) along = 0;
-	else if (over < -0.15) along = -over;
-	else if (kind === "cage") along = 0.3 + rnd() * 1.2;
-	else along = -Math.min(Math.max(over, 1), 8) * 0.6;
-	if (!made && along < 0 && PT.dz < -2) along -= 1 + rnd() * 2;   // past a downhill basket it rolls away
-	var endLat = made ? 0 : (kind === "cage" ? lateral : puttLat(1 - along / Math.max(PT.dist, 0.5)));
-	puttFlight(kind === "spit" ? "miss" : kind, along, endLat);
-	if (!made) {
-		var from = { x: S.lie.x, y: S.lie.y };
-		S.lie = { x: H.basket.x + PT.bx * along + PT.rx * endLat, y: H.basket.y + PT.by * along + PT.ry * endLat };
-		// A miss that ends in water or out of bounds (an island green, say): one penalty
-		// throw, and putt again from where this putt was taken
-		var endT = tileAt(H, S.lie);
-		if (isOB(endT)) {
-			S.strokes++;
-			S.lie = from;
-			msg(line + " \x01h\x01r" + (endT === "W" ? "In the water!" : "Out of bounds!") + "\x01n +1, putt again from your spot.");
-			waitKey("Press any key");
-			return false;
-		}
+	var p = takePutt(swingMeter(R.lag)), line = puttLine(p);
+	puttFlight(p.kind === "spit" ? "miss" : p.kind, p.along, p.endLat);
+	if (p.ob) {
+		msg(line + " \x01h\x01r" + (p.ob === "W" ? "In the water!" : "Out of bounds!") + "\x01n +1, putt again from your spot.");
+		waitKey("Press any key");
+		return false;
 	}
-	msg(line + (made ? "" : "\x01n  " + ft(pinDist()) + " ft away.  \x01k\x01h" + puttWhy(kind, need, thrown, over)));
+	msg(line + (p.made ? "" : "\x01n  " + ft(pinDist()) + " ft away.  \x01k\x01h" + puttWhy(p.kind, p.need, p.thrown, p.over)));
 	waitKey("Press any key");
-	return made;
+	return p.made;
 }

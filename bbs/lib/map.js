@@ -4,6 +4,17 @@
 "use strict";
 
 // ---- Overhead map ----------------------------------------------------------
+var GLYPH = {
+	".": ["\xB1", 10],   // fairway
+	",": ["\xB0", 2],    // rough
+	"T": ["\xE7", 10],   // tree
+	"#": ["\xE7", 0x20], // woods: dark trees on green
+	"R": ["\xB1", 8],    // road (OB)
+	"P": ["\xB0", 7],    // parking lot (OB)
+	"W": ["\xF7", 12],   // water (OB)
+	"S": ["\xDB", 7],    // tee pad
+	"B": ["\xE8", 11]    // basket
+};
 var RANGE_MARK = 14 | BLINK;            // where the disc lands at 100% power: bright cyan, blinking
 var RANGE_PAST = 6 | BLINK;             // it flies off the map: dim cyan at the map's edge
 var PATH_DOT = ["\xFA", 14];            // the flight to the range mark, on every other open cell
@@ -30,14 +41,14 @@ function terrainBg(t) {
 	return (a & 0x70) || ((a & 7) << 4);
 }
 
-function aimCell() { return S.showAim ? cellOf(S.H, S.aim) : null; }
+function aimCell() { return V.showAim ? cellOf(S.H, S.aim) : null; }
 
 // The range mark and the flight to it: where the current disc goes on a perfect 100% throw.
 // The disc's flight numbers shape it, with the hand and throw (which way it curves), the release
 // angle (hyzer, flat or anhyzer) and a pitch-out's power cap. No wind, terrain, trees, skips or rolls.
 // Returns { rc: the mark's cell (past: it flies off the map), path: "c,r" -> order along the flight }.
 function rangeMarks() {
-	if (!S.showAim || S.view === "pov") return NO_MARKS;
+	if (!V.showAim || V.view === "pov") return NO_MARKS;
 	var sh = throwShape(1, false);
 	applyAngle(sh);
 	var step = S.H.S / 2 / sh.dist, lc = cellOf(S.H, S.lie);
@@ -61,13 +72,13 @@ function rangeMarks() {
 
 function drawCell(c, r) {
 	if (c < 0 || c >= MAP_W || r < 0 || r >= MAP_H) return "";
-	var g = cellGlyph(c, r, cellOf(S.H, S.lie), aimCell(), S.marks || NO_MARKS);
+	var g = cellGlyph(c, r, cellOf(S.H, S.lie), aimCell(), V.marks || NO_MARKS);
 	return moveTo(MAP_X + c, MAP_Y + r) + text(g[0], g[1]);
 }
 
 function drawMap() {
-	S.marks = rangeMarks();
-	var s = "", lc = cellOf(S.H, S.lie), ac = aimCell(), m = S.marks;
+	V.marks = rangeMarks();
+	var s = "", lc = cellOf(S.H, S.lie), ac = aimCell(), m = V.marks;
 	for (var r = 0; r < MAP_H; r++) {
 		s += moveTo(MAP_X, MAP_Y + r);
 		for (var c = 0; c < MAP_W; c++) { var g = cellGlyph(c, r, lc, ac, m); s += text(g[0], g[1]); }
@@ -78,9 +89,9 @@ function drawMap() {
 // Moves the range mark and path after a disc, throw, hand, pitch or aim change. Only cells
 // whose look changed are redrawn.
 function updateRangeMark() {
-	var old = S.marks || NO_MARKS, nw = rangeMarks(), lc = cellOf(S.H, S.lie), ac = aimCell();
+	var old = V.marks || NO_MARKS, nw = rangeMarks(), lc = cellOf(S.H, S.lie), ac = aimCell();
 	var keys = {}, s = "", k;
-	S.marks = nw;
+	V.marks = nw;
 	for (k in old.path) keys[k] = true;
 	for (k in nw.path) keys[k] = true;
 	if (old.rc) keys[old.rc.c + "," + old.rc.r] = true;
