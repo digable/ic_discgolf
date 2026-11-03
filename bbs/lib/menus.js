@@ -31,19 +31,37 @@ function bigText(str, x, y, colors) {
 // A message for the next title screen ("Saved for next time."), shown once
 var notice = "";
 
+var TITLE_ITEMS = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
+var titleSel = 0;           // stays where it was when you come back to the title screen
+
+// One menu row: highlighted like the setup screen's answers, with its hotkey when it isn't
+function drawTitleItem(i, on) {
+	var lab = " " + TITLE_ITEMS[i] + " ";
+	out(moveTo(16, 15 + i) + text(on ? ">" : " ", 14) + text(" ", 7) + ca(on ? lab.replace("~", "") : lab, on ? 0x4F : 7)[0] + setAttr(7));
+}
+
+// Up/Down moves and ENTER or SPACE picks; the letters pick straight away. Returns the item's letter.
 function titleScreen() {
 	cls();
 	bigText("DISC GOLF", 17, 2, [14, 11]);
 	put(17, 8, "\x01n\x01k\x01h" + new Array(47).join("\xC4"));
-	put(17, 9, "\x01nA 3-click swing meter disc golf door");
+	put(17, 9, "\x01nA 3-click swing meter disc golf emulator");
 	put(17, 11, "\x01hCourses \x01n" + COURSES.length + " \x01k\x01h- pick one when you play");
 	put(17, 12, "\x01hPlayer  \x01h\x01c" + player.name);
 	put(17, 13, "\x01n        " + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
-	var items = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
-	for (var i = 0; i < items.length; i++) put(19, 15 + i, "\x01n" + items[i]);
+	var i, n = TITLE_ITEMS.length;
+	for (i = 0; i < n; i++) drawTitleItem(i, i === titleSel);
 	if (notice) { put(19, 23, notice, 60); notice = ""; }
-	put(19, 21, "\x01n\x01k\x01hChoose: ");
-	return key().toUpperCase();
+	put(19, 21, "\x01n\x01hUp/Down\x01n move   \x01hENTER\x01n choose");
+	for (;;) {
+		var k = key(), ku = k.toUpperCase(), old = titleSel;
+		if (!k) return "";                                   // hung up: back to the main loop
+		if (k === "\r" || k === " ") return hotkeyOf(TITLE_ITEMS[titleSel]);
+		for (i = 0; i < n; i++) if (hotkeyOf(TITLE_ITEMS[i]) === ku) { titleSel = i; return ku; }
+		if (isUp(k)) titleSel = (titleSel + n - 1) % n;
+		else if (isDown(k)) titleSel = (titleSel + 1) % n;
+		if (titleSel !== old) { drawTitleItem(old, false); drawTitleItem(titleSel, true); }
+	}
 }
 
 // ---- Course menu ------------------------------------------------------------------
