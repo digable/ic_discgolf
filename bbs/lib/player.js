@@ -13,7 +13,7 @@ var player = {
 	level: "reg",        // skill level: "reg" or "pro" (see LEVELS)
 	puttView: "top",     // top (overhead) or pov (from the player)
 	flightPath: true,    // dots on the map from the lie to the range mark
-	course: 0,           // the last course played (starts highlighted in the course menu)
+	course: -1,          // the last course played, an index into COURSES (starts highlighted in the course menu)
 	bag: ["KC Aviar", "Zone", "Buzzz", "Teebird", "Leopard3", "Destroyer"]
 };
 

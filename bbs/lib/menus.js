@@ -66,52 +66,95 @@ function titleScreen() {
 
 // ---- Course menu ------------------------------------------------------------------
 // Opened by Play: a scrolling list of every course. Up/Down moves (the list
-// scrolls when there are more than fit), ENTER or SPACE picks. Returns the
-// course's index, or -1 to go back to the title screen. The last course played
-// starts highlighted.
+// scrolls when there are more than fit), ENTER or SPACE picks. Left/Right picks what the
+// list is sorted by and R reverses it, as on the bag screen; the sort lasts until the player
+// hangs up. Returns the course's index in COURSES, or -1 to go back to the title screen. The
+// last course played starts highlighted.
 var COURSE_ROWS = 5;        // courses shown at once, 3 screen rows each
+var COURSE_COLS = [         // label, sort value, sort order names (low first, high first)
+	{ h: "NAME",  v: function (C) { return C.name.toUpperCase(); }, dir: ["A to Z", "Z to A"] },
+	{ h: "CITY",  v: function (C) { return courseWhere(C)[1].toUpperCase(); }, dir: ["A to Z", "Z to A"] },
+	{ h: "STATE", v: function (C) { return courseWhere(C)[2]; }, dir: ["A to Z", "Z to A"] },
+	{ h: "COUNTRY", v: function (C) { return C.country.toUpperCase(); }, dir: ["A to Z", "Z to A"] },
+	{ h: "UDISC RATING", v: function (C) { return -C.rating; }, dir: ["high to low", "low to high"] }
+];
+var courseSort = { col: 0, rev: false };
+
+// [the place, city, state] from a course's where, which ends in ", City, ST"
+function courseWhere(C) { return C.where.split(", ").slice(-3); }
+
+// COURSES indices in the current sort order. Ties go by name, A to Z.
+function courseOrder() {
+	var c = COURSE_COLS[courseSort.col], order = [], i;
+	for (i = 0; i < COURSES.length; i++) order.push(i);
+	order.sort(function (a, b) {
+		var x = c.v(COURSES[a]), y = c.v(COURSES[b]);
+		if (x !== y) return (x < y ? -1 : 1) * (courseSort.rev ? -1 : 1);
+		return COURSES[a].name < COURSES[b].name ? -1 : 1;
+	});
+	return order;
+}
 
 function courseLines(i) {
 	var C = COURSES[i], par = 0, len = 0;
 	for (var h = 0; h < C.holes.length; h++) { par += C.holes[h].par; len += C.holes[h].ft; }
-	return ["\x01h\x01w" + C.name + "  \x01n\x01k\x01h" + C.where,
-		"\x01n" + C.holes.length + " holes   par " + par + "   " + String(len).replace(/\B(?=(\d{3})+$)/g, ",") + " ft"];
+	return ["\x01h\x01w" + C.name + "  \x01n\x01k\x01h" + C.where + ", " + C.country,
+		"\x01n" + C.holes.length + " holes   par " + par + "   " + String(len).replace(/\B(?=(\d{3})+$)/g, ",") + " ft   UDisc " + C.rating.toFixed(1)];
 }
 
-function drawCourseRow(i, top, on) {
-	var y = 5 + (i - top) * 3, L = courseLines(i);
+// Row i of the list (an index into order)
+function drawCourseRow(order, i, top, on) {
+	var y = 5 + (i - top) * 3, L = courseLines(order[i]);
 	put(3, y, (on ? "\x01h\x01c> " : "  ") + L[0], 76);
 	put(5, y + 1, L[1], 72);
 }
 
 // The visible window of courses, starting at top, with "more" hints above and below
-function drawCourseList(top, sel) {
-	var n = Math.min(COURSE_ROWS, COURSES.length);
-	for (var i = top; i < top + n; i++) drawCourseRow(i, top, i === sel);
+function drawCourseList(order, top, sel) {
+	var n = Math.min(COURSE_ROWS, order.length);
+	for (var i = top; i < top + n; i++) drawCourseRow(order, i, top, i === sel);
 	put(5, 4, top > 0 ? "\x01n\x01k\x01h(more above)" : "", 20);
-	put(5, 5 + n * 3 - 1, top + n < COURSES.length ? "\x01n\x01k\x01h(more below)" : "", 20);
+	put(5, 5 + n * 3 - 1, top + n < order.length ? "\x01n\x01k\x01h(more below)" : "", 20);
+}
+
+// What the list can sort by, with the current one lit, and which way it's sorted
+function drawCourseSort() {
+	var s = "\x01n\x01k\x01hSort by  ";
+	for (var i = 0; i < COURSE_COLS.length; i++) s += (i === courseSort.col ? "\x01h\x01c" : "\x01n\x01k\x01h") + COURSE_COLS[i].h + "  ";
+	put(3, 3, s + "\x01n\x01k\x01h(" + COURSE_COLS[courseSort.col].dir[courseSort.rev ? 1 : 0] + ")", 76);
 }
 
 function courseMenu() {
 	if (COURSES.length === 1) return 0;
-	var sel = clamp(player.course, 0, COURSES.length - 1);
+	var order = courseOrder(), sel = Math.max(0, order.indexOf(player.course));
 	var n = Math.min(COURSE_ROWS, COURSES.length);
 	var top = clamp(sel - n + 1, 0, COURSES.length - n);
 	cls();
 	put(3, 2, "\x01h\x01wCHOOSE A COURSE  \x01n\x01k\x01h" + COURSES.length + " courses");
-	drawCourseList(top, sel);
-	put(3, 6 + n * 3, "\x01n\x01hUp/Down\x01n move   \x01hENTER\x01n play   ~Quit back to the clubhouse", 76);
+	drawCourseSort();
+	drawCourseList(order, top, sel);
+	put(3, 6 + n * 3, "\x01n\x01hUp/Down\x01n move  \x01hENTER\x01n play  \x01hLeft/Right\x01n sort by  ~Reverse  ~Quit back", 76);
 	for (;;) {
 		var k = key(), ku = k.toUpperCase();
-		if (k === "\r" || k === " ") return sel;
+		if (k === "\r" || k === " ") return order[sel];
 		if (ku === "Q" || k === "\x1b") return -1;
-		if (isUp(k) || isDown(k)) {
+		if (ku === "R" || isLeft(k) || isRight(k)) {
+			if (ku === "R") courseSort.rev = !courseSort.rev;
+			else { courseSort.col = (courseSort.col + (isLeft(k) ? COURSE_COLS.length - 1 : 1)) % COURSE_COLS.length; courseSort.rev = false; }
+			var cur = order[sel];                   // keep the same course selected, scrolled into view
+			order = courseOrder();
+			sel = order.indexOf(cur);
+			top = clamp(top, Math.max(0, sel - n + 1), sel);
+			drawCourseSort();
+			drawCourseList(order, top, sel);
+		}
+		else if (isUp(k) || isDown(k)) {
 			var old = sel, oldTop = top;
 			sel = (sel + (isUp(k) ? COURSES.length - 1 : 1)) % COURSES.length;
 			if (sel < top) top = sel;
 			if (sel >= top + n) top = sel - n + 1;
-			if (top !== oldTop) drawCourseList(top, sel);
-			else { drawCourseRow(old, top, false); drawCourseRow(sel, top, true); }
+			if (top !== oldTop) drawCourseList(order, top, sel);
+			else { drawCourseRow(order, old, top, false); drawCourseRow(order, sel, top, true); }
 		}
 	}
 }

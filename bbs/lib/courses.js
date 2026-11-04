@@ -15,6 +15,9 @@
 //   with a negative height) centered on a map cell. Leave it out for flat.
 // An island green is a ring of water around the basket.
 //
+// Each course's where ends in ", City, ST" and it has a country (the course menu sorts by those); its rating is
+// UDisc's (out of 5, November 2026; copied by hand, so it doesn't update on its own).
+//
 // Lengths and pars are real (UDisc); shapes are drawn, not surveyed. Each course's
 // details and sources are in README.md, "Courses".
 
@@ -96,6 +99,8 @@ function holesWithFt(holes, ft) {
 var COURSES = [{
 	name: "Turkey Creek",
 	where: "Coralville Reservoir, Iowa City, IA",
+	country: "USA",
+	rating: 2.8,
 	holes: [
 		{ par: 3, ft: 155, pts: [[8, 9], [68, 8]], hw: 4.5, rough: 2, left: "medium", right: "dense",
 		  trees: [[40, 9]], ob: [{ t: "P", x1: 0, y1: 0, x2: 77, y2: 2 }],
@@ -129,6 +134,8 @@ var COURSES = [{
 // Wildcat Bluff: 21 holes, par 71 (red tees)
 	name: "Wildcat Bluff",
 	where: "Wildcat Bluff Park, Vinton, IA",
+	country: "USA",
+	rating: 4.8,
 	holes: [
 		{ par: 3, ft: 335, pts: [[6, 8], [70, 7]], hw: 4, rough: 2, left: "dense", right: "medium",
 		  trees: [[38, 7]], elev: { tee: 0, basket: -8 },
@@ -198,6 +205,8 @@ var COURSES = [{
 // Eagles Crossing, Championship Course: 18 holes, par 70 (red layout)
 	name: "Eagles Crossing",
 	where: "Championship Course, New Truxton, MO",
+	country: "USA",
+	rating: 4.9,
 	holes: [
 		{ par: 4, ft: 582, pts: [[5, 8], [40, 7], [72, 8]], hw: 7, rough: 4, left: "open", right: "open",
 		  trees: [[30, 6]], ob: [{ t: "W", x1: 60, y1: 11, x2: 77, y2: 15 }],
@@ -257,7 +266,9 @@ var COURSES = [{
 }, {
 // Sugar Bottom: 18 holes, par 55
 	name: "Sugar Bottom",
-	where: "Sugar Bottom Rec Area, Solon, IA",
+	where: "Sugar Bottom Rec Area, North Liberty, IA",
+	country: "USA",
+	rating: 4.1,
 	holes: [
 		{ par: 3, ft: 210, pts: [[10, 8], [66, 8]], hw: 5, rough: 4, left: "medium", right: "light",
 		  trees: [[38, 7]],
@@ -318,17 +329,23 @@ var COURSES = [{
 // High Bridge, The Top Ten: 10 holes, par 32
 	name: "High Bridge Top Ten",
 	where: "High Bridge DGC, Eldora, IA",
+	country: "USA",
+	rating: 3.7,
 	holes: holesWithFt(HIGH_BRIDGE_TOP, [249, 251, 212, 444, 352, 210, 222, 224, 230, 243])
 }, {
 // High Bridge, Heaven and Hell: 18 holes, par 58
 	name: "High Bridge Heaven & Hell",
 	where: "High Bridge DGC, Eldora, IA",
+	country: "USA",
+	rating: 3.7,
 	holes: holesWithFt(HIGH_BRIDGE_TOP.concat(HIGH_BRIDGE_BOTTOM),
 		[249, 250, 212, 420, 352, 209, 222, 224, 231, 244, 246, 211, 226, 252, 252, 400, 184, 190])
 }, {
 // Peninsula Park: 18 holes, par 55 (red tees to orange baskets)
 	name: "Peninsula Park",
 	where: "Peninsula Park, Iowa City, IA",
+	country: "USA",
+	rating: 4.3,
 	holes: [
 		{ par: 3, ft: 317, pts: [[6, 8], [42, 7], [70, 10]], hw: 4.5, rough: 3, left: "dense", right: "medium",
 		  trees: [[28, 8]],
@@ -389,6 +406,8 @@ var COURSES = [{
 // Altmaier Park (Coralville Disc Golf), The Farm: 18 holes, par 56
 	name: "Altmaier Park",
 	where: "Coralville Disc Golf, Coralville, IA",
+	country: "USA",
+	rating: 4.5,
 	holes: [
 		{ par: 3, ft: 312, pts: [[6, 8], [70, 8]], hw: 7, rough: 3, left: "light", right: "open",
 		  trees: [[30, 6], [48, 10]],
@@ -444,5 +463,94 @@ var COURSES = [{
 		{ par: 4, ft: 690, pts: [[4, 11], [28, 10], [50, 6], [73, 5]], hw: 6, rough: 3, left: "medium", right: "light",
 		  trees: [[38, 9], [62, 5]], elev: { tee: 0, basket: 16, hills: [[46, 7, 7, 6]] },
 		  note: "The long climb home. Two big shots, all uphill." }
+	]
+}, {
+// Blue Ribbon Pines: 27 holes, par 91 (UDisc's "Newbie 2" layout)
+	name: "Blue Ribbon Pines",
+	where: "Private course, East Bethel, MN",
+	country: "USA",
+	rating: 4.8,
+	holes: [
+		{ par: 3, ft: 340, pts: [[7, 8], [70, 8]], hw: 5, rough: 2, left: "medium", right: "medium",
+		  trees: [[42, 7]],
+		  note: "Welcome to the pines. Straight, with a tree to miss." },
+		{ par: 4, ft: 500, pts: [[5, 11], [40, 10], [72, 5]], hw: 5, rough: 2, left: "dense", right: "medium",
+		  trees: [[54, 8]],
+		  note: "First par 4. Works left through the tall pines." },
+		{ par: 3, ft: 368, pts: [[6, 5], [70, 9]], hw: 6, rough: 3, left: "light", right: "open",
+		  trees: [[36, 6]], ob: [{ t: "W", x1: 52, y1: 12, x2: 74, y2: 15 }],
+		  note: "Water you can't see from the tee, short and right of the pin." },
+		{ par: 3, ft: 287, pts: [[10, 7], [44, 8], [66, 11]], hw: 3.5, rough: 2, left: "dense", right: "dense",
+		  trees: [[30, 7]],
+		  note: "Tight window, then a late turn right." },
+		{ par: 4, ft: 444, pts: [[5, 8], [72, 8]], hw: 3, rough: 2, left: "dense", right: "dense",
+		  trees: [],
+		  note: "The famous one: a long, dead-straight tunnel. Don't miss the gap." },
+		{ par: 4, ft: 520, pts: [[5, 4], [38, 5], [72, 11]], hw: 4.5, rough: 2, left: "medium", right: "dense",
+		  trees: [[24, 5], [60, 9]],
+		  note: "Bends right at the far end. Set up the corner." },
+		{ par: 4, ft: 620, pts: [[4, 12], [34, 11], [54, 6], [73, 5]], hw: 5, rough: 2, left: "dense", right: "medium",
+		  trees: [[46, 9]],
+		  note: "Long and winding through the woods. Two clean shots." },
+		{ par: 5, ft: 590, pts: [[4, 6], [28, 9], [52, 6], [73, 9]], hw: 4, rough: 2, left: "dense", right: "dense",
+		  trees: [[16, 7], [40, 8], [62, 7]], ob: [{ t: "W", x1: 36, y1: 0, x2: 56, y2: 3 }],
+		  note: "The par 5. Snakes through tight pines, with a pond off the left." },
+		{ par: 4, ft: 540, pts: [[5, 9], [72, 6]], hw: 8, rough: 3, left: "open", right: "light",
+		  trees: [[38, 8]],
+		  note: "Back out over the big grass field. Open it up." },
+		{ par: 3, ft: 315, pts: [[8, 5], [40, 10], [70, 7]], hw: 3, rough: 2, left: "dense", right: "dense",
+		  trees: [[24, 8], [54, 9]],
+		  note: "A tough one. Narrow and crooked, so accuracy beats power." },
+		{ par: 3, ft: 250, pts: [[11, 9], [66, 6]], hw: 4, rough: 2, left: "medium", right: "dense",
+		  trees: [[38, 8]],
+		  note: "Short, but the woods punish any miss." },
+		{ par: 3, ft: 296, pts: [[9, 6], [68, 8]], hw: 5, rough: 2, left: "light", right: "medium",
+		  trees: [[30, 6], [50, 8]],
+		  note: "A couple of big pines guard the line." },
+		{ par: 3, ft: 360, pts: [[7, 10], [70, 7]], hw: 6, rough: 3, left: "light", right: "open",
+		  trees: [], ob: [{ t: "W", x1: 34, y1: 0, x2: 54, y2: 4 }],
+		  note: "Keep it right of the pond on the left." },
+		{ par: 3, ft: 253, pts: [[11, 8], [40, 5], [66, 8]], hw: 3.5, rough: 2, left: "dense", right: "medium",
+		  trees: [[26, 7], [52, 6]],
+		  note: "Arcs left and back. Shape it around the trees." },
+		{ par: 3, ft: 256, pts: [[11, 6], [66, 10]], hw: 4, rough: 2, left: "medium", right: "dense",
+		  trees: [[40, 8]],
+		  note: "Angles right along the wood line." },
+		{ par: 4, ft: 640, pts: [[4, 5], [40, 8], [73, 10]], hw: 8, rough: 3, left: "light", right: "open",
+		  trees: [[58, 8]],
+		  note: "Big, open par 4 across the grass. Two long throws." },
+		{ par: 3, ft: 240, pts: [[12, 8], [64, 8]], hw: 3.5, rough: 2, left: "dense", right: "dense",
+		  trees: [[38, 8]],
+		  note: "Short tunnel, with a pine right in the middle." },
+		{ par: 4, ft: 810, pts: [[3, 8], [75, 8]], hw: 10, rough: 3, left: "open", right: "open",
+		  trees: [],
+		  note: "The driving range hole. Long, open and straight, so let it rip." },
+		{ par: 3, ft: 322, pts: [[8, 10], [69, 6]], hw: 5, rough: 2, left: "medium", right: "medium",
+		  trees: [[36, 9]],
+		  note: "Back toward the woods, drifting left." },
+		{ par: 3, ft: 485, pts: [[5, 6], [72, 9]], hw: 7, rough: 3, left: "open", right: "light",
+		  trees: [[46, 7]],
+		  note: "A monster par 3 over the open grass. Needs your biggest throw." },
+		{ par: 3, ft: 390, pts: [[6, 8], [40, 9], [71, 6]], hw: 5, rough: 3, left: "light", right: "medium",
+		  trees: [[24, 8]], ob: [{ t: "W", x1: 58, y1: 10, x2: 76, y2: 14 }],
+		  note: "Long par 3. A pond sneaks in short and right of the basket." },
+		{ par: 3, ft: 342, pts: [[7, 7], [70, 9]], hw: 4.5, rough: 2, left: "medium", right: "dense",
+		  trees: [[44, 8]],
+		  note: "Risk and reward: a clean line opens up a birdie." },
+		{ par: 3, ft: 210, pts: [[13, 8], [63, 8]], hw: 5, rough: 2, left: "medium", right: "medium",
+		  trees: [], ob: [{ t: "W", x1: 66, y1: 4, x2: 74, y2: 12 }],
+		  note: "Short, to a mulch green with a pond right behind it. Don't go long." },
+		{ par: 3, ft: 388, pts: [[6, 11], [38, 8], [71, 8]], hw: 4.5, rough: 2, left: "dense", right: "medium",
+		  trees: [[52, 7]],
+		  note: "Up the chute and out to a far basket." },
+		{ par: 3, ft: 210, pts: [[13, 6], [38, 10], [63, 7]], hw: 3, rough: 2, left: "dense", right: "dense",
+		  trees: [[28, 8]],
+		  note: "Tiny dogleg, and there's luck in it. Pick your window." },
+		{ par: 4, ft: 397, pts: [[6, 5], [40, 7], [71, 11]], hw: 3.5, rough: 2, left: "dense", right: "dense",
+		  trees: [[24, 5], [56, 9]],
+		  note: "Short par 4, but tight. Placement over power." },
+		{ par: 3, ft: 335, pts: [[7, 9], [70, 7]], hw: 7, rough: 3, left: "light", right: "light",
+		  trees: [[40, 8]],
+		  note: "Last one, in the open. Finish with a good throw." }
 	]
 }];

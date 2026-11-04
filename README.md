@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-Eight courses at seven real disc golf parks in Iowa and Missouri (see [Courses](#courses)).
+Nine courses at eight real disc golf parks in Iowa, Missouri and Minnesota (see [Courses](#courses)).
 
 ## Players and saved settings
 
@@ -36,17 +36,20 @@ like IC Zombies' saves. See [The save service](#the-save-service).
 ## Courses
 
 **Play** opens a scrolling course list: Up/Down to move, Enter (or Space) to play.
+Left/Right sorts it by name, city, state, country or UDisc rating, and R reverses the
+order. It starts A to Z by name, and rating starts high to low.
 
-| # | Course | Holes | Par | Length | Address |
-|---|---|---|---|---|---|
-| 1 | Turkey Creek | 9 | 27 | 2,500 ft | Turkey Creek Day Use Area, 2850 Prairie Du Chien Rd NE, Iowa City, IA 52240 |
-| 2 | Wildcat Bluff | 21 | 71 | 7,445 ft | Wildcat Bluff Recreation Area, 3139 57th Street Trail, Center Point, IA 52213 |
-| 3 | Eagles Crossing (Championship Course) | 18 | 70 | 7,564 ft | Eagles Crossing, 300 Eagles Nest Farm Road, Hawk Point, MO 63349 |
-| 4 | Sugar Bottom | 18 | 55 | 5,791 ft | Sugar Bottom Day Use Area, 2192 Mehaffey Bridge Rd NE, Solon, IA 52333 |
-| 5 | High Bridge Top Ten | 10 | 32 | 2,635 ft | Memorial Park, 9 Park Street, Eldora, IA 50627 |
-| 6 | High Bridge Heaven & Hell | 18 | 58 | 4,575 ft | Memorial Park, 9 Park Street, Eldora, IA 50627 |
-| 7 | Peninsula Park | 18 | 55 | 5,507 ft | Peninsula Park, Foster Rd & Ball St, Iowa City, IA 52240 |
-| 8 | Altmaier Park | 18 | 56 | 6,095 ft | Altmaier Family Park, 3444 Deer Creek Rd SE, Coralville, IA 52241 |
+| # | Course | Holes | Par | Length | UDisc rating | Address |
+|---|---|---|---|---|---|---|
+| 1 | Turkey Creek | 9 | 27 | 2,500 ft | 2.8 | Turkey Creek Day Use Area, 2850 Prairie Du Chien Rd NE, Iowa City, IA 52240 |
+| 2 | Wildcat Bluff | 21 | 71 | 7,445 ft | 4.8 | Wildcat Bluff Recreation Area, 3139 57th Street Trail, Center Point, IA 52213 |
+| 3 | Eagles Crossing (Championship Course) | 18 | 70 | 7,564 ft | 4.9 | Eagles Crossing, 300 Eagles Nest Farm Road, Hawk Point, MO 63349 |
+| 4 | Sugar Bottom | 18 | 55 | 5,791 ft | 4.1 | Sugar Bottom Day Use Area, 2192 Mehaffey Bridge Rd NE, Solon, IA 52333 |
+| 5 | High Bridge Top Ten | 10 | 32 | 2,635 ft | 3.7 | Memorial Park, 9 Park Street, Eldora, IA 50627 |
+| 6 | High Bridge Heaven & Hell | 18 | 58 | 4,575 ft | 3.7 | Memorial Park, 9 Park Street, Eldora, IA 50627 |
+| 7 | Peninsula Park | 18 | 55 | 5,507 ft | 4.3 | Peninsula Park, Foster Rd & Ball St, Iowa City, IA 52240 |
+| 8 | Altmaier Park | 18 | 56 | 6,095 ft | 4.5 | Altmaier Family Park, 3444 Deer Creek Rd SE, Coralville, IA 52241 |
+| 9 | Blue Ribbon Pines | 27 | 91 | 10,708 ft | 4.8 | Blue Ribbon Pines, 2025 Klondike Dr NE, East Bethel, MN 55011 |
 
 Every course's hole lengths and pars are the real ones, from its UDisc listing
 (2026). The rest of each hole (fairway shapes and bends, woods, single trees,
@@ -54,7 +57,9 @@ water, roads, parking lots and hills) is drawn from UDisc's description and
 course reviews, not surveyed, so it's the course's character rather than an exact
 copy. The holes are in `bbs/lib/courses.js`; adjust a hole there to match the real
 one. The town shown in the game is the one UDisc lists, which isn't always the
-mailing address's town.
+mailing address's town. UDisc ratings are out of 5, copied by hand in November 2026, so
+they don't update on their own; High Bridge's two layouts share one UDisc listing and
+rating.
 
 ### 1. Turkey Creek
 
@@ -149,6 +154,25 @@ mailing address's town.
   432 ft, and hole 18, 690 ft uphill). Flat and open for 1-3, the creek as water
   out of bounds on 4-6, and big climbs and drops after. Which side of each fairway
   the creek is on is a guess.
+
+### 9. Blue Ribbon Pines
+
+- **Where:** Blue Ribbon Pines in East Bethel, Minnesota, north of the Twin Cities,
+  on private land. [Map](https://www.google.com/maps?q=45.334633,-93.223228)
+- **The course:** 27 holes, opened in August 2006, designed by Timmy Gill and Steve
+  Beckman on the Jordan family's farm. Pay to play ($8 a day, per UDisc). Ranked #14
+  in UDisc's 100 Best Disc Golf Courses in the World. Mostly flat, with tall pines,
+  groomed fairways, ponds, and open holes across a big grass field between two
+  wooded sides. Baskets rotate, so the layout changes often. Fairways can flood in
+  the spring.
+- **In the game:** UDisc's "Newbie 2" layout, par 91, the one UDisc's public page shows
+  hole by hole (the other layouts' pages need a login). It's longer than the
+  9,768 ft PDGA lists, and hole 20 is a 485 ft par 3. Its numbering differs from what
+  reviews use, so hole 5 (444 ft) is drawn as the famous long, straight tunnel they
+  call hole 4, on the guess that it's the same hole. Hole 18 is the 760 ft "driving
+  range hole" in UDisc's article, and 810 ft here. Which holes are wooded or open, and
+  which have ponds (3, 8, 13, 21 and 23), is a guess: reviews only say water is on
+  "several holes" and "can not be seen from the tee". No elevation.
 
 ## Files
 
@@ -343,7 +367,12 @@ your own computer first").
   [Sugar Bottom](https://udisc.com/courses/sugar-bottom-rec-areas-EwqR),
   [High Bridge](https://udisc.com/courses/high-bridge-dgc-fhad),
   [Peninsula Park](https://udisc.com/courses/peninsula-park-jLph),
-  [Altmaier Park](https://udisc.com/courses/coralville-disc-golf-altmaier-park-qUWO).
+  [Altmaier Park](https://udisc.com/courses/coralville-disc-golf-altmaier-park-qUWO),
+  [Blue Ribbon Pines](https://udisc.com/courses/blue-ribbon-pines-aCxV).
+- Blue Ribbon Pines history, holes and reviews:
+  [UDisc's article](https://udisc.com/blog/post/worlds-best-disc-golf-courses-6-blue-ribbon-pines),
+  [Disc Golf Scene](https://www.discgolfscene.com/courses/Blue_Ribbon_Pines/reviews);
+  address: [PDGA](https://www.pdga.com/course-directory/course/blue-ribbon-pines-disc-golf-course).
 - Eagles Crossing water and woods: [DG Course Review](https://dgcoursereview.com/courses/eagles-crossing.12414/reviews).
 - High Bridge park, parking and the bluff/valley split: [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426).
 - Addresses: Recreation.gov ([Turkey Creek](https://www.recreation.gov/camping/campgrounds/254086),
