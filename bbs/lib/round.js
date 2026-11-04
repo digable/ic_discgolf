@@ -78,7 +78,7 @@ var CARD_MAX = 11;
 function scorecard(cur, final) {
 	cls();
 	var n = R.holes.length, nb = Math.ceil(n / CARD_MAX), per = Math.ceil(n / nb), b;
-	put(3, 2, "\x01h\x01w" + R.course.name.toUpperCase() + "  \x01n\x01k\x01h" + R.course.where, 76);
+	put(3, 2, "\x01h\x01w" + upperName(R.course.name) + "  \x01n\x01k\x01h" + R.course.where, 76);
 	put(3, 3, "\x01n\x01k\x01h" + (final ? "Final scorecard" : "Scorecard"), 76);
 	var gap = nb === 1 ? 2 : 1;                          // one block: roomy rows, as before
 	for (b = 0; b < nb; b++) scoreBlock(b * per, Math.min(n, (b + 1) * per), b === nb - 1, cur, (nb === 1 ? 6 : 5 + b * 5), gap);

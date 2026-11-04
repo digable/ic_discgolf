@@ -72,16 +72,19 @@ function titleScreen() {
 // last course played starts highlighted.
 var COURSE_ROWS = 5;        // courses shown at once, 3 screen rows each
 var COURSE_COLS = [         // label, sort value, sort order names (low first, high first)
-	{ h: "NAME",  v: function (C) { return C.name.toUpperCase(); }, dir: ["A to Z", "Z to A"] },
-	{ h: "CITY",  v: function (C) { return courseWhere(C)[1].toUpperCase(); }, dir: ["A to Z", "Z to A"] },
-	{ h: "STATE", v: function (C) { return courseWhere(C)[2]; }, dir: ["A to Z", "Z to A"] },
+	{ h: "NAME",  v: function (C) { return sortName(C.name); }, dir: ["A to Z", "Z to A"] },
+	{ h: "CITY",  v: function (C) { return sortName(courseWhere(C)[1]); }, dir: ["A to Z", "Z to A"] },
+	{ h: "STATE", v: function (C) { return courseWhere(C)[2] || "\xFF"; }, dir: ["A to Z", "Z to A"] },   // no state: after the states
 	{ h: "COUNTRY", v: function (C) { return C.country.toUpperCase(); }, dir: ["A to Z", "Z to A"] },
 	{ h: "UDISC RATING", v: function (C) { return -C.rating; }, dir: ["high to low", "low to high"] }
 ];
 var courseSort = { col: 0, rev: false };
 
-// [the place, city, state] from a course's where, which ends in ", City, ST"
-function courseWhere(C) { return C.where.split(", ").slice(-3); }
+// [the place, city, state] from a course's where, which ends in ", City, ST" (outside the USA, ", City")
+function courseWhere(C) {
+	var p = C.where.split(", ");
+	return C.country === "USA" ? p.slice(-3) : [p[0], p[p.length - 1], ""];
+}
 
 // COURSES indices in the current sort order. Ties go by name, A to Z.
 function courseOrder() {
@@ -90,7 +93,7 @@ function courseOrder() {
 	order.sort(function (a, b) {
 		var x = c.v(COURSES[a]), y = c.v(COURSES[b]);
 		if (x !== y) return (x < y ? -1 : 1) * (courseSort.rev ? -1 : 1);
-		return COURSES[a].name < COURSES[b].name ? -1 : 1;
+		return sortName(COURSES[a].name) < sortName(COURSES[b].name) ? -1 : 1;
 	});
 	return order;
 }

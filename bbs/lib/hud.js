@@ -11,7 +11,7 @@ var V = null;  // { view: "map" | "pov" | null (pick one), pov, marks, showAim, 
 // ---- Screen pieces -------------------------------------------------------
 function header(extra) {
 	var rel = roundToPar(), rs = rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel));
-	var h = " " + R.course.name.toUpperCase() + "   HOLE " + S.H.num + "   PAR " + S.H.par + "   " + S.H.ft + " FT" +
+	var h = " " + upperName(R.course.name) + "   HOLE " + S.H.num + "   PAR " + S.H.par + "   " + S.H.ft + " FT" +
 		"   THROW " + (S.strokes + 1) + "   ROUND " + rs;
 	if (extra) h += "   " + extra;
 	else {

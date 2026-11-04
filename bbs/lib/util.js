@@ -11,6 +11,12 @@ function blank(n) { return n > 0 ? new Array(n + 1).join(" ") : ""; }
 function pad(s, n) { s = String(s); return s.length >= n ? s.substr(0, n) : s + blank(n - s.length); }
 function ft(m) { return Math.round(m * FT); }
 function angDiff(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+// Names can use CP437 letters (\x84 a-umlaut, \x86 a-ring, \x94 o-umlaut), which toUpperCase doesn't know
+function upperName(s) {
+	return s.toUpperCase().replace(/\x84/g, "\x8E").replace(/\x86/g, "\x8F").replace(/\x94/g, "\x99");
+}
+// For sorting: those letters go with A and O, not after Z
+function sortName(s) { return upperName(s).replace(/[\x8E\x8F]/g, "A").replace(/\x99/g, "O"); }
 function cycle(list, cur) { return list[(list.indexOf(cur) + 1) % list.length]; }   // the item after cur, wrapping
 
 // Seeded random numbers so each hole's woods come out the same every time

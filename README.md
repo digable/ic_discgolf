@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-32 courses at 30 real disc golf parks across the USA, including all of UDisc's top 25 in the country (see [Courses](#courses)).
+45 courses at 42 real disc golf parks in the USA, Sweden, Norway and Finland, including all of UDisc's top 25 in the USA and in the world (see [Courses](#courses)).
 
 ## Players and saved settings
 
@@ -37,7 +37,8 @@ like IC Zombies' saves. See [The save service](#the-save-service).
 
 **Play** opens a scrolling course list: Up/Down to move, Enter (or Space) to play.
 Left/Right sorts it by name, city, state, country or UDisc rating, and R reverses the
-order. It starts A to Z by name, and rating starts high to low.
+order. It starts A to Z by name, and rating starts high to low. Courses outside the USA have no
+state, so they sort after the ones that do.
 
 | # | Course | Holes | Par | Length | UDisc rating | Address |
 |---|---|---|---|---|---|---|
@@ -73,6 +74,19 @@ order. It starts A to Z by name, and rating starts high to low.
 | 30 | Neatman Creek | 18 | 61 | 5,462 ft | 4.8 | Germanton, NC |
 | 31 | New London Tech | 18 | 69 | 12,100 ft | 4.7 | Forest, VA |
 | 32 | Echo Valley | 18 | 68 | 8,264 ft | 4.7 | Waynesville, OH |
+| 33 | Ale White | 18 | 63 | 9,558 ft | 4.9 | Nol, Sweden |
+| 34 | Krokhol | 18 | 62 | 6,974 ft | 4.8 | Siggerud, Norway |
+| 35 | Ale Yellow | 18 | 57 | 5,865 ft | 4.8 | Nol, Sweden |
+| 36 | KIPPIS Pro | 18 | 64 | 8,548 ft | 4.8 | Heinola, Finland |
+| 37 | Lundbyparken | 18 | 59 | 5,554 ft | 4.7 | Enköping, Sweden |
+| 38 | Uspastorp | 18 | 58 | 6,294 ft | 4.6 | Nol, Sweden |
+| 39 | Åkeslund | 18 | 60 | 5,719 ft | 4.7 | Hörby, Sweden |
+| 40 | Ymergården Gold | 18 | 58 | 6,317 ft | 4.7 | Brämhult, Sweden |
+| 41 | Karidalen | 18 | 59 | 5,610 ft | 4.6 | Lena, Norway |
+| 42 | Glåmos | 18 | 59 | 4,206 ft | 4.7 | Glåmos, Norway |
+| 43 | Äppelgården | 18 | 63 | 6,741 ft | 4.6 | Båstad, Sweden |
+| 44 | Järva | 18 | 56 | 5,815 ft | 4.6 | Kista, Sweden |
+| 45 | Häfla Bruks | 18 | 59 | 6,745 ft | 4.6 | Rejmyre, Sweden |
 
 Every course's hole lengths and pars are the real ones, from its UDisc listing
 (2026). The rest of each hole (fairway shapes and bends, woods, single trees,
@@ -84,8 +98,9 @@ mailing address's town. UDisc ratings are out of 5, copied by hand in November 2
 they don't update on their own; High Bridge's two layouts share one UDisc listing and
 rating.
 
-Courses 10-32, plus Eagles Crossing and Blue Ribbon Pines, are
-[UDisc's top 25 in the USA](https://udisc.com/best-disc-golf-courses/united-states) (2026 list).
+Courses 10-45, plus Eagles Crossing and Blue Ribbon Pines, are from UDisc's 2026 lists: its
+[top 25 in the USA](https://udisc.com/best-disc-golf-courses/united-states) and its
+[top 25 in the world](https://udisc.com/best-disc-golf-courses/world), which share 12 courses.
 The table gives only their town. Each uses the layout UDisc's
 public course page shows hole by hole, which isn't always the main one, and some are far beyond
 the Regular level's reach. Their pars and lengths are real, but sources describe very few of
@@ -343,6 +358,84 @@ hole to match the real one.
 - **Where:** Waynesville, Ohio. #25 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=39.539549259274054,-84.16153069532184) · [UDisc](https://udisc.com/courses/echo-valley-at-hoffmann-reserve-q7H2)
 - **The course:** Free, established 2021, redesigned 2025, by Carl Chiles. Hilly, with steep holes (5 down, 12 up) and ditch and creek crossings. Reviews call 6 a pine tunnel, 17 a water hole and 18 a swamp hole.
 - **In the game:** UDisc's "Blue Tees" layout, par 68. Hole 6 is the tunnel, 17 crosses water and 18 has a swamp beside it, as reviewers say. Holes 5 and 12 are the big drop and climb.
+
+### 33. Ale White
+
+- **Where:** Nol, Sweden. #1 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=57.89392179392186,12.116823252421279) · [UDisc](https://udisc.com/courses/ale-disc-golf-center-white-course-Bwwj)
+- **The course:** Established 2013, 119-129 kr a round, tee times required, closed in winter. Extremely hilly, with technical wooded holes and open fairways. One of four courses on the property.
+- **In the game:** UDisc's "White" layout, par 63. Long, with two par 5s over 950 ft.
+
+### 34. Krokhol
+
+- **Where:** Siggerud, Norway. #2 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=59.80289655805656,10.926047017006706) · [UDisc](https://udisc.com/courses/krokhol-disc-golf-course-TKtF)
+- **The course:** Established 2018, private land 20 minutes from Oslo, 50-80 NOK, booked through UDisc. Extremely hilly, with views and a clubhouse.
+- **In the game:** UDisc's "Krokhol Blue Layout" layout, par 62.
+
+### 35. Ale Yellow
+
+- **Where:** Nol, Sweden. #3 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=57.89032526125977,12.117624767708781) · [UDisc](https://udisc.com/courses/ale-disc-golf-center-yellow-course-PSfu)
+- **The course:** Established 2013, 95-120 kr a round, tee times required. Very hilly, winding through forest with technical wooded throws.
+- **In the game:** UDisc's "Yellow" layout, par 57.
+
+### 36. KIPPIS Pro
+
+- **Where:** Heinola, Finland. #4 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=61.212067,26.051487) · [UDisc](https://udisc.com/courses/kippis-pro-disc-golf-park-Q64q)
+- **The course:** Established 2004, voluntary 5 euro fee, in Heinola City Park. An extremely hilly esker landscape of fields and forest, part of Heinola DiscGolfPark World.
+- **In the game:** UDisc's "KIPPIS Pro Long (Pitkä) - 2026" layout, par 64.
+
+### 37. Lundbyparken
+
+- **Where:** Enköping, Sweden. #7 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=59.67141003204493,17.046576216816902) · [UDisc](https://udisc.com/courses/lundbyparken-i88M)
+- **The course:** Established 2019, private, 110-140 kr, and you must contact the operator before visiting. Mostly flat.
+- **In the game:** UDisc's "Lundbyparken Grön" layout, par 59. Flat.
+
+### 38. Uspastorp
+
+- **Where:** Nol, Sweden. #10 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=57.902156901658486,12.118588416903926) · [UDisc](https://udisc.com/courses/uspastorp-disc-golf-park-sKSb)
+- **The course:** Established 2021, by DiscGolfPark and Camilla Jernberg, 100 kr a day, on a farm with a bed and breakfast. Very hilly, varied forest and open land. A reviewer mentions a mandatory island.
+- **In the game:** UDisc's "Main 18" layout, par 58. The island isn't drawn, because no source says which hole it's on.
+
+### 39. Åkeslund
+
+- **Where:** Hörby, Sweden. #11 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=55.808934796033014,13.82063014907564) · [UDisc](https://udisc.com/courses/akeslund-disc-golf-center-Slp3)
+- **The course:** Established 2022, 100 SEK a day, private land. Hilly, closed in winter from November 8.
+- **In the game:** UDisc's "Gul Kort" layout, par 60.
+
+### 40. Ymergården Gold
+
+- **Where:** Brämhult, Sweden. #12 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=57.74053323276979,13.00364455862433) · [UDisc](https://udisc.com/courses/ymergardens-discgolfcenter-gold-course-yQg4)
+- **The course:** Established 2010, 75 kr a day, at a ski area, and a Disc Golf Pro Tour Elite stop. Extremely hilly, with holes 7-13 "carved out from thick woods".
+- **In the game:** UDisc's "Silver layout - 2026" layout, par 58. The course is Gold, but UDisc's public page only shows its Silver layout hole by hole. UDisc lists it as par 59, but its holes add up to 58, which is what the game uses. Holes 7-13 are wooded.
+
+### 41. Karidalen
+
+- **Where:** Lena, Norway. #13 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=60.71228403073613,10.781043358262679) · [UDisc](https://udisc.com/courses/karidalen-frisbee-golf-park-QqRf)
+- **The course:** Established 2018, free, volunteer-run by Toten Frisbeeklubb at a ski lodge. Very hilly, around a roller ski track where asphalt is out of bounds.
+- **In the game:** UDisc's "Gul" layout, par 59. The ski track's asphalt isn't drawn, because no source says where it runs.
+
+### 42. Glåmos
+
+- **Where:** Glåmos, Norway. #16 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=62.670206216067186,11.433655270272283) · [UDisc](https://udisc.com/courses/glamos-diskgolfbane-taUo)
+- **The course:** Established 2022, free. A very hilly, technical forest course with narrow fairways and some open terrain.
+- **In the game:** UDisc's "Main, Alle 18 hull" layout, par 59.
+
+### 43. Äppelgården
+
+- **Where:** Båstad, Sweden. #21 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=56.423708835989146,12.92690841413264) · [UDisc](https://udisc.com/courses/aeppelgarden-i-bastad-ttVj)
+- **The course:** Established 2025 on a former golf course, designed by Henric Hagman, 125 SEK a day. Rolling hills and great views.
+- **In the game:** UDisc's "Blue" layout, par 63.
+
+### 44. Järva
+
+- **Where:** Kista, Sweden. #23 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=59.402659298437044,17.898298471298517) · [UDisc](https://udisc.com/courses/jaerva-discgolf-park-xgc5)
+- **The course:** 27 holes in a public park, established 1995, 100-110 SEK a round. Extremely hilly, with rotating basket positions.
+- **In the game:** UDisc's "Main 1-18 Short Tees" layout, par 56.
+
+### 45. Häfla Bruks
+
+- **Where:** Rejmyre, Sweden. #24 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=58.913953943505575,15.86784426122904) · [UDisc](https://udisc.com/courses/haefla-bruks-disc-golf-park-haevla-t5x2)
+- **The course:** Established 2021, 50 kr a day. Very hilly, through forest and meadow, with longer holes and water in play on the back nine.
+- **In the game:** UDisc's "GUL (main course)" layout, par 59. Hole 15's water is from a photo caption. The other two ponds (holes 10 and 16) are guesses, on the back nine.
 
 ## Files
 
