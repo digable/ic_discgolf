@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-Nine courses at eight real disc golf parks in Iowa, Missouri and Minnesota (see [Courses](#courses)).
+32 courses at 30 real disc golf parks across the USA, including all of UDisc's top 25 in the country (see [Courses](#courses)).
 
 ## Players and saved settings
 
@@ -50,6 +50,29 @@ order. It starts A to Z by name, and rating starts high to low.
 | 7 | Peninsula Park | 18 | 55 | 5,507 ft | 4.3 | Peninsula Park, Foster Rd & Ball St, Iowa City, IA 52240 |
 | 8 | Altmaier Park | 18 | 56 | 6,095 ft | 4.5 | Altmaier Family Park, 3444 Deer Creek Rd SE, Coralville, IA 52241 |
 | 9 | Blue Ribbon Pines | 27 | 91 | 10,708 ft | 4.8 | Blue Ribbon Pines, 2025 Klondike Dr NE, East Bethel, MN 55011 |
+| 10 | Maple Hill | 18 | 55 | 4,156 ft | 4.9 | Leicester, MA |
+| 11 | Brewster Ridge | 18 | 62 | 7,020 ft | 4.9 | Cambridge, VT |
+| 12 | Fox Run Meadows | 18 | 63 | 8,675 ft | 4.9 | Cambridge, VT |
+| 13 | The Diavolo | 22 | 77 | 8,624 ft | 4.8 | Cary, NC |
+| 14 | Persimmon Ridge | 18 | 57 | 7,315 ft | 4.9 | Greenbrier, AR |
+| 15 | Mile Marker 63 | 18 | 63 | 6,055 ft | 4.8 | East Brookfield, MA |
+| 16 | The Canyons | 18 | 58 | 5,899 ft | 4.8 | Lockport, IL |
+| 17 | Caliber | 18 | 65 | 7,885 ft | 4.9 | Sandpoint, ID |
+| 18 | Idlewild | 18 | 68 | 9,629 ft | 4.8 | Burlington, KY |
+| 19 | Harmony Bends | 18 | 68 | 6,916 ft | 4.8 | Columbia, MO |
+| 20 | Hobb's Farm | 18 | 66 | 5,928 ft | 4.8 | Carrollton, GA |
+| 21 | Sandy Point | 29 | 87 | 6,372 ft | 4.8 | Lac du Flambeau, WI |
+| 22 | Northwood Black | 18 | 68 | 10,417 ft | 4.8 | Morton, IL |
+| 23 | Faylor Lake | 18 | 64 | 6,593 ft | 4.8 | Beaver Springs, PA |
+| 24 | Blue Goose | 18 | 58 | 5,073 ft | 4.9 | Frankfort, KY |
+| 25 | Beaver Ranch | 21 | 63 | 6,031 ft | 4.8 | Conifer, CO |
+| 26 | Bryant Lake Park | 18 | 59 | 5,963 ft | 4.8 | Eden Prairie, MN |
+| 27 | Flip City | 24 | 74 | 8,147 ft | 4.7 | Shelby, MI |
+| 28 | Meadowbrook Orchards | 18 | 56 | 5,385 ft | 4.7 | Sterling, MA |
+| 29 | Sabattus: Hawk | 18 | 73 | 6,152 ft | 4.8 | Sabattus, ME |
+| 30 | Neatman Creek | 18 | 61 | 5,462 ft | 4.8 | Germanton, NC |
+| 31 | New London Tech | 18 | 69 | 12,100 ft | 4.7 | Forest, VA |
+| 32 | Echo Valley | 18 | 68 | 8,264 ft | 4.7 | Waynesville, OH |
 
 Every course's hole lengths and pars are the real ones, from its UDisc listing
 (2026). The rest of each hole (fairway shapes and bends, woods, single trees,
@@ -60,6 +83,15 @@ one. The town shown in the game is the one UDisc lists, which isn't always the
 mailing address's town. UDisc ratings are out of 5, copied by hand in November 2026, so
 they don't update on their own; High Bridge's two layouts share one UDisc listing and
 rating.
+
+Courses 10-32, plus Eagles Crossing and Blue Ribbon Pines, are
+[UDisc's top 25 in the USA](https://udisc.com/best-disc-golf-courses/united-states) (2026 list).
+The table gives only their town. Each uses the layout UDisc's
+public course page shows hole by hole, which isn't always the main one, and some are far beyond
+the Regular level's reach. Their pars and lengths are real, but sources describe very few of
+their holes one by one, so the shapes, woods, hills and most ponds were drawn by a script from
+each course's overall character. Treat them as much rougher than courses 1-9, and adjust any
+hole to match the real one.
 
 ### 1. Turkey Creek
 
@@ -173,6 +205,144 @@ rating.
   range hole" in UDisc's article, and 810 ft here. Which holes are wooded or open, and
   which have ponds (3, 8, 13, 21 and 23), is a guess: reviews only say water is on
   "several holes" and "can not be seen from the tee". No elevation.
+
+### 10. Maple Hill
+
+- **Where:** Leicester, Massachusetts. #1 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=42.276001,-71.895699) · [UDisc](https://udisc.com/courses/maple-hill-lCej)
+- **The course:** 18 holes on layouts including Red, White, Blue and Gold, established 2002, $12-30 a round. A Disc Golf Pro Tour stop (the MVP Open) on a farm outside Worcester: very hilly, heavily wooded fairways, water hazards, and Christmas tree nurseries along the open fairways.
+- **In the game:** UDisc's "Maple Hill Reds" layout, par 55. Which holes have water is a guess.
+
+### 11. Brewster Ridge
+
+- **Where:** Cambridge, Vermont. #2 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=44.59685980175962,-72.79926186012116) · [UDisc](https://udisc.com/courses/brewster-ridge-disc-golf-course-DVua)
+- **The course:** Established 2012, $15-20 a round, at Smugglers' Notch resort. Very hilly, on a ski area; hosts Discraft's Green Mountain Championship. UDisc shows it closed for the 2026 season until May 2027.
+- **In the game:** UDisc's "Blue Tees" layout, par 62.
+
+### 12. Fox Run Meadows
+
+- **Where:** Cambridge, Vermont. #3 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=44.597313,-72.800232) · [UDisc](https://udisc.com/courses/fox-run-meadows-yi3h)
+- **The course:** Established 2015, $15-20 a round, also at Smugglers' Notch. Open, long holes and shorter technical ones, with mountain views and a lot of OB; hosted the 2023 PDGA Pro Worlds. UDisc shows it closed until May 2027.
+- **In the game:** UDisc's "Blue Tees" layout, par 63.
+
+### 13. The Diavolo
+
+- **Where:** Cary, North Carolina. #6 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=35.81645235174141,-78.92747454952531) · [UDisc](https://udisc.com/courses/the-diavolo-dgc-new-hope-park-SxAA)
+- **The course:** 22 holes, free, opened October 2020, designed by Jay Pontier and Mike Sink. Hilly, 48 acres of open and wooded holes, split by the American Tobacco Trail, with two water holes and three "Fusion" holes that join two par 3s into a par 4.
+- **In the game:** UDisc's "Diavolo White" layout, par 77. Hole 14's elevated basket is real. Which two holes have water is a guess.
+
+### 14. Persimmon Ridge
+
+- **Where:** Greenbrier, Arkansas. #7 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=35.28117769833871,-92.31960184872152) · [UDisc](https://udisc.com/courses/persimmon-ridge-dgc-ErdF)
+- **The course:** 36 holes over 90+ acres of former golf course, private land, established 2018, designed by Matt Loyd, $8 a day. Hilly, with wooded corridors, open fields and water carries.
+- **In the game:** UDisc's "Persimmon Ridge Blue" layout, par 57. Hole 18 crosses the lake, from a photo caption. The other pond's hole is a guess.
+
+### 15. Mile Marker 63
+
+- **Where:** East Brookfield, Massachusetts. #8 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=42.22738774310065,-72.06348253793657) · [UDisc](https://udisc.com/courses/mile-marker-63-Qkn3)
+- **The course:** Established 2024 on an old 9-hole golf course, the first design by Simon Lizotte and Casey White, $10-15 a day, private land. Hilly, with no water hazards listed.
+- **In the game:** UDisc's "Short Tee Pads Without Added O.B" layout, par 63.
+
+### 16. The Canyons
+
+- **Where:** Lockport, Illinois. #9 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=41.57177,-88.061157) · [UDisc](https://udisc.com/courses/the-canyons-at-dellwood-park-EV25)
+- **The course:** 27 holes, free, established 2014, in a historic park. Very hilly. The extra nine are two optional wooded loops with creek crossings, and aren't in this layout.
+- **In the game:** UDisc's "OG 18 White Tees - A Pins" layout, par 58.
+
+### 17. Caliber
+
+- **Where:** Sandpoint, Idaho. #10 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=48.41087767270189,-116.50324556976557) · [UDisc](https://udisc.com/courses/caliber-dgc-Rxbo)
+- **The course:** Established 2018, $15 a round, private land in the Selkirk Mountains, 10 minutes north of Sandpoint. Extremely hilly woods with water hazards. Closed for 2026, reopening spring 2027.
+- **In the game:** UDisc's "Am Tees" layout, par 65. Which holes have water is a guess.
+
+### 18. Idlewild
+
+- **Where:** Burlington, Kentucky. #11 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=39.038177,-84.736191) · [UDisc](https://udisc.com/courses/idlewild-FVl4)
+- **The course:** 24 holes, free, established 2000, a Disc Golf Pro Tour course since 2017. Extremely hilly and described as one of the toughest in the world.
+- **In the game:** UDisc's "2026 LWS Open - MPO" layout, par 68. This is the 2026 tournament layout (MPO), very long and hard. Hole 2 crosses the water, from a photo caption.
+
+### 19. Harmony Bends
+
+- **Where:** Columbia, Missouri. #12 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=38.96672121183835,-92.40507200233222) · [UDisc](https://udisc.com/courses/harmony-bends-iSZl)
+- **The course:** Free, established 2016, designed by John Houck for top-tier events. Extremely hilly, with stairs and multiple creek crossings.
+- **In the game:** UDisc's "Red Tees" layout, par 68. Which holes the creek crosses is a guess.
+
+### 20. Hobb's Farm
+
+- **Where:** Carrollton, Georgia. #13 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=33.595123,-85.076363) · [UDisc](https://udisc.com/courses/hobbs-farm-disc-golf-W9kF)
+- **The course:** Free, established 2016, designed by John Houck. UDisc's #1 in Georgia. Hilly, with no water hazards listed.
+- **In the game:** UDisc's "Red to Green" layout, par 66.
+
+### 21. Sandy Point
+
+- **Where:** Lac du Flambeau, Wisconsin. #14 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=45.9055867597142,-89.98492569282179) · [UDisc](https://udisc.com/courses/sandy-point-disc-golf-ranch-GYmV)
+- **The course:** 27-29 holes at Sandy Point Resort, established 1993, $5. Heavily wooded, with many elevation changes on the front 12 and a fairly flat back 15. Two lake holes close from early June to late August.
+- **In the game:** UDisc's "Loon Short 29 Holes to Green Baskets" layout, par 87. Holes play in order 1-29: UDisc's 20A and 20B are 21 and 22 here, and later holes shift by two. Flat after hole 12. Which two holes have water is a guess.
+
+### 22. Northwood Black
+
+- **Where:** Morton, Illinois. #15 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=40.64788279537992,-89.44976560771464) · [UDisc](https://udisc.com/courses/northwood-park-black-uqNc)
+- **The course:** Free, established 2021, built "to be the hardest disc golf course in the world". Very hilly.
+- **In the game:** UDisc's "Northwood Black" layout, par 68.
+
+### 23. Faylor Lake
+
+- **Where:** Beaver Springs, Pennsylvania. #16 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=40.761387591576636,-77.21516416739391) · [UDisc](https://udisc.com/courses/faylor-lake-disc-golf-park-vVwU)
+- **The course:** Free, established 2021, designed by Lee Zimmerman, now a Discraft course. Extremely hilly, with a scenery rating of 5.0.
+- **In the game:** UDisc's "Standard White Layout" layout, par 64. Hole 12 has a big drop behind the basket, from a photo caption.
+
+### 24. Blue Goose
+
+- **Where:** Frankfort, Kentucky. #17 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=38.218005654989724,-85.01153809040147) · [UDisc](https://udisc.com/courses/blue-goose-2Wa3)
+- **The course:** 36 holes on wooded former tobacco farmland, private and family-owned, established 2021, $10 a day, tee times required. Very hilly and heavily wooded.
+- **In the game:** UDisc's "Yellow_Original (Summer)" layout, par 58.
+
+### 25. Beaver Ranch
+
+- **Where:** Conifer, Colorado. #18 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=39.50639051411048,-105.29839713487968) · [UDisc](https://udisc.com/courses/beaver-ranch-disc-golf-course-dmjy)
+- **The course:** 83 baskets across two courses, established 2006, $15-17 a day. An extremely hilly mountain course in the woods.
+- **In the game:** UDisc's "Blue Layout" layout, par 63.
+
+### 26. Bryant Lake Park
+
+- **Where:** Eden Prairie, Minnesota. #19 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=44.883183,-93.427391) · [UDisc](https://udisc.com/courses/bryant-lake-park-k5Dc)
+- **The course:** Established 1999, $10 a round, overlooking Bryant Lake. Extremely hilly and famously well kept. The signature is hole 17, a bluff shot over the lake.
+- **In the game:** UDisc's "Long Tees to Blue Baskets" layout, par 59. Hole 17 is drawn as the bluff shot over the lake; a Pro can carry it from the tee, a Regular player lays up.
+
+### 27. Flip City
+
+- **Where:** Shelby, Michigan. #20 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=43.62259962604899,-86.2498660826524) · [UDisc](https://udisc.com/courses/flip-city-disc-golf-park-Q6Sd)
+- **The course:** Established 1980, designed by Bill McKenzie, private, $5 a day, open April to October. Extremely hilly and lightly wooded.
+- **In the game:** UDisc's "24 Holes" layout, par 74. Holes play in order 1-24: UDisc's 1A-6A come after 11, so they're 12-17 here and its 12-18 are 18-24.
+
+### 28. Meadowbrook Orchards
+
+- **Where:** Sterling, Massachusetts. #21 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=42.42396343512203,-71.72106854570283) · [UDisc](https://udisc.com/courses/meadowbrook-orchards-Km6Z)
+- **The course:** Established 2021, $10-15 a round, in a working apple orchard. Rolling, with open fairways through the trees and wooded technical areas.
+- **In the game:** UDisc's "MBO Red Layout" layout, par 56.
+
+### 29. Sabattus: Hawk
+
+- **Where:** Sabattus, Maine. #22 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=44.0548,-70.0331) · [UDisc](https://udisc.com/courses/sabattus-disc-golf-hawk-X4Iq)
+- **The course:** Established 2005, $10 a round or $15 all day. Open fields, wooded lines and riverside views. UDisc lists it as hilly in one place and minimal elevation in another. The round ends at the course's goats.
+- **In the game:** UDisc's "Hawk" layout, par 73. Mostly gentle slopes.
+
+### 30. Neatman Creek
+
+- **Where:** Germanton, North Carolina. #23 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=36.350525655260775,-80.27183644473553) · [UDisc](https://udisc.com/courses/neatman-creek-LlEM)
+- **The course:** Private land, established 2021, $5, registration required. Extremely hilly, with woods, open holes and tight tunnels. Electric fences mark the OB on holes 1, 3 and 6, and run behind the basket on 2.
+- **In the game:** UDisc's "Short Tees" layout, par 61. The fences are out of bounds on those holes; which side they run on is a guess.
+
+### 31. New London Tech
+
+- **Where:** Forest, Virginia. #24 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=37.302282152653916,-79.33699096935342) · [UDisc](https://udisc.com/courses/new-london-tech-dgc-B9rN)
+- **The course:** Free, established 2021, a gold-level course designed by Paul McBeth, very hilly and very challenging.
+- **In the game:** UDisc's "Main (Long > Long)" layout, par 69. The long-to-long layout, the longest in the game at over 12,000 ft.
+
+### 32. Echo Valley
+
+- **Where:** Waynesville, Ohio. #25 on UDisc's 2026 USA list. [Map](https://www.google.com/maps?q=39.539549259274054,-84.16153069532184) · [UDisc](https://udisc.com/courses/echo-valley-at-hoffmann-reserve-q7H2)
+- **The course:** Free, established 2021, redesigned 2025, by Carl Chiles. Hilly, with steep holes (5 down, 12 up) and ditch and creek crossings. Reviews call 6 a pine tunnel, 17 a water hole and 18 a swamp hole.
+- **In the game:** UDisc's "Blue Tees" layout, par 68. Hole 6 is the tunnel, 17 crosses water and 18 has a swamp beside it, as reviewers say. Holes 5 and 12 are the big drop and climb.
 
 ## Files
 
@@ -368,7 +538,7 @@ your own computer first").
   [High Bridge](https://udisc.com/courses/high-bridge-dgc-fhad),
   [Peninsula Park](https://udisc.com/courses/peninsula-park-jLph),
   [Altmaier Park](https://udisc.com/courses/coralville-disc-golf-altmaier-park-qUWO),
-  [Blue Ribbon Pines](https://udisc.com/courses/blue-ribbon-pines-aCxV).
+  [Blue Ribbon Pines](https://udisc.com/courses/blue-ribbon-pines-aCxV), and each top 25 course's own link above.
 - Blue Ribbon Pines history, holes and reviews:
   [UDisc's article](https://udisc.com/blog/post/worlds-best-disc-golf-courses-6-blue-ribbon-pines),
   [Disc Golf Scene](https://www.discgolfscene.com/courses/Blue_Ribbon_Pines/reviews);
