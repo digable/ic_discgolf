@@ -163,6 +163,7 @@ mailing address's town.
 | `server.js` | The disc golf service: serves the game files and the BBS door's save API (Node built-ins only). See "The save service". |
 | `api/` | The service's routes and database: `players.js` (the save API), `_db.js` (SQLite: players, rate limits), `_names.js` (player name rules and web-name tags), `_helpers.js` (door check, client address), `_rateLimit.js`. |
 | `package.json` | `npm start` runs `server.js`. No dependencies. |
+| `LICENSE` | MIT license. |
 | `deploy/update-discgolf.sh` | The script digiweb runs to publish a push (see "Automatic deploys"). |
 | `deploy/ic-discgolf.service`, `deploy/nginx-discgolf.conf` | The service's systemd unit and the nginx change for it, to install once (see "The save service"). |
 
@@ -355,3 +356,7 @@ your own computer first").
   [PDGA](https://www.pdga.com/node/247146) (Altmaier Park, and Clear Creek).
 - Relief rule: PDGA optional relief (one penalty throw, move back along the line of play).
 - [acorn](https://github.com/acornjs/acorn) JavaScript parser, MIT license.
+
+## License
+
+MIT © 2026 digable — see [LICENSE](LICENSE) for full text.
