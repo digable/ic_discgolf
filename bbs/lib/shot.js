@@ -51,7 +51,7 @@ function throwShot() {
 	var fromLie = cellOf(H, shot.from);
 	var trail = animate(f.path);
 	var how = shot.pitch ? "pitch-out" : (shot.style === "TH" ? "tomahawk" : "");
-	var line = "\x01h\x01c" + shot.disc.name + (how ? " " + how : "") + "\x01n " + (sw.whiff ? "\x01h\x01rshanked\x01n, " : "") + ft(shot.dist) + " ft. ";
+	var line = "\x01h\x01c" + discLabel(shot.disc) + (how ? " " + how : "") + "\x01n " + (sw.whiff ? "\x01h\x01rshanked\x01n, " : "") + ft(shot.dist) + " ft. ";
 	if (sw.over) line = "\x01h\x01rOverswing! \x01n" + line;
 	if (shot.outcome === "in") {
 		msg(line + "\x01h\x01g" + (S.strokes === 1 ? "IN THE CHAINS - ACE!!" : "IN THE CHAINS!"));

@@ -45,6 +45,12 @@ function angleLine() { return "\x01n\x01h~Angle \x01n" + (S.style === "TH" ? "\x
 // How far this disc flies at 100% for the current throw and hand (matches the range mark on the map)
 function maxRange(d) { return discRange(d, S.style, domHand()) * (S.pitch ? PITCH_POWER : 1); }
 function discSpecLine(d) { return "\x01n\x01k\x01hMax \x01n\x01c" + pad(ft(maxRange(d)) + " ft", 7) + "\x01n" + d.n.join("/"); }
+// "Disc  Leopard3 150g": the weight after the name, shortened to fit the panel's 20 columns
+function discNameLine(label, d) {
+	var room = 20 - label.replace("~", "").length, g = String(d.g || MAX_G);
+	var wt = d.name.length + 1 + g.length + 1 <= room ? g + "g" : g;
+	return "\x01n\x01h" + label + "\x01c" + d.name.slice(0, room - 1 - wt.length) + " \x01n\x01c" + wt;
+}
 function handLine() { return "\x01n\x01h~Hand  \x01n" + handName(S.hand) + (domHand() ? "" : " \x01h\x01r(off)"); }
 
 // Draws the panel; rows it doesn't use are cleared
@@ -53,7 +59,7 @@ function showPanel(lines) { for (var i = 0; i < PANEL_H; i++) put(PANEL_X, PANEL
 function panel() {
 	var d = curDisc(), pin = pinDist();
 	var lines = [
-		"\x01n\x01h~Disc  \x01c" + d.name,
+		discNameLine("~Disc  ", d),
 		discSpecLine(d),
 		handLine(),
 		"\x01n\x01h~Throw \x01n" + throwLabel(),

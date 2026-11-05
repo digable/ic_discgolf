@@ -295,9 +295,10 @@ function welcomeBack() {
 		["Putting view", PUTT_VIEW_NAMES[player.puttView]]], i, j;
 	for (i = 0; i < rows.length; i++) put(5, 5 + i, "\x01n\x01k\x01h" + pad(rows[i][0], 14) + "\x01n" + rows[i][1]);
 	var bag = [], line = "";                  // the bag, wrapped to fit
-	for (i = 0; i < player.bag.length; i++) {
-		var add = (line ? ", " : "") + player.bag[i];
-		if (line && line.length + add.length > 58) { bag.push(line + ","); line = player.bag[i]; }
+	var discs = bagDiscs();
+	for (i = 0; i < discs.length; i++) {
+		var add = (line ? ", " : "") + discLabel(discs[i]);
+		if (line && line.length + add.length > 58) { bag.push(line + ","); line = discLabel(discs[i]); }
 		else line += add;
 	}
 	bag.push(line);
@@ -394,6 +395,7 @@ function drawBagSort() {
 	var s = "\x01n\x01k\x01h   ";
 	for (var i = 0; i < BAG_COLS.length; i++)
 		s += (i === bagSort.col ? "\x01h\x01c" : "\x01n\x01k\x01h") + pad(BAG_COLS[i].h, BAG_COLS[i].w);
+	s += "\x01n\x01k\x01h  IN BAG (g)";
 	put(3, 2, s, 77);
 	var c = BAG_COLS[bagSort.col];
 	put(47, 1, "\x01n\x01k\x01hSorted by \x01h\x01c" + c.h.toLowerCase() + "\x01n\x01k\x01h, " + c.dir[bagSort.rev ? 1 : 0], 33);
@@ -401,15 +403,38 @@ function drawBagSort() {
 
 // Row i of the list (an index into order)
 function drawBagRow(order, i, top, sel) {
-	var d = DISCS[order[i]], inBag = player.bag.indexOf(d.name) >= 0;
+	var d = DISCS[order[i]], inBag = false, wts = "", j;
+	for (j = 0; j < WEIGHTS.length; j++) {          // the weights of this disc in the bag, lit
+		var has = player.bag.indexOf(bagKey(d.name, WEIGHTS[j])) >= 0;
+		if (has) inBag = true;
+		wts += (has ? "\x01h\x01g" : "\x01n\x01k\x01h") + WEIGHTS[j] + " ";
+	}
 	var line = (inBag ? "\x01h\x01g\xFE " : "\x01n\x01k\x01h\xFA ") + (i === sel ? "\x01h\x01w" : "\x01n") +
 		pad(d.name, 14) + pad(d.maker, 15) + pad(TYPE_NAME[d.type], 11) +
-		pad(String(d.n[0]), 6) + pad(String(d.n[1]), 6) + pad(String(d.n[2]), 5) + d.n[3];
+		pad(String(d.n[0]), 6) + pad(String(d.n[1]), 6) + pad(String(d.n[2]), 5) + pad(String(d.n[3]), 4) + "  " + wts;
 	put(3, 3 + i - top, (i === sel ? "\x01h\x01c>" : " ") + line, 77);
 }
 
 function drawBagList(order, top, sel) {
 	for (var i = top; i < Math.min(DISCS.length, top + BAG_ROWS); i++) drawBagRow(order, i, top, sel);
+}
+
+// SPACE: add the disc at max weight, or take every copy of it out. 1 2 3: add or remove the
+// Light / Mid / Max copy (the same mold can be in the bag at more than one weight).
+// The bag never goes empty or past BAG_MAX.
+function toggleBag(name, k) {
+	var keys = [], j, at;
+	if (k >= "1" && k <= "3") keys.push(bagKey(name, WEIGHTS[Number(k) - 1]));
+	else for (j = 0; j < WEIGHTS.length; j++) if (player.bag.indexOf(bagKey(name, WEIGHTS[j])) >= 0) keys.push(bagKey(name, WEIGHTS[j]));
+	if (!keys.length) keys.push(bagKey(name, MAX_G));
+	at = player.bag.indexOf(keys[0]);
+	if (at >= 0) {                                  // remove these (keeping at least one disc)
+		for (j = 0; j < keys.length; j++) {
+			at = player.bag.indexOf(keys[j]);
+			if (at >= 0 && player.bag.length > 1) player.bag.splice(at, 1);
+		}
+	}
+	else if (player.bag.length < BAG_MAX) player.bag.push(keys[0]);
 }
 
 function bagScreen() {
@@ -420,7 +445,8 @@ function bagScreen() {
 	drawBagList(order, top, sel);
 	put(3, 21, "\x01n\x01k\x01hSpeed = how hard it must be thrown. Glide = how long it floats.", 77);
 	put(3, 22, "\x01n\x01k\x01hTurn = drift right early (for RH backhand; negative turns more). Fade = hook left at the end.", 77);
-	put(3, 24, "\x01h\x01cUp/Down\x01n move  \x01h\x01cSPACE\x01n add/remove  \x01h\x01cLeft/Right\x01n sort by  ~Reverse  ~Quit", 77);
+	put(3, 23, "\x01n\x01k\x01hWeight: lighter discs are easier to throw far, turn more and feel more wind.", 77);
+	put(3, 24, "\x01h\x01cUp/Down\x01n move  \x01h\x01cSPACE\x01n add/remove  \x01h\x01c1 2 3\x01n weight  \x01h\x01cLeft/Right\x01n sort  ~Reverse  ~Quit", 77);
 	for (;;) {
 		var k = key(), ku = k.toUpperCase();
 		if (isUp(k) || isDown(k)) {
@@ -442,10 +468,8 @@ function bagScreen() {
 			drawBagSort();
 			drawBagList(order, top, sel);
 		}
-		else if (k === " " || k === "\r") {
-			var nm = DISCS[order[sel]].name, at = player.bag.indexOf(nm);
-			if (at >= 0) { if (player.bag.length > 1) player.bag.splice(at, 1); }
-			else if (player.bag.length < BAG_MAX) player.bag.push(nm);
+		else if (k === " " || k === "\r" || (ku >= "1" && ku <= "3")) {
+			toggleBag(DISCS[order[sel]].name, k);
 			bagChanged();
 			drawBagTitle();
 			drawBagRow(order, sel, top, sel);
@@ -465,10 +489,11 @@ function howTo() {
 		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
 		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind; dots",
 		"            trace its flight, obstacles on red (Player setup can hide them).",
+		"\x01h\x01cWeight\x01n      150, 165 or 175 g (bag screen). Lighter: farther for slow arms,",
+		"            more turn, more wind. Heavier holds its line and skips farther.",
 		"\x01h\x01cThrows\x01n      ~T cycles backhand, forehand and tomahawk. A tomahawk flies over",
 		"            the trees, curls left (righty) and goes about two-thirds as far.",
-		"\x01h\x01cHand\x01n        ~H switches hands. Your off hand has less power and accuracy.",
-		"\x01h\x01cAngle\x01n       ~A cycles flat, hyzer and anhyzer.",
+		"\x01h\x01cHand/Angle\x01n  ~H switches hands (the off hand is weaker). ~A: flat/hyzer/anhyzer.",
 		"\x01h\x01cTrees\x01n       In the trees you see the view from your lie. Left/Right picks a",
 		"            line; the panel shows the gap. ~Throw adds a pitch-out: short and",
 		"            safe, back to the fairway. ~Relief (PDGA optional relief): +1",
@@ -478,7 +503,6 @@ function howTo() {
 		"            player views. Left/Right aims off the basket to play the wind.",
 		"            The meter is marked in feet; the small \x01h\x01y\xE8\x01n on it is the basket.",
 		"\x01h\x01cHills\x01n       Downhill throws fly farther; uphill putts need more power.",
-		"",
 		"\x01n\x01k\x01hMap: \x01h\x01g\xB1\x01n\x01k\x01h fairway  \x01n\x01g\xB0\x01k\x01h rough  \x01h\x01g\xE7\x01n\x01k\x01h tree  \x01h\x01k\xB1\x01n\x01k\x01h road (OB)  \x01n\xB0\x01k\x01h parking (OB)  \x01h\x01y\xE8\x01n\x01k\x01h basket  \x01h\x01w\xFE\x01n\x01k\x01h you"
 	];
 	for (var i = 0; i < L.length; i++) put(3, 2 + i, L[i], 77);

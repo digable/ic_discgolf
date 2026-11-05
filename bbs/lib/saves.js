@@ -64,7 +64,7 @@ function applySettings(s) {
 	if (PUTT_VIEWS.indexOf(s.puttView) >= 0) player.puttView = s.puttView;
 	var bag = [], i;
 	for (i = 0; s.bag && i < s.bag.length && bag.length < BAG_MAX; i++)
-		if (discByName(s.bag[i]) && bag.indexOf(s.bag[i]) < 0) bag.push(s.bag[i]);
+		if (bagDisc(s.bag[i]) && bag.indexOf(s.bag[i]) < 0) bag.push(s.bag[i]);   // a disc, at a weight there is
 	if (bag.length) { player.bag = bag; bagChanged(); }
 }
 

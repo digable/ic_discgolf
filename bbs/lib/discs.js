@@ -53,5 +53,26 @@ var TYPE_NAME = { P: "Putter", A: "Approach", M: "Midrange", F: "Fairway", D: "D
 var DISC_BY_NAME = {};
 for (var di = 0; di < DISCS.length; di++) DISC_BY_NAME[DISCS[di].name] = DISCS[di];
 
+// ---- Weights -------------------------------------------------------------
+// Each disc in the bag comes in one of three weights. Max (175 g) is how every disc flew before
+// weights existed. A bag entry is the disc's name ("Destroyer", max weight) or name:grams
+// ("Destroyer:150"), so the same mold can be in the bag at two or three weights.
+var WEIGHTS = [150, 165, 175];
+var WEIGHT_NAME = { 150: "Light", 165: "Mid", 175: "Max" };
+var MAX_G = 175;
+
+function bagKey(name, g) { return g === MAX_G ? name : name + ":" + g; }
+// { name, g } from a bag entry; g is null when the weight isn't one of WEIGHTS
+function parseBagKey(k) {
+	var i = String(k).lastIndexOf(":");
+	if (i < 0) return { name: k, g: MAX_G };
+	var g = Number(k.slice(i + 1));
+	return { name: k.slice(0, i), g: WEIGHTS.indexOf(g) >= 0 ? g : null };
+}
+// How far below max weight, as a fraction: 0 at 175 g, -0.4 at 165, -1 at 150. Everything
+// weight changes is scaled by this (see flight.js).
+function wtOf(d) { return ((d.g || MAX_G) - MAX_G) / (MAX_G - WEIGHTS[0]); }
+function discLabel(d) { return d.name + " " + (d.g || MAX_G) + "g"; }
+
 // What the toggle keys cycle through
 var HANDS = ["R", "L"], STYLES = ["BH", "FH", "TH"], ANGLES = ["F", "H", "A"], PUTT_VIEWS = ["top", "pov"];

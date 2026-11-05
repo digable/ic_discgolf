@@ -152,7 +152,7 @@ function aimText() {
 
 function puttPanel(d) {
 	showPanel([
-		"\x01n\x01hPutter \x01c" + d.name,
+		discNameLine("Putter ", d),
 		"\x01n\x01k\x01h" + fadeText(),
 		handLine(),
 		"\x01n\x01hAim   \x01n" + aimText(),

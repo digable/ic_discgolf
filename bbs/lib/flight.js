@@ -7,17 +7,17 @@
 // The shape of a throw before wind and terrain: how far it goes and how much it turns
 // and fades, from the disc, throw, hand, power (pf, 0-1) and whether it was overswung.
 function throwShape(pf, over) {
-	var d = curDisc(), n = d.n, dom = domHand(), pitch = S.pitch;
+	var d = curDisc(), n = d.n, dom = domHand(), pitch = S.pitch, w = wtOf(d);
 	if (pitch) pf *= PITCH_POWER;
 	var cw = (S.hand === "R") === (S.style !== "FH");    // clockwise spin: fades left
-	var ar = armSpeed(S.style, dom) / n[0] * pf;
+	var ar = armSpeed(S.style, dom) / speedNeed(d) * pf;
 	var sh = {
 		pf: pf, ar: ar, tomahawk: S.style === "TH",
 		fadeSide: cw ? -1 : 1,                           // in right-positive terms
 		tomSide: S.hand === "R" ? -1 : 1,                // a righty's tomahawk flips and finishes left
 		dist: Math.max(1, discRange(d, S.style, dom) * pf),
-		effTurn: n[2] * clamp(ar, 0, 1.4),               // turn shows up only at speed
-		effFade: n[3] + Math.max(0, 0.8 - ar) * 2,       // underpowered discs fade early
+		effTurn: n[2] * clamp(ar, 0, 1.4) + 0.6 * w,     // turn shows up only at speed; lighter turns more
+		effFade: Math.max(0, n[3] + Math.max(0, 0.8 - ar) * 2 + 0.5 * w),  // underpowered discs fade early; lighter fades less
 		angTerm: 0
 	};
 	if (over) sh.effTurn -= 1;                           // muscled it: turns over
@@ -64,7 +64,8 @@ function fly(sw) {
 
 	var dir = throwDir(), dx = dir.x, dy = dir.y;
 	var rx = -dy, ry = dx;
-	var head = -(S.wind.x * dx + S.wind.y * dy), cross = S.wind.x * rx + S.wind.y * ry;
+	var w = wtOf(d), windMul = 1 - 0.6 * w;              // a 150 g disc feels the wind 1.6 times as much
+	var head = -(S.wind.x * dx + S.wind.y * dy) * windMul, cross = (S.wind.x * rx + S.wind.y * ry) * windMul;
 	sh.effTurn -= head * 0.12;                           // headwind: more turn
 	if (head < 0) sh.effFade += -head * 0.1;             // tailwind: more fade
 	dist *= 1 - head * 0.02;
@@ -106,7 +107,7 @@ function fly(sw) {
 		// trees: a tomahawk flies over them until it comes down
 		if ((!tomahawk || u > 0.8) && hyp(p.x - S.lie.x, p.y - S.lie.y) > CLEARING_M && trunkAt(H, p, discR)) {
 			res.tree = true;
-			if (rnd() < 0.3) res.end = { x: p.x + fx * (1 + rnd() * 4) + gx * (rnd() - 0.5) * 5, y: p.y + fy * (1 + rnd() * 4) + gy * (rnd() - 0.5) * 5 };
+			if (rnd() < 0.3 + 0.1 * w) res.end = { x: p.x + fx * (1 + rnd() * 4) + gx * (rnd() - 0.5) * 5, y: p.y + fy * (1 + rnd() * 4) + gy * (rnd() - 0.5) * 5 };
 			else res.end = { x: p.x - fx * (0.5 + rnd() * 2.5) + gx * (rnd() - 0.5) * 4, y: p.y - fy * (0.5 + rnd() * 2.5) + gy * (rnd() - 0.5) * 4 };
 			path.push(res.end);
 			res.lastIn = isOB(tileAt(H, res.end)) ? lastIn : res.end;
@@ -116,13 +117,13 @@ function fly(sw) {
 	var end = path[path.length - 1];
 	// skip along the fairway (not tomahawks or pitch-outs)
 	if (tileAt(H, end) === "." && !sw.whiff && !tomahawk && !pitch) {
-		var sk = speed * 0.4 * pf;
+		var sk = speed * 0.4 * pf * (1 + 0.3 * w);       // heavy skips on, light stops
 		end = { x: end.x + fx * sk + gx * fadeSide * sk * 0.3, y: end.y + fy * sk + gy * fadeSide * sk * 0.3 };
 		path.push(end);
 		if (!isOB(tileAt(H, end))) lastIn = end;
 	}
 	// roll downhill on a slope
-	var roll = slopeRoll(H, end);
+	var roll = slopeRoll(H, end, 1 + 0.3 * w);
 	if (roll) { end = roll; path.push(end); if (!isOB(tileAt(H, end))) lastIn = end; res.rolled = true; }
 	res.end = end;
 	res.lastIn = lastIn;
@@ -130,7 +131,7 @@ function fly(sw) {
 }
 
 // On a real slope, open ground lets the disc roll a few meters downhill
-function slopeRoll(H, p) {
+function slopeRoll(H, p, mul) {
 	if (!H.def.elev) return null;
 	var t = tileAt(H, p);
 	if (t !== "." && t !== ",") return null;
@@ -138,7 +139,7 @@ function slopeRoll(H, p) {
 	var gy = (heightAt(H, { x: p.x, y: p.y + e }) - heightAt(H, { x: p.x, y: p.y - e })) / (2 * e * FT);
 	var g = hyp(gx, gy);
 	if (g < 0.08) return null;
-	var m = Math.min(5, g * 25) * (t === "," ? 0.5 : 1);
+	var m = Math.min(5, g * 25) * (t === "," ? 0.5 : 1) * (mul || 1);
 	return { x: p.x - gx / g * m, y: p.y - gy / g * m };
 }
 

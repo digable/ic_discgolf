@@ -153,7 +153,7 @@ function takePutt(sw) {
 	var thrown = (sw.power / 100) * PUTT_M * (sw.whiff ? 0.6 : 1);
 	var over = thrown - need;
 	var err = sw.whiff ? (rnd() - 0.5) * 0.4 : sw.accuracy * 0.03 * accMul + (rnd() - 0.5) * 0.01;
-	PT.comp = { aim: PT.aim, timing: Math.sin(err) * PT.dist, drift: PT.cross * PT.dist * 0.025, fade: puttFade() };
+	PT.comp = { aim: PT.aim, timing: Math.sin(err) * PT.dist, drift: PT.cross * PT.dist * 0.025 * (1 - 0.4 * wtOf(puttDisc())), fade: puttFade() };
 	var lateral = puttLat(1);                                 // meters right of the basket
 	var made = false, band = false, kind;
 	if (over < -0.15) kind = "short";

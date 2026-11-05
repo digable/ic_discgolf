@@ -33,6 +33,25 @@ meter. The same game script runs in two places:
 Saves are kept by the save service (`server.js`), in SQLite, keyed by the BBS alias
 like IC Zombies' saves. See [The save service](#the-save-service).
 
+## Disc weights
+
+Every disc in the bag is Light (150 g), Mid (165 g) or Max (175 g). On the bag screen,
+**1 2 3** add or remove the 150, 165 or 175 g copy of a disc (the same mold can be in
+the bag at more than one weight); **SPACE** adds it at 175 g, or takes out every copy.
+The panel, the throw result and the welcome-back screen show the weight.
+
+| Lighter disc | Heavier disc |
+|---|---|
+| Needs less arm speed: a Regular player throws it farther | Needs full arm speed (a Pro gets the same distance either way) |
+| Turns more, fades less | Holds its line |
+| Feels the wind more (1.6 times at 150 g) | Steadier in wind; a heavy putter drifts less |
+| Stops sooner on the ground | Skips and rolls farther, punches through trees a bit more often |
+
+All of it is scaled by `wtOf()` in `bbs/lib/discs.js` (0 at 175 g, -1 at 150 g) and
+applied in `throwShape()` and `fly()` (`bbs/lib/flight.js`), `discRange()` and the putt
+drift. The range mark includes weight (still no wind). A bag entry is the disc's name
+(175 g) or `name:grams` (`Leopard3:150`), so bags saved before weights load unchanged.
+
 ## Courses
 
 **Play** opens a scrolling course list: Up/Down to move, Enter (or Space) to play.
