@@ -8,26 +8,44 @@
 
 // ---- Round and hole ---------------------------------------------------------
 function startRound(course) {
-	R = { course: course, holes: [], strokes: [] };
+	R = { course: course, holes: [], strokes: [], lost: [] };
 	S = null;
+	bagChanged();
 	for (var i = 0; i < course.holes.length; i++) { R.holes.push(buildHole(course.holes[i], i)); R.strokes.push(0); }
 	return R;
 }
 
+// The round is over: discs lost in the water go back in the bag
+function endRound() {
+	R = null;
+	bagChanged();
+}
+
 // Puts the player on hole idx's tee (0 is the first hole), aimed at the basket, with the
-// caddie's disc. The hand and throw carry over from the last hole, but a tomahawk goes back
-// to the usual throw.
+// disc picked for it. The hand and throw carry over from the last hole, but a tomahawk goes back
+// to the usual throw. S.found lists any lost discs that washed up on this hole.
 function startHole(idx) {
 	var H = R.holes[idx], prev = S;
 	S = {
 		H: H, lie: { x: H.tee.x, y: H.tee.y }, aim: { x: H.basket.x, y: H.basket.y }, strokes: 0, disc: 0,
 		hand: prev ? prev.hand : player.hand,
 		style: prev ? (prev.style === "TH" ? player.style : prev.style) : player.style,
-		angle: "F", wind: newWind(), pitch: false
+		angle: "F", wind: newWind(), pitch: false, found: washedUp(H)
 	};
 	PT = null;
-	caddiePick();
+	autoPickDisc();
 	return S;
+}
+
+// Lost discs that turn up on hole H, on the same water they went into. They go back in the bag.
+function washedUp(H) {
+	var found = [];
+	for (var i = R.lost.length - 1; i >= 0; i--) {
+		var l = R.lost[i];
+		if (l.body && holeHasWater(H, l.body) && rnd() < WASHUP_CHANCE) { found.push(l.disc); R.lost.splice(i, 1); }
+	}
+	if (found.length) bagChanged();
+	return found;
 }
 
 // Moves the aim dc map columns right and dr rows down, keeping it on the map
@@ -42,9 +60,10 @@ function moveAim(dc, dr) {
 // ---- Throwing ---------------------------------------------------------------
 // One throw from S.lie toward S.aim with the swing sw (from the meter: { power, over,
 // accuracy } or { whiff, power }). Counts it (and an OB penalty), moves the lie and gets
-// ready for the next throw: aim back on the basket, the caddie's disc, no pitch-out. Returns
+// ready for the next throw: aim back on the basket, the disc picked for it, no pitch-out. Returns
 //   { sw, disc, style, pitch, from, dist (meters), flight (what fly returned),
-//     outcome: "in" (in the basket), "ob" (+1, now at flight.lastIn) or "lie" }
+//     outcome: "in" (in the basket), "ob" (+1, now at flight.lastIn) or "lie",
+//     water: what waterFate returned, if it went in the water }
 function takeThrow(sw) {
 	var H = S.H, from = { x: S.lie.x, y: S.lie.y };
 	var shot = { sw: sw, disc: curDisc(), style: S.style, pitch: S.pitch, from: from };
@@ -58,11 +77,33 @@ function takeThrow(sw) {
 		shot.outcome = "in";
 		return shot;
 	}
-	if (f.ob) { S.strokes++; S.lie = f.lastIn || from; shot.outcome = "ob"; }
+	if (f.ob) {
+		S.strokes++;
+		S.lie = f.lastIn || from;
+		shot.outcome = "ob";
+		if (f.obTile === "W") shot.water = waterFate(H, f.end, shot.disc);
+	}
 	else { S.lie = f.end; shot.outcome = "lie"; }
 	S.aim = { x: H.basket.x, y: H.basket.y };
-	caddiePick();
+	autoPickDisc();
 	return shot;
+}
+
+// The chance of getting disc d back from depth meters out in the water
+function retrieveChance(depth, d) {
+	return clamp(WATER_BEST - WATER_PER_M * depth - WATER_LIGHT * wtOf(d), WATER_WORST, WATER_BEST);
+}
+
+// Disc d went in the water at p: is it lost for the round? The putter never is (so a missed putt
+// can't lose a disc either). Returns { depth (meters from dry ground), lost, putter }.
+function waterFate(H, p, d) {
+	var depth = waterDepth(H, p), putter = d.key === puttDisc().key;
+	var lost = !putter && rnd() >= retrieveChance(depth, d);
+	if (lost) {
+		R.lost.push({ disc: d, hole: H.num, body: waterBody(H, p) });
+		bagChanged();
+	}
+	return { depth: depth, lost: lost, putter: putter };
 }
 
 // ---- Relief (PDGA optional relief: +1, back along the line of play) -------
@@ -88,7 +129,7 @@ function takeRelief(p) {
 	S.lie = { x: p.x, y: p.y };
 	S.pitch = false;                             // out of the woods: no pitch-out
 	S.aim = { x: H.basket.x, y: H.basket.y };
-	caddiePick();
+	autoPickDisc();
 	return true;
 }
 

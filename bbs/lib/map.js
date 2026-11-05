@@ -11,11 +11,12 @@ var GLYPH = {
 	"#": ["\xE7", 0x20], // woods: dark trees on green
 	"R": ["\xB1", 8],    // road (OB)
 	"P": ["\xB0", 7],    // parking lot (OB)
-	"W": ["\xF7", 12],   // water (OB)
+	"W": ["\xF7", 12],   // water (OB), shallow
 	"S": ["\xDB", 7],    // tee pad
 	"B": ["\xE8", 11]    // basket
 };
-var RANGE_MARK = 14 | BLINK;            // where the disc lands at 100% power: bright cyan, blinking
+var GLYPH_DEEP = ["\xF7", 4];           // water far from dry ground, where a disc is likely gone
+var RANGE_MARK = 14 | BLINK;           // where the disc lands at 100% power: bright cyan, blinking
 var RANGE_PAST = 6 | BLINK;             // it flies off the map: dim cyan at the map's edge
 var PATH_DOT = ["\xFA", 14];            // the flight to the range mark, on every other open cell
 var PATH_HIT = 15 | 0x10;               // a tree or hazard on that line: white on red
@@ -31,6 +32,7 @@ function cellGlyph(c, r, lc, ac, m) {
 		if (t === "." || t === ",") { if (p % 2 === 0) return PATH_DOT; }
 		else if (t !== "S" && t !== "B") return [(GLYPH[t] || [" "])[0], PATH_HIT];
 	}
+	if (t === "W" && S.H.deep[r][c]) return GLYPH_DEEP;
 	return GLYPH[t] || [" ", 7];
 }
 

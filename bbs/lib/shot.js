@@ -37,6 +37,13 @@ function obWhere(t) {
 	return t === "R" ? "on the road" : (t === "P" ? "in the parking lot" : (t === "W" ? "in the water" : "off the course"));
 }
 
+// A throw into the water: how far out, and whether the disc came back
+function waterLine(shot) {
+	var w = shot.water;
+	return "\x01h\x01c" + discLabel(shot.disc) + "\x01n \x01h\x01rin the water, " + Math.max(1, ft(w.depth)) + " ft out!\x01n +1, " +
+		(w.lost ? "\x01h\x01rgone for the round." : (w.putter ? "you got your putter." : "\x01h\x01gyou fished it out."));
+}
+
 // One full throw. Returns "in" if it went in the basket.
 function throwShot() {
 	var H = S.H;
@@ -59,7 +66,8 @@ function throwShot() {
 		waitKey("Press any key");
 		return "in";
 	}
-	if (shot.outcome === "ob") line += "\x01h\x01rOB " + obWhere(f.obTile) + "!\x01n +1, play from where it went out.";
+	if (shot.water) line = waterLine(shot);
+	else if (shot.outcome === "ob") line += "\x01h\x01rOB " + obWhere(f.obTile) + "!\x01n +1, play from where it went out.";
 	else {
 		if (f.tree) line += "\x01h\x01yTree hit! \x01n";
 		if (f.basket) line += "\x01h\x01yOff the cage. \x01n";

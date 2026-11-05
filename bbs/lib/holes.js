@@ -55,7 +55,54 @@ function buildHole(h, idx) {
 		basket: gridPt(bk[0], bk[1], S)
 	};
 	buildTrunks(H);
+	buildWater(H);
 	return H;
+}
+
+// Finds the water's shore (the dry cells touching it) and which of its cells are deep, for
+// waterDepth and the map. The map's edge isn't a shore: a lake carries on past it.
+function buildWater(H) {
+	var shore = [], deep = [], r, c, a, b;
+	for (r = 0; r < MAP_H; r++) {
+		deep.push([]);
+		for (c = 0; c < MAP_W; c++) {
+			if (H.grid[r][c] === "W") continue;
+			var touches = false;
+			for (a = r - 1; a <= r + 1; a++) for (b = c - 1; b <= c + 1; b++)
+				if (H.grid[a] && H.grid[a][b] === "W") touches = true;
+			if (touches) shore.push({ c: c, r: r });
+		}
+	}
+	H.shore = shore;
+	for (r = 0; r < MAP_H; r++) for (c = 0; c < MAP_W; c++)
+		if (H.grid[r][c] === "W") deep[r][c] = waterDepth(H, gridPt(c, r, H.S)) > WATER_SHALLOW_M;
+	H.deep = deep;
+}
+
+// How far point p is from dry ground, in meters
+function waterDepth(H, p) {
+	var best = 1e9;
+	for (var i = 0; i < H.shore.length; i++) {
+		var dx = Math.max(0, Math.abs(p.x - H.shore[i].c * H.S) - H.S / 2);
+		var dy = Math.max(0, Math.abs(p.y - H.shore[i].r * 2 * H.S) - H.S);
+		best = Math.min(best, hyp(dx, dy));
+	}
+	return best;
+}
+
+// The name of the water at point p (a course's holes that share a creek or lake give their
+// water areas the same body), or "" if it isn't named
+function waterBody(H, p) {
+	var c = cellOf(H, p), ob = H.def.ob || [], name = "";
+	for (var i = 0; i < ob.length; i++)
+		if (ob[i].t === "W" && c.c >= ob[i].x1 && c.c <= ob[i].x2 && c.r >= ob[i].y1 && c.r <= ob[i].y2) name = ob[i].body || "";
+	return name;
+}
+
+function holeHasWater(H, body) {
+	var ob = H.def.ob || [];
+	for (var i = 0; i < ob.length; i++) if (ob[i].t === "W" && ob[i].body === body) return true;
+	return false;
 }
 
 // Every tree on the map becomes trunks at fixed spots. The view from the

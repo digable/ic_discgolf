@@ -21,7 +21,7 @@ BBS. Keep the split: a rule goes in a rules file, never in a door loop.
 | `lib/courses.js` | The courses and their holes. The comment at the top explains each field; each course's details are in the main README, "Courses". |
 | `lib/player.js` | The player: name, hands, throws and the bag. |
 | `lib/holes.js` | Building a hole from the course data: trees, lies and elevation. |
-| `lib/state.js` | The game state (`R` the round, `S` the hole being played, `PT` the putt), wind, disc range and the caddie. |
+| `lib/state.js` | The game state (`R` the round, `S` the hole being played, `PT` the putt), wind, disc range and the automatic disc pick. |
 | `lib/flight.js` | Disc flight: how a throw curves, and where it ends up. |
 | `lib/rules.js` | Playing it: start a round or hole, aim, throw, take relief, putt. Each changes the state and returns what happened. |
 | **The door** | |
@@ -92,6 +92,10 @@ each visit.
 - **Holes:** `COURSES` in `lib/courses.js`. Each hole has a length and par, a path from tee to basket on a
   78×16 grid, fairway width, how wooded each side is, single trees, and out-of-bounds areas (road,
   parking, water).
+- **Water:** a throw in the water can lose that disc for the round, and the farther from dry ground the
+  likelier that is (the `WATER_` constants in `lib/config.js`). The putter is never lost. If several holes
+  on a course share the same creek or lake, give their water areas the same name, as in
+  `{ t: "W", body: "creek", ... }`, and a lost disc can wash up on those later holes.
 - **Elevation:** add `elev` to a hole, in feet, such as
   `elev: { tee: 0, basket: -12, hills: [[40, 6, 5, 8]] }`. Each hill is `[column, row, radius, height]`;
   use a negative height for a dip.

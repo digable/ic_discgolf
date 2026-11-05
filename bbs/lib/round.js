@@ -7,6 +7,7 @@
 function playHole(idx) {
 	var H = startHole(idx).H;
 	V = { view: null, pov: null, marks: null, showAim: true, lastMsg: "\x01n" + H.def.note };
+	if (S.found.length) V.lastMsg = "\x01h\x01gWashed up here: " + discList(S.found) + "!\x01n " + (S.found.length > 1 ? "They're" : "It's") + " back in your bag.";
 	var needDraw = true;
 
 	for (;;) {
@@ -83,8 +84,27 @@ function scorecard(cur, final) {
 	var gap = nb === 1 ? 2 : 1;                          // one block: roomy rows, as before
 	for (b = 0; b < nb; b++) scoreBlock(b * per, Math.min(n, (b + 1) * per), b === nb - 1, cur, (nb === 1 ? 6 : 5 + b * 5), gap);
 	var rel = roundToPar();
-	put(3, nb === 1 ? 15 : 5 + nb * 5, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)), 60);
+	var y = nb === 1 ? 15 : 5 + nb * 5;
+	put(3, y, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)), 60);
+	lostLines(y + 1);
 	waitKey(final ? "Press any key to return to the clubhouse" : "Press any key to keep playing");
+}
+
+function discList(discs) {
+	var names = [];
+	for (var i = 0; i < discs.length; i++) names.push(discLabel(discs[i]));
+	return names.join(", ");
+}
+
+// The discs lost in the water so far, wrapped from screen row y: "Lost: Zone 175g (hole 7), ..."
+function lostLines(y) {
+	var line = "";
+	for (var i = 0; i < R.lost.length; i++) {
+		var add = discLabel(R.lost[i].disc) + " (hole " + R.lost[i].hole + ")";
+		if (line && line.length + add.length > 66) { put(3, y++, "\x01n\x01r" + line + ",", 76); line = "      " + add; }
+		else line += (line ? ", " : "Lost: ") + add;
+	}
+	if (line) put(3, y, "\x01n\x01r" + line, 76);
 }
 
 // One block of the card: holes a..z-1, at screen row y, gap rows apart
@@ -128,10 +148,11 @@ function playRound(course) {
 	mswait(600);
 	for (var i = 0; i < R.holes.length; i++) {
 		var st = playHole(i);
-		if (st === null) return;
+		if (st === null) break;
 		R.strokes[i] = st;
 		msg(scoreName(st, R.holes[i].par) + "\x01n  " + st + " on a par " + R.holes[i].par + ".");
 		waitKey("Press any key for the scorecard");
 		scorecard(i + 1 < R.holes.length ? i + 1 : -1, i + 1 === R.holes.length);
 	}
+	endRound();
 }

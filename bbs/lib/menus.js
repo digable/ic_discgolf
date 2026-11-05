@@ -499,10 +499,10 @@ function howTo() {
 		"            safe, back to the fairway. ~Relief (PDGA optional relief): +1",
 		"            throw, move back along the line from the basket.",
 		"\x01h\x01cView\x01n        ~V switches between the map and the view from your lie.",
-		"\x01h\x01cPutting\x01n     Inside " + ft(PUTT_M) + " ft you putt. ~V switches between overhead and from-the-",
-		"            player views. Left/Right aims off the basket to play the wind.",
-		"            The meter is marked in feet; the small \x01h\x01y\xE8\x01n on it is the basket.",
+		"\x01h\x01cPutting\x01n     Inside " + ft(PUTT_M) + " ft you putt. ~V: overhead or from the player. Left/Right",
+		"            aims off the basket for wind. The meter's small \x01h\x01y\xE8\x01n is the basket.",
 		"\x01h\x01cHills\x01n       Downhill throws fly farther; uphill putts need more power.",
+		"\x01h\x01cWater\x01n       Dark water: a disc is likely lost for the round (putters never).",
 		"\x01n\x01k\x01hMap: \x01h\x01g\xB1\x01n\x01k\x01h fairway  \x01n\x01g\xB0\x01k\x01h rough  \x01h\x01g\xE7\x01n\x01k\x01h tree  \x01h\x01k\xB1\x01n\x01k\x01h road (OB)  \x01n\xB0\x01k\x01h parking (OB)  \x01h\x01y\xE8\x01n\x01k\x01h basket  \x01h\x01w\xFE\x01n\x01k\x01h you"
 	];
 	for (var i = 0; i < L.length; i++) put(3, 2 + i, L[i], 77);

@@ -44,5 +44,12 @@ var PUTT_M = 20;         // inside 20 m (66 ft) you putt (circle 2)
 var C1_M = 10;           // circle 1: 10 m (33 ft)
 var CLEARING_M = 2.2;    // trees closer than this to the lie don't block a throw (or the view from it)
 var BAG_MAX = 8;
+// Getting a disc back out of the water: the chance falls with how far it is from dry ground
+var WATER_BEST = 0.95;   // at the very edge
+var WATER_PER_M = 0.08;  // less for each meter out
+var WATER_WORST = 0.05;  // far out in a lake
+var WATER_LIGHT = 0.1;   // a 150 g disc floats: this much better (165 g, a little)
+var WATER_SHALLOW_M = 5; // the map shows water this close to dry ground as shallow (a better than even chance)
+var WASHUP_CHANCE = 0.25; // each later hole on the same water: a lost disc may have washed up there
 var FT = 3.28084;        // feet per meter
 var MPH_TO_MS = 0.447;   // meters per second per mph

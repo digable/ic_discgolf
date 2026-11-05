@@ -26,16 +26,22 @@ function bagDisc(k) {
 	return { name: d.name, maker: d.maker, type: d.type, n: d.n, g: p.g, key: k };
 }
 
-// The bag as disc objects, slowest first. Sorted once and kept until the bag
-// changes (call bagChanged() after editing player.bag).
+// The bag as disc objects, slowest first, without any lost in the water this round (those stay
+// in player.bag, which gets saved: see R.lost). Sorted once and kept until the bag changes (call
+// bagChanged() after editing player.bag or R.lost).
 var bagCache = null;
+
+function lostThisRound(key) {
+	for (var i = 0; R && i < R.lost.length; i++) if (R.lost[i].disc.key === key) return true;
+	return false;
+}
 
 function bagDiscs() {
 	if (!bagCache) {
 		// slowest first; the same mold heaviest first (so the putter is the heaviest one)
 		player.bag.sort(function (a, c) { var x = bagDisc(a), y = bagDisc(c); return (x.n[0] - y.n[0]) || (y.g - x.g); });
 		bagCache = [];
-		for (var i = 0; i < player.bag.length; i++) { var d = bagDisc(player.bag[i]); if (d) bagCache.push(d); }
+		for (var i = 0; i < player.bag.length; i++) { var d = bagDisc(player.bag[i]); if (d && !lostThisRound(d.key)) bagCache.push(d); }
 	}
 	return bagCache;
 }

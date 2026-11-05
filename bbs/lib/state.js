@@ -5,8 +5,8 @@
 
 // ---- Round state ------------------------------------------------------------
 // The game itself, with nothing about the screen in it (the door's view is V, in hud.js).
-var R = null;   // the round: { course, holes[], strokes[] } (the door adds lag)
-var S = null;   // the hole being played: { H, lie, aim, strokes, disc, hand, style, angle, wind, pitch }
+var R = null;   // the round: { course, holes[], strokes[], lost[] } (the door adds lag); lost: { disc, hole, body }
+var S = null;   // the hole being played: { H, lie, aim, strokes, disc, hand, style, angle, wind, pitch, found[] }
 var PT = null;  // the putt being lined up (see puttSetup)
 
 function newWind() {
@@ -24,8 +24,8 @@ function discRange(d, style, dom) {
 	return style === "TH" ? r * TOMAHAWK_RANGE : r;
 }
 
-// Caddie: the slowest disc in the bag that reaches the basket with room to spare
-function caddiePick() {
+// The disc picked for each throw: the slowest in the bag that reaches the basket with room to spare
+function autoPickDisc() {
 	var b = bagDiscs(), pin = pinDist(), dom = domHand();
 	S.disc = b.length - 1;
 	for (var i = 0; i < b.length; i++) if (discRange(b[i], S.style, dom) >= pin * 1.1) { S.disc = i; break; }

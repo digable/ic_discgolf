@@ -14,6 +14,8 @@
 //   tee/basket heights set the overall slope; each hill is a bump (or a dip,
 //   with a negative height) centered on a map cell. Leave it out for flat.
 // An island green is a ring of water around the basket.
+// A water area can have a body ({ t: "W", body: "creek", ... }): the same name on another of the
+// course's holes means it's the same water, so a disc lost in it can wash up there.
 //
 // Each course's where ends in ", City, ST" (outside the USA, just ", City") and it has a country (the course menu
 // sorts by those). Letters like \x8F (A-ring) are CP437, what the terminal draws. Its rating is
@@ -424,13 +426,13 @@ var COURSES = [{
 		  trees: [[36, 6]],
 		  note: "Last of the flat ones. Fades right toward the trees." },
 		{ par: 3, ft: 384, pts: [[5, 6], [72, 7]], hw: 5, rough: 3, left: "medium", right: "medium",
-		  trees: [[40, 6]], ob: [{ t: "W", x1: 24, y1: 11, x2: 77, y2: 12 }], elev: { tee: 0, basket: -8 },
+		  trees: [[40, 6]], ob: [{ t: "W", body: "creek", x1: 24, y1: 11, x2: 77, y2: 12 }], elev: { tee: 0, basket: -8 },
 		  note: "Down toward Clear Creek. A wild drive finds the water." },
 		{ par: 3, ft: 296, pts: [[8, 10], [42, 9], [68, 6]], hw: 4.5, rough: 3, left: "medium", right: "dense",
-		  trees: [[54, 8]], ob: [{ t: "W", x1: 0, y1: 3, x2: 60, y2: 4 }], elev: { tee: 0, basket: 10 },
+		  trees: [[54, 8]], ob: [{ t: "W", body: "creek", x1: 0, y1: 3, x2: 60, y2: 4 }], elev: { tee: 0, basket: 10 },
 		  note: "Up out of the creek bottom. Water left off the tee." },
 		{ par: 3, ft: 312, pts: [[6, 5], [40, 6], [70, 8]], hw: 4.5, rough: 3, left: "dense", right: "medium",
-		  trees: [[28, 5]], ob: [{ t: "W", x1: 36, y1: 11, x2: 77, y2: 12 }], elev: { tee: 0, basket: -6 },
+		  trees: [[28, 5]], ob: [{ t: "W", body: "creek", x1: 36, y1: 11, x2: 77, y2: 12 }], elev: { tee: 0, basket: -6 },
 		  note: "The creek again, down the right side. Stay left of it." },
 		{ par: 3, ft: 315, pts: [[6, 10], [40, 9], [70, 5]], hw: 4, rough: 3, left: "dense", right: "dense",
 		  trees: [[52, 7]], elev: { tee: 0, basket: 14 },
@@ -1148,13 +1150,13 @@ var COURSES = [{
 		  trees: [],
 		  note: "Open fairway drifting left." },
 		{ par: 4, ft: 398, pts: [[5, 7], [71, 7]], hw: 4, rough: 2, left: "dense", right: "dense",
-		  trees: [], ob: [{ t: "W", x1: 45, y1: 0, x2: 48, y2: 15 }], elev: { tee: 0, basket: 19 },
+		  trees: [], ob: [{ t: "W", body: "creek", x1: 45, y1: 0, x2: 48, y2: 15 }], elev: { tee: 0, basket: 19 },
 		  note: "Par 4. Straight through the trees. A creek crosses the fairway." },
 		{ par: 3, ft: 269, pts: [[11, 7], [70, 8]], hw: 4, rough: 2, left: "dense", right: "medium",
 		  trees: [[33, 8], [46, 7]],
 		  note: "Straight through the trees." },
 		{ par: 3, ft: 339, pts: [[10, 7], [68, 7]], hw: 4, rough: 2, left: "medium", right: "dense",
-		  trees: [], ob: [{ t: "W", x1: 33, y1: 0, x2: 36, y2: 15 }], elev: { tee: 0, basket: -17 },
+		  trees: [], ob: [{ t: "W", body: "creek", x1: 33, y1: 0, x2: 36, y2: 15 }], elev: { tee: 0, basket: -17 },
 		  note: "Straight through the trees. A creek crosses the fairway." },
 		{ par: 3, ft: 144, pts: [[13, 8], [64, 10]], hw: 3.5, rough: 2, left: "medium", right: "dense",
 		  trees: [[32, 8]],
@@ -1172,7 +1174,7 @@ var COURSES = [{
 		  trees: [[39, 2]], elev: { tee: 0, basket: 19 },
 		  note: "Through the woods, working left. Big climb to the basket." },
 		{ par: 4, ft: 565, pts: [[5, 11], [74, 10]], hw: 4, rough: 2, left: "dense", right: "dense",
-		  trees: [], ob: [{ t: "W", x1: 44, y1: 0, x2: 46, y2: 15 }],
+		  trees: [], ob: [{ t: "W", body: "creek", x1: 44, y1: 0, x2: 46, y2: 15 }],
 		  note: "Par 4. Straight through the trees. A creek crosses the fairway." },
 		{ par: 3, ft: 237, pts: [[9, 5], [67, 4]], hw: 3, rough: 2, left: "medium", right: "medium",
 		  trees: [[36, 4]],
