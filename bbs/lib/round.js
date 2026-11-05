@@ -53,8 +53,8 @@ function playHole(idx) {
 		else if (V.view === "pov" && (isLeft(k) || isRight(k))) { povTurn(isLeft(k) ? -1 : 1); panel(); continue; }
 		else if (V.view !== "pov" && (isLeft(k) || isRight(k) || isUp(k) || isDown(k))) {
 			moveAim(isLeft(k) ? -1 : (isRight(k) ? 1 : 0), isUp(k) ? -1 : (isDown(k) ? 1 : 0));
-			var a0 = cellOf(H, oldAim), a1 = cellOf(H, S.aim);
-			if (a0.c !== a1.c || a0.r !== a1.r) out(drawCell(a0.c, a0.r) + drawCell(a1.c, a1.r));
+			var a0 = aimMapCell(oldAim), a1 = aimMapCell(S.aim);
+			if (a0.c !== a1.c || a0.r !== a1.r || a0.past !== a1.past) out(drawCell(a0.c, a0.r) + drawCell(a1.c, a1.r));
 		}
 		else continue;
 		if (V.view !== "pov") updateRangeMark();

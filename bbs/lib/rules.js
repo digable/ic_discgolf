@@ -48,12 +48,13 @@ function washedUp(H) {
 	return found;
 }
 
-// Moves the aim dc map columns right and dr rows down, keeping it on the map
+// Moves the aim dc map columns right and dr rows down. It stays within the map's columns, but can
+// go up to AIM_PAST_ROWS rows past the top or bottom, for a throw at a steeper angle.
 function moveAim(dc, dr) {
 	var H = S.H;
 	S.aim = {
 		x: clamp(S.aim.x + dc * H.S, 0, (MAP_W - 1) * H.S),
-		y: clamp(S.aim.y + dr * 2 * H.S, 0, (MAP_H - 1) * 2 * H.S)
+		y: clamp(S.aim.y + dr * 2 * H.S, -AIM_PAST_ROWS * 2 * H.S, (MAP_H - 1 + AIM_PAST_ROWS) * 2 * H.S)
 	};
 }
 

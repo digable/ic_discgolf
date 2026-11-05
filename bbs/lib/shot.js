@@ -50,7 +50,7 @@ function throwShot() {
 	if (V.view === "pov") povSetAim();
 	var sw = swingMeter(R.lag);
 	// the flight is always shown on the map
-	var wasPov = V.view === "pov", oldAim = cellOf(H, S.aim);
+	var wasPov = V.view === "pov", oldAim = aimMapCell(S.aim);
 	V.showAim = false;
 	if (wasPov) { V.view = "map"; cls(); header(); drawMap(); helpLine(); drawMeter(); panel(); msg(); }
 	else { out(drawCell(oldAim.c, oldAim.r)); updateRangeMark(); }
@@ -80,7 +80,7 @@ function throwShot() {
 	var endC = cellOf(H, f.end);
 	sb += drawCell(endC.c, endC.r);
 	V.showAim = true;
-	var lc = cellOf(H, S.lie), ac = cellOf(H, S.aim);
+	var lc = cellOf(H, S.lie), ac = aimMapCell(S.aim);
 	sb += drawCell(lc.c, lc.r) + drawCell(ac.c, ac.r);
 	out(sb);
 	msg(line);

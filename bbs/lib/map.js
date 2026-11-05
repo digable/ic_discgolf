@@ -26,7 +26,10 @@ var NO_MARKS = { rc: null, path: {} };
 function cellGlyph(c, r, lc, ac, m) {
 	var t = S.H.grid[r][c], rc = m.rc, p = m.path[c + "," + r];
 	if (c === lc.c && r === lc.r) return ["\xFE", 15];
-	if (ac && c === ac.c && r === ac.r) return t === "B" ? ["\xE8", 11 | 0x50] : ["+", 13];
+	if (ac && c === ac.c && r === ac.r) {
+		if (ac.past) return [ac.past < 0 ? "^" : "v", 13 | terrainBg(t)];   // aimed past the edge: an arrow
+		return t === "B" ? ["\xE8", 11 | 0x50] : ["+", 13];
+	}
 	if (rc && c === rc.c && r === rc.r) return ["\xE9", (rc.past ? RANGE_PAST : RANGE_MARK) | terrainBg(t)];
 	if (p !== undefined) {
 		if (t === "." || t === ",") { if (p % 2 === 0) return PATH_DOT; }
@@ -43,7 +46,16 @@ function terrainBg(t) {
 	return (a & 0x70) || ((a & 7) << 4);
 }
 
-function aimCell() { return V.showAim ? cellOf(S.H, S.aim) : null; }
+function aimCell() { return V.showAim ? aimMapCell(S.aim) : null; }
+
+// The map cell an aim point is drawn in. Past the top or bottom it's the edge cell, with
+// past -1 (above the map) or 1 (below), so cellGlyph draws an arrow there.
+function aimMapCell(p) {
+	var c = cellOf(S.H, p);
+	if (c.r < 0) { c.r = 0; c.past = -1; }
+	else if (c.r >= MAP_H) { c.r = MAP_H - 1; c.past = 1; }
+	return c;
+}
 
 // The range mark and the flight to it: where the current disc goes on a perfect 100% throw.
 // The disc's flight numbers shape it, with the hand and throw (which way it curves), the release
