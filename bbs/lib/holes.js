@@ -7,6 +7,10 @@
 // Map cell (column, row) to world meters, m meters per column
 function gridPt(c, r, m) { return { x: c * m, y: r * 2 * m }; }
 
+// A hole's map (optional): 16 strings of 78 cells, traced cell by cell from aerial photos, in the
+// map's own letters: . fairway/open grass, , rough, T a tree, # woods, R road, P parking, W water.
+// It replaces the drawn fairway, rough and woods; tee and basket still come from pts.
+
 function buildHole(h, idx) {
 	var L1 = 0, i;
 	for (i = 1; i < h.pts.length; i++) L1 += hyp(h.pts[i][0] - h.pts[i - 1][0], 2 * (h.pts[i][1] - h.pts[i - 1][1]));
@@ -24,7 +28,8 @@ function buildHole(h, idx) {
 		var row = [];
 		for (x = 0; x < MAP_W; x++) {
 			var q = nearest(P, x * S, y * 2 * S), t;
-			if (q.d <= h.hw) t = ".";
+			if (h.map) t = h.map[y].charAt(x);              // traced from aerial photos
+			else if (q.d <= h.hw) t = ".";
 			else if (q.d <= h.hw + (h.rough || 3)) t = ",";
 			else {
 				var dd = dens[q.side < 0 ? h.left : h.right] || dens.dense, r = rng();

@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-45 courses at 42 real disc golf parks in the USA, Sweden, Norway and Finland, including all of UDisc's top 25 in the USA and in the world (see [Courses](#courses)).
+45 courses at 42 real disc golf parks in the USA, Sweden, Norway and Finland, including all of UDisc's top 25 in the USA and in the world (see [Courses](#courses)). Turkey Creek can also be played photo-accurate, traced from aerial photos.
 
 ## Players and saved settings
 
@@ -57,7 +57,8 @@ drift. The range mark includes weight (still no wind). A bag entry is the disc's
 **Play** opens a scrolling course list: Up/Down to move, Enter (or Space) to play.
 Left/Right sorts it by name, city, state, country or UDisc rating, and R reverses the
 order. It starts A to Z by name, and rating starts high to low. Courses outside the USA have no
-state, so they sort after the ones that do.
+state, so they sort after the ones that do. A course with a photo-traced version shows
+**Drawn** or **Photo-accurate** on its row, and V switches between them.
 
 | # | Course | Holes | Par | Length | UDisc rating | Address |
 |---|---|---|---|---|---|---|
@@ -137,6 +138,14 @@ hole to match the real one.
   holes. Finding the next tee is part of the challenge.
 - **In the game:** tight tunnels along the wood lines, with the parking lot (hole
   1, 7) and the road (holes 4, 9) out of bounds. No elevation yet.
+- **Photo-accurate version:** on the course list, **V** switches Turkey Creek's row between
+  **Drawn** (the holes above) and **Photo-accurate**. That version's holes are traced from
+  aerial photos (UDisc's hole views, November 2026): a trunk under every tree crown, woods
+  filled in at the density of the crowns around them, shade read as open ground, and each
+  hole straight from tee to basket as UDisc draws it, with a few trees standing in the line.
+  The road is out of bounds down the left of holes 2 and 3, and the lots at holes 1 and 9
+  (with the drive along 9). No elevation yet. In the game it's "Turkey Creek (Traced)",
+  the last entry in `COURSES` (`traced: true, of: "Turkey Creek"`).
 
 ### 2. Wildcat Bluff
 
@@ -455,6 +464,7 @@ hole to match the real one.
 - **Where:** Rejmyre, Sweden. #24 on UDisc's 2026 world list. [Map](https://www.google.com/maps?q=58.913953943505575,15.86784426122904) · [UDisc](https://udisc.com/courses/haefla-bruks-disc-golf-park-haevla-t5x2)
 - **The course:** Established 2021, 50 kr a day. Very hilly, through forest and meadow, with longer holes and water in play on the back nine.
 - **In the game:** UDisc's "GUL (main course)" layout, par 59. Hole 15's water is from a photo caption. The other two ponds (holes 10 and 16) are guesses, on the back nine.
+
 
 ## Files
 

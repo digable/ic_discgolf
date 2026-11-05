@@ -70,6 +70,10 @@ function titleScreen() {
 // list is sorted by and R reverses it, as on the bag screen; the sort lasts until the player
 // hangs up. Returns the course's index in COURSES, or -1 to go back to the title screen. The
 // last course played starts highlighted.
+//
+// A course can have a photo-traced version: a second COURSES entry with traced: true and of: the
+// course's name. It isn't a row of its own; the course's row shows which version is picked
+// (Drawn or Photo-accurate) and V switches it, like D cycles discs. ENTER plays that version.
 var COURSE_ROWS = 5;        // courses shown at once, 3 screen rows each
 var COURSE_COLS = [         // label, sort value, sort order names (low first, high first)
 	{ h: "NAME",  v: function (C) { return sortName(C.name); }, dir: ["A to Z", "Z to A"] },
@@ -79,6 +83,21 @@ var COURSE_COLS = [         // label, sort value, sort order names (low first, h
 	{ h: "UDISC RATING", v: function (C) { return -C.rating; }, dir: ["high to low", "low to high"] }
 ];
 var courseSort = { col: 0, rev: false };
+var courseTraced = {};      // course index -> true when its photo-traced version is picked
+
+// The index of course i's photo-traced version, or -1
+function tracedOf(i) {
+	for (var j = 0; j < COURSES.length; j++) if (COURSES[j].of === COURSES[i].name) return j;
+	return -1;
+}
+// The course a traced version belongs to (or i itself)
+function baseOf(i) {
+	if (!COURSES[i] || !COURSES[i].of) return i;
+	for (var j = 0; j < COURSES.length; j++) if (COURSES[j].name === COURSES[i].of) return j;
+	return i;
+}
+// The version of course i the list would play
+function pickedVersion(i) { var t = tracedOf(i); return courseTraced[i] && t >= 0 ? t : i; }
 
 // [the place, city, state] from a course's where, which ends in ", City, ST" (outside the USA, ", City")
 function courseWhere(C) {
@@ -89,7 +108,7 @@ function courseWhere(C) {
 // COURSES indices in the current sort order. Ties go by name, A to Z.
 function courseOrder() {
 	var c = COURSE_COLS[courseSort.col], order = [], i;
-	for (i = 0; i < COURSES.length; i++) order.push(i);
+	for (i = 0; i < COURSES.length; i++) if (!COURSES[i].of) order.push(i);   // traced versions share their course's row
 	order.sort(function (a, b) {
 		var x = c.v(COURSES[a]), y = c.v(COURSES[b]);
 		if (x !== y) return (x < y ? -1 : 1) * (courseSort.rev ? -1 : 1);
@@ -98,16 +117,18 @@ function courseOrder() {
 	return order;
 }
 
-function courseLines(i) {
-	var C = COURSES[i], par = 0, len = 0;
+// on: the row is highlighted (only then does it say V switches the version)
+function courseLines(i, on) {
+	var C = COURSES[pickedVersion(i)], par = 0, len = 0;
 	for (var h = 0; h < C.holes.length; h++) { par += C.holes[h].par; len += C.holes[h].ft; }
-	return ["\x01h\x01w" + C.name + "  \x01n\x01k\x01h" + C.where + ", " + C.country,
-		"\x01n" + C.holes.length + " holes   par " + par + "   " + String(len).replace(/\B(?=(\d{3})+$)/g, ",") + " ft   UDisc " + C.rating.toFixed(1)];
+	var version = tracedOf(i) < 0 ? "" : "   \x01h\x01g" + (C.traced ? "Photo-accurate" : "Drawn") + (on ? "  \x01n\x01k\x01h(V switches)" : "");
+	return ["\x01h\x01w" + COURSES[i].name + "  \x01n\x01k\x01h" + C.where + ", " + C.country,
+		"\x01n" + C.holes.length + " holes   par " + par + "   " + String(len).replace(/\B(?=(\d{3})+$)/g, ",") + " ft   UDisc " + C.rating.toFixed(1) + version];
 }
 
 // Row i of the list (an index into order)
 function drawCourseRow(order, i, top, on) {
-	var y = 5 + (i - top) * 3, L = courseLines(order[i]);
+	var y = 5 + (i - top) * 3, L = courseLines(order[i], on);
 	put(3, y, (on ? "\x01h\x01c> " : "  ") + L[0], 76);
 	put(5, y + 1, L[1], 72);
 }
@@ -120,6 +141,12 @@ function drawCourseList(order, top, sel) {
 	put(5, 5 + n * 3 - 1, top + n < order.length ? "\x01n\x01k\x01h(more below)" : "", 20);
 }
 
+// The keys line. Version is dimmed when the highlighted course has only one version.
+function drawCourseKeys(y, versions) {
+	put(3, y, "\x01n\x01hUp/Down\x01n move  \x01hENTER\x01n play  \x01hLeft/Right\x01n sort by  " +
+		(versions ? "~Version" : "\x01n\x01k\x01hVersion\x01n") + "  ~Reverse  ~Quit back", 76);
+}
+
 // What the list can sort by, with the current one lit, and which way it's sorted
 function drawCourseSort() {
 	var s = "\x01n\x01k\x01hSort by  ";
@@ -129,17 +156,25 @@ function drawCourseSort() {
 
 function courseMenu() {
 	if (COURSES.length === 1) return 0;
-	var order = courseOrder(), sel = Math.max(0, order.indexOf(player.course));
-	var n = Math.min(COURSE_ROWS, COURSES.length);
-	var top = clamp(sel - n + 1, 0, COURSES.length - n);
+	var last = baseOf(player.course);
+	if (last !== player.course) courseTraced[last] = true;   // last played the traced version: start on it
+	var order = courseOrder(), sel = Math.max(0, order.indexOf(last)), total = order.length;
+	var n = Math.min(COURSE_ROWS, total);
+	var top = clamp(sel - n + 1, 0, total - n);
 	cls();
-	put(3, 2, "\x01h\x01wCHOOSE A COURSE  \x01n\x01k\x01h" + COURSES.length + " courses");
+	put(3, 2, "\x01h\x01wCHOOSE A COURSE  \x01n\x01k\x01h" + total + " courses");
 	drawCourseSort();
 	drawCourseList(order, top, sel);
-	put(3, 6 + n * 3, "\x01n\x01hUp/Down\x01n move  \x01hENTER\x01n play  \x01hLeft/Right\x01n sort by  ~Reverse  ~Quit back", 76);
+	var keysY = 6 + n * 3;
+	drawCourseKeys(keysY, tracedOf(order[sel]) >= 0);
 	for (;;) {
 		var k = key(), ku = k.toUpperCase();
-		if (k === "\r" || k === " ") return order[sel];
+		if (k === "\r" || k === " ") return pickedVersion(order[sel]);
+		if (ku === "V" && tracedOf(order[sel]) >= 0) {
+			courseTraced[order[sel]] = !courseTraced[order[sel]];
+			drawCourseRow(order, sel, top, true);
+			continue;
+		}
 		if (ku === "Q" || k === "\x1b") return -1;
 		if (ku === "R" || isLeft(k) || isRight(k)) {
 			if (ku === "R") courseSort.rev = !courseSort.rev;
@@ -153,11 +188,12 @@ function courseMenu() {
 		}
 		else if (isUp(k) || isDown(k)) {
 			var old = sel, oldTop = top;
-			sel = (sel + (isUp(k) ? COURSES.length - 1 : 1)) % COURSES.length;
+			sel = (sel + (isUp(k) ? total - 1 : 1)) % total;
 			if (sel < top) top = sel;
 			if (sel >= top + n) top = sel - n + 1;
 			if (top !== oldTop) drawCourseList(order, top, sel);
 			else { drawCourseRow(order, old, top, false); drawCourseRow(order, sel, top, true); }
+			if ((tracedOf(order[old]) >= 0) !== (tracedOf(order[sel]) >= 0)) drawCourseKeys(keysY, tracedOf(order[sel]) >= 0);
 		}
 	}
 }
