@@ -46,7 +46,7 @@ function titleScreen() {
 	bigText("DISC GOLF", 17, 2, [14, 11]);
 	put(17, 8, "\x01n\x01k\x01h" + new Array(47).join("\xC4"));
 	put(17, 9, "\x01nA 3-click swing meter disc golf emulator");
-	put(17, 11, "\x01hCourses \x01n" + COURSES.length + " \x01k\x01h- pick one when you play");
+	put(17, 11, "\x01hCourses \x01n" + courseOrder().length + " \x01k\x01h- pick one when you play");   // not counting traced versions
 	put(17, 12, "\x01hPlayer  \x01h\x01c" + player.name);
 	put(17, 13, "\x01n        " + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
 	var i, n = TITLE_ITEMS.length;
