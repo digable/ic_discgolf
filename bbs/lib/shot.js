@@ -40,11 +40,24 @@ function obWhere(t) {
 // A throw into the water: how far out, and whether the disc came back
 function waterLine(shot) {
 	var w = shot.water;
-	return "\x01h\x01c" + discLabel(shot.disc) + "\x01n \x01h\x01rin the water, " + Math.max(1, ft(w.depth)) + " ft out!\x01n +1, " +
+	return "\x01h\x01c" + discLabel(shot.disc) + "\x01n \x01h\x01rin the water, " + Math.max(1, ft(w.depth)) + " ft out!\x01n " + penaltyText(shot.penalty) + ", " +
 		(w.lost ? "\x01h\x01rgone for the round." : (w.putter ? "you got your putter." : "\x01h\x01gyou fished it out."));
 }
 
-// One full throw. Returns "in" if it went in the basket.
+// "+1" for a penalty stroke; the house rules can do without one
+function penaltyText(n) { return n ? "+" + n : "No penalty"; }
+
+// Waits for a key after a throw. If the house rules allow a mulligan, offers it on the help line
+// first. True if one was taken.
+function offerMulligan() {
+	if (!canMulligan()) { key(); return false; }
+	var per = R.rules.mullPer, st = mullStretch();
+	put(1, HELP_Y, "\x01n ~Mulligan: throw that one again \x01k\x01h(" + mulligansLeft() + " left" +
+		(per && per < R.holes.length ? ", holes " + (st * per + 1) + "-" + Math.min(R.holes.length, (st + 1) * per) : "") + ")", PANEL_X - 2);
+	return key().toUpperCase() === "M" && takeMulligan();
+}
+
+// One full throw. Returns "in" if it went in the basket, "mulligan" if it was taken back.
 function throwShot() {
 	var H = S.H;
 	if (V.view === "pov") povSetAim();
@@ -67,7 +80,7 @@ function throwShot() {
 		return "in";
 	}
 	if (shot.water) line = waterLine(shot);
-	else if (shot.outcome === "ob") line += "\x01h\x01rOB " + obWhere(f.obTile) + "!\x01n +1, play from where it went out.";
+	else if (shot.outcome === "ob") line += "\x01h\x01rOB " + obWhere(f.obTile) + "!\x01n " + penaltyText(shot.penalty) + ", play from where it went out.";
 	else {
 		if (f.tree) line += "\x01h\x01yTree hit! \x01n";
 		if (f.basket) line += "\x01h\x01yOff the cage. \x01n";
@@ -89,7 +102,10 @@ function throwShot() {
 	if (inPuttRange()) status("\x01hIn putting range.\x01n Press any key to line up your putt.");
 	else if (lieInTrees()) status("\x01hIn the trees.\x01n Press any key for your view from the lie.");
 	else status("Press any key");
-	key();
+	if (offerMulligan()) {
+		msg("\x01h\x01mMulligan!\x01n That throw doesn't count. Throw it again" + (mulligansLeft() ? " (" + mulligansLeft() + " left)." : " (that was your last)."));
+		return "mulligan";
+	}
 	return "";
 }
 
@@ -106,7 +122,8 @@ function relief() {
 	var s = "", i;
 	for (i = 1; i < spots.length; i++) { var c = cellOf(H, spots[i]); s += moveTo(MAP_X + c.c, MAP_Y + c.r) + text("\xFA", 13); }
 	out(s);
-	msg("\x01h\x01mOptional relief\x01n (PDGA): +1 throw, move back along the line from the basket.");
+	msg(R.rules.reliefStroke ? "\x01h\x01mOptional relief\x01n (PDGA): +1 throw, move back along the line from the basket."
+		: "\x01h\x01mFree relief\x01n (house rules): move back along the line from the basket.");
 	helpLine("relief");
 	drawMeter();
 	var at = spots.length < 2 ? 0 : Math.min(spots.length - 1, Math.max(1, Math.round(4 / spots[1].back)));
@@ -115,7 +132,7 @@ function relief() {
 		var sp = spots[at], c2 = cellOf(H, sp), t = tileAt(H, sp);
 		out(moveTo(MAP_X + c2.c, MAP_Y + c2.r) + text("\xFE", 13));
 		var lines = [
-			"\x01n\x01h\x01mRelief  +1 throw",
+			"\x01n\x01h\x01mRelief  " + (R.rules.reliefStroke ? "+1 throw" : "free"),
 			"\x01n\x01hBack  \x01n" + ft(sp.back) + " ft",
 			"\x01n\x01hLie   \x01n" + (isOB(t) ? "\x01h\x01rout of bounds" : lieName(t).replace(/^in the |^on the /, "")),
 			"\x01n\x01hPin   \x01n" + ft(hyp(H.basket.x - sp.x, H.basket.y - sp.y)) + " ft",
@@ -134,7 +151,7 @@ function relief() {
 			V.showAim = true;
 			V.pov = null;
 			V.view = null;
-			msg("\x01h\x01mTook relief.\x01n +1 throw, " + ft(spots[at].back) + " ft back. " + ft(pinDist()) + " ft to go.");
+			msg("\x01h\x01mTook relief.\x01n " + (R.rules.reliefStroke ? "+1 throw" : "Free") + ", " + ft(spots[at].back) + " ft back. " + ft(pinDist()) + " ft to go.");
 			return true;
 		}
 		else if (k === "\x1b" || k === "r" || k === "R" || k === "q" || k === "Q") { V.view = savedView; V.showAim = true; return false; }

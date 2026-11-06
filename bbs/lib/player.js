@@ -48,7 +48,36 @@ function bagDiscs() {
 
 function bagChanged() { bagCache = null; }
 
-function puttDisc() { return bagDiscs()[0]; }
+// The putter: the bag's first putter (slowest, then heaviest). fitBag makes sure there is one.
+function puttDisc() {
+	var b = bagDiscs();
+	for (var i = 0; i < b.length; i++) if (b[i].type === "P") return b[i];
+	return b[0];
+}
+
+function isPutterKey(k) { var d = bagDisc(k); return !!d && d.type === "P"; }
+function bagPutters() { var n = 0; for (var i = 0; i < player.bag.length; i++) if (isPutterKey(player.bag[i])) n++; return n; }
+// The discs besides the putter (a second putter counts as one of them)
+function bagOthers() { return player.bag.length - (bagPutters() ? 1 : 0); }
+
+// A rule of the game: every bag has a putter, plus up to size other discs (the house rules' bag
+// size). The bag screen won't let you leave without a putter; this is for anything else (a bag
+// saved before the rule) and adds a KC Aviar. It also takes out the fastest discs past the
+// limit (never the last putter). Returns the bag keys it took out.
+var DEFAULT_PUTTER = "KC Aviar";
+
+function fitBag(size) {
+	var removed = [], i;
+	if (!bagPutters()) player.bag.unshift(bagKey(DEFAULT_PUTTER, MAX_G));
+	bagChanged();
+	bagDiscs();                                          // sorts player.bag, slowest first
+	for (i = player.bag.length - 1; i >= 0 && player.bag.length > size + 1; i--) {
+		if (isPutterKey(player.bag[i]) && bagPutters() === 1) continue;
+		removed.push(player.bag.splice(i, 1)[0]);
+	}
+	bagChanged();
+	return removed;
+}
 function domHand() { return S.hand === player.hand; }   // throwing with the dominant hand
 function level() { return LEVELS[player.level] || LEVELS.reg; }
 // The arm speed a disc needs to fly fully: a lighter one gets up to speed with less

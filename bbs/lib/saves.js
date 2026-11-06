@@ -9,7 +9,7 @@
 
 "use strict";
 
-var SAVED_KEYS = ["hand", "style", "level", "flightPath", "puttView", "bag"];
+var SAVED_KEYS = ["hand", "style", "level", "flightPath", "puttView", "bag", "house"];
 var saveApi = null;          // { url, key } once ctrl/discgolf.ini is read; false if saving is off
 var savedSettings = null;    // what the service has for this player, so saving one thing keeps the rest
 
@@ -51,7 +51,18 @@ function apiRequest(method, path, body) {
 
 function currentSettings() {
 	return { hand: player.hand, style: player.style, level: player.level, flightPath: player.flightPath,
-		puttView: player.puttView, bag: player.bag.slice() };
+		puttView: player.puttView, bag: player.bag.slice(), house: copyHouse(house) };
+}
+
+// Saved house rules, each checked; anything missing or no longer valid stays standard
+function applyHouse(h) {
+	if (!h || typeof h !== "object") return;
+	if (typeof h.obPenalty === "boolean") house.obPenalty = h.obPenalty;
+	if (typeof h.reliefStroke === "boolean") house.reliefStroke = h.reliefStroke;
+	if (h.bagSize === Math.floor(h.bagSize) && h.bagSize >= 0 && h.bagSize <= BAG_MOST) house.bagSize = h.bagSize;
+	if (h.mulligans === 0 || h.mulligans === 1 || h.mulligans === 2) house.mulligans = h.mulligans;
+	if (h.mullPer === 0 || h.mullPer === 9 || h.mullPer === 18 || h.mullPer === 27) house.mullPer = h.mullPer;
+	if (WINDS.hasOwnProperty(h.wind)) house.wind = h.wind;
 }
 
 // Puts saved settings into player, skipping anything that's no longer valid (a disc that's left
@@ -62,10 +73,12 @@ function applySettings(s) {
 	if (LEVELS.hasOwnProperty(s.level)) player.level = s.level;
 	if (typeof s.flightPath === "boolean") player.flightPath = s.flightPath;
 	if (PUTT_VIEWS.indexOf(s.puttView) >= 0) player.puttView = s.puttView;
+	applyHouse(s.house);
 	var bag = [], i;
-	for (i = 0; s.bag && i < s.bag.length && bag.length < BAG_MAX; i++)
+	for (i = 0; s.bag && i < s.bag.length; i++)
 		if (bagDisc(s.bag[i]) && bag.indexOf(s.bag[i]) < 0) bag.push(s.bag[i]);   // a disc, at a weight there is
-	if (bag.length) { player.bag = bag; bagChanged(); }
+	if (bag.length) player.bag = bag;
+	fitBag(house.bagSize);                       // a putter, and no more than the house rules allow
 }
 
 // This BBS player's saved settings, into player. "loaded", "none" (first visit) or "off" (the

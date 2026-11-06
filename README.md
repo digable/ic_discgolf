@@ -13,7 +13,7 @@ meter. The same game script runs in two places:
 ## Players and saved settings
 
 - **On the BBS** you play under your BBS alias, and your settings (hand, usual throw,
-  level, flight path, putting view and disc bag) are saved for next time:
+  level, flight path, putting view, disc bag and house rules) are saved for next time:
   - **First visit:** player setup, then **Continue** saves it ("Saved for next time").
   - **Coming back:** a welcome-back screen shows your saved settings: **Play with
     these** (Enter) or **Change settings** (player setup with your answers filled in,
@@ -33,6 +33,15 @@ meter. The same game script runs in two places:
 Saves are kept by the save service (`server.js`), in SQLite, keyed by the BBS alias
 like IC Zombies' saves. See [The save service](#the-save-service).
 
+## Your bag
+
+A standard bag holds 8 discs: 7 plus a putter. **Every bag must have a putter** (a disc of
+type Putter). It's the disc you putt with, and it can't be lost in the water. On the bag screen
+you can take your putter out to swap in another one, but you can't leave the screen until the
+bag has a putter again. The putter has its own slot, so a bag with no putter always has room for
+one. House rules can change how many other discs fit (see [House rules](#house-rules)). A bag
+saved before this rule that has no putter gets a KC Aviar.
+
 ## Disc weights
 
 Every disc in the bag is Light (150 g), Mid (165 g) or Max (175 g). On the bag screen,
@@ -51,6 +60,33 @@ All of it is scaled by `wtOf()` in `bbs/lib/discs.js` (0 at 175 g, -1 at 150 g) 
 applied in `throwShape()` and `fly()` (`bbs/lib/flight.js`), `discRange()` and the putt
 drift. The range mark includes weight (still no wind). A bag entry is the disc's name
 (175 g) or `name:grams` (`Leopard3:150`), so bags saved before weights load unchanged.
+
+## House rules
+
+**House rules** on the title screen changes how your rounds are scored and played. It works like
+player setup: Up/Down picks a rule, Left/Right or a letter changes it.
+
+| Rule | Choices | Standard |
+|---|---|---|
+| Out of bounds | Penalty stroke, or no penalty (either way you play from where it went out) | Penalty stroke |
+| Optional relief | Costs a stroke, or free | Costs a stroke |
+| Bag size | 1 to 26 discs, one of them the putter (1 is putter only) | 8 (7 + putter) |
+| Mulligans | None, one or two | None |
+| Mulligans are | Per 9, 18 or 27 holes, or per round | Per round |
+| Wind | Calm (none), normal (0-12 mph) or windy (10-25 mph) | Normal |
+
+- **Bag size:** lowering it takes out your fastest discs (never your putter) when you leave
+  the screen, and the title screen says which.
+- **Mulligans:** after a throw, the help line offers **M** to take it back. You go back to
+  where you threw from with the same disc and aim, and the stroke, any penalty and a disc
+  lost in the water are all undone. Putts can't be mulliganed. Per 9 holes means holes 1-9
+  get their own, then 10-18, and so on.
+- **A round keeps the rules it started with**, and the scorecard shows any that aren't
+  standard ("House rules: no OB penalty, 2 mulligans per 9, 1 used"), so a round on easy
+  rules isn't mistaken for a standard one. The title screen shows them too.
+
+The defaults are `HOUSE_DEFAULT` in `bbs/lib/state.js`; the rules themselves are in
+`bbs/lib/rules.js` and read only the round's copy (`R.rules`).
 
 ## Courses
 
@@ -571,7 +607,8 @@ on digiweb (set by the systemd unit). Without `DB_FILE` it falls back to
 `data/discgolf.db`, which is only for trying it locally. SQLite comes from the `sqlite3`
 module if it's installed (Debian:
 `sudo apt install node-sqlite3`), otherwise from Node's built-in `node:sqlite`
-(Node 22.13+).
+(Node 22.13+). A database from before house rules gets its `house` column added when the
+service starts, and doors from before then can still save.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -675,7 +712,8 @@ your own computer first").
   [DG Course Review](https://www.dgcoursereview.com/courses/high-bridge-dgc.13426) (High Bridge),
   [PDGA](https://www.pdga.com/node/26368) (Peninsula Park, and its flood-prone holes),
   [PDGA](https://www.pdga.com/node/247146) (Altmaier Park, and Clear Creek).
-- Relief rule: PDGA optional relief (one penalty throw, move back along the line of play).
+- Relief rule: PDGA optional relief (one penalty throw, move back along the line of play;
+  house rules can make it free).
 - [acorn](https://github.com/acornjs/acorn) JavaScript parser, MIT license.
 
 ## License

@@ -31,7 +31,7 @@ function bigText(str, x, y, colors) {
 // A message for the next title screen ("Saved for next time."), shown once
 var notice = "";
 
-var TITLE_ITEMS = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "~How to play", "~Quit"];
+var TITLE_ITEMS = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "House ~rules", "~How to play", "~Quit"];
 var titleSel = 0;           // stays where it was when you come back to the title screen
 
 // One menu row: highlighted like the setup screen's answers, with its hotkey when it isn't
@@ -51,8 +51,10 @@ function titleScreen() {
 	put(17, 13, "\x01n        " + handName(player.hand) + "-handed, " + styleName(player.style).toLowerCase() + " thrower (" + level().name.toLowerCase() + ")");
 	var i, n = TITLE_ITEMS.length;
 	for (i = 0; i < n; i++) drawTitleItem(i, i === titleSel);
-	if (notice) { put(19, 23, notice, 60); notice = ""; }
-	put(19, 21, "\x01n\x01hUp/Down\x01n move   \x01hENTER\x01n choose");
+	var hr = houseRows(house, 76);
+	for (i = 0; i < hr.length; i++) put(3, 23 + i, hr[i], 76);
+	if (notice) { put(17, 14, notice, 62); notice = ""; }
+	put(19, 22, "\x01n\x01hUp/Down\x01n move   \x01hENTER\x01n choose");
 	for (;;) {
 		var k = key(), ku = k.toUpperCase(), old = titleSel;
 		if (!k) return "";                                   // hung up: back to the main loop
@@ -202,8 +204,9 @@ function courseMenu() {
 // Every question at once. Up/Down picks a question, Left/Right changes its answer, and its
 // letters pick an answer and move on to the next question. ENTER (or Continue at the bottom)
 // is done. Answers take effect as they change.
-var SETUP_X = 36;           // column the answers start in
-var SETUP_GO_Y = 20;        // the Continue button's row
+// The same screen does house rules (HOUSE_FORM). A form is { x: the answers' column, goY: the
+// Continue button's row, rows }. A row is { y, q, get, set, note } plus either opts (answers:
+// [value, "~Label"]) or num ({ min, max, label(value) }: Left/Right counts up and down).
 var SETUP = [
 	{ y: 5, q: "Which hand do you throw with?", opts: [["R", "~Right"], ["L", "~Left"]],
 		get: function () { return player.hand; }, set: function (v) { player.hand = v; },
@@ -232,26 +235,58 @@ var SETUP = [
 				: ["\x01h\x01cHidden.\x01n \x01k\x01hThe map shows just the range mark \x01n\x01h\x01c\xE9\x01k\x01h, where a perfect throw lands."];
 		} }
 ];
+var SETUP_FORM = { x: 36, goY: 20, rows: SETUP };
 
 function hotkeyOf(label) { return label.charAt(label.indexOf("~") + 1).toUpperCase(); }
 
-// Question i (SETUP.length: the Continue button). The answer is highlighted: white on blue on
-// the question you're on, black on gray on the others. Hotkeys show only where they work.
-function drawSetupRow(i, focus) {
+// Row i of form F (F.rows.length: the Continue button). The answer is highlighted: white on blue
+// on the question you're on, black on gray on the others. Hotkeys show only where they work.
+function drawFormRow(F, i, focus) {
 	var mark = text(focus ? ">" : " ", 14) + text(" ", 7);
-	if (i === SETUP.length) { out(moveTo(2, SETUP_GO_Y) + mark + text(" Continue ", focus ? 0x4F : 0x70) + setAttr(7)); return; }
-	var row = SETUP[i], cur = row.get(), s = moveTo(2, row.y) + mark + ca(row.q, focus ? 15 : 7)[0], col = SETUP_X;
-	s += text(blank(SETUP_X - 4 - row.q.length), 7);
-	for (var j = 0; j < row.opts.length; j++) {
-		var lab = " " + row.opts[j][1] + " ", on = row.opts[j][0] === cur;
-		if (on) s += ca(lab.replace("~", ""), focus ? 0x4F : 0x70)[0];
-		else s += ca(focus ? lab : lab.replace("~", ""), focus ? 7 : 8)[0];
+	if (i === F.rows.length) { out(moveTo(2, F.goY) + mark + text(" Continue ", focus ? 0x4F : 0x70) + setAttr(7)); return; }
+	var row = F.rows[i], cur = row.get(), s = moveTo(2, row.y) + mark + ca(row.q, focus ? 15 : 7)[0], col = F.x, j;
+	s += text(blank(F.x - 4 - row.q.length), 7);
+	if (row.num) {                       // a number: < 8 discs + putter >
+		var lab = " " + row.num.label(cur) + " ";
+		s += text(focus && cur > row.num.min ? "<" : " ", 14) + text(lab, focus ? 0x4F : 0x70) + text(focus && cur < row.num.max ? ">" : " ", 14);
+		col += lab.length + 2;
+	}
+	else for (j = 0; j < row.opts.length; j++) {
+		var lab2 = " " + row.opts[j][1] + " ", on = row.opts[j][0] === cur;
+		if (on) s += ca(lab2.replace("~", ""), focus ? 0x4F : 0x70)[0];
+		else s += ca(focus ? lab2 : lab2.replace("~", ""), focus ? 7 : 8)[0];
 		s += text(" ", 7);
-		col += lab.length;              // the ~ isn't shown; the space after is
+		col += lab2.length;             // the ~ isn't shown; the space after is
 	}
 	out(s + text(blank(SCR_W - col), 7));
 	var notes = row.note();
 	for (j = 0; j < 2; j++) put(6, row.y + 1 + j, notes[j] || "", 74);
+}
+
+// Up/Down picks a question, Left/Right changes its answer, a letter picks an answer and moves on.
+// Returns on ENTER or ESC. Answers take effect as they change.
+function runForm(F) {
+	var n = F.rows.length, f = 0, i;
+	for (i = 0; i <= n; i++) drawFormRow(F, i, i === f);
+	for (;;) {
+		var k = key(), ku = k.toUpperCase(), row = F.rows[f], old = f, changed = false, j, hit = -1;
+		if (!k || k === "\r" || k === "\x1b") return;
+		if (row && row.opts) for (j = 0; j < row.opts.length; j++) if (hotkeyOf(row.opts[j][1]) === ku) hit = j;
+		if (hit >= 0) { row.set(row.opts[hit][0]); changed = true; f++; }     // letters before arrows: L is also Right (isRight)
+		else if (isUp(k)) f = Math.max(0, f - 1);
+		else if (isDown(k)) f = Math.min(n, f + 1);
+		else if (row && row.num && (isLeft(k) || isRight(k))) {
+			var v = clamp(row.get() + (isLeft(k) ? -1 : 1), row.num.min, row.num.max);
+			if (v !== row.get()) { row.set(v); changed = true; }
+		}
+		else if (row && (isLeft(k) || isRight(k))) {
+			for (j = 0; j < row.opts.length; j++) if (row.opts[j][0] === row.get()) break;
+			j = clamp(j + (isLeft(k) ? -1 : 1), 0, row.opts.length - 1);
+			if (row.opts[j][0] !== row.get()) { row.set(row.opts[j][0]); changed = true; }
+		}
+		if (changed) { for (i = 0; i <= n; i++) drawFormRow(F, i, i === f); }   // one answer's note can depend on another
+		else if (f !== old) { drawFormRow(F, old, false); drawFormRow(F, f, true); }
+	}
 }
 
 function setup(first) {
@@ -261,23 +296,69 @@ function setup(first) {
 		: "Settings aren't saved on the web version.")
 		: (first ? "A few questions before you head to the first tee. Saved for next time." : "Changes are saved for next time.")), 76);
 	put(3, 22, "\x01n\x01hUp/Down\x01n pick a question   \x01hLeft/Right\x01n or a letter: answer   \x01hENTER\x01n continue", 76);
-	var f = 0, i;
-	for (i = 0; i <= SETUP.length; i++) drawSetupRow(i, i === f);
-	for (;;) {
-		var k = key(), ku = k.toUpperCase(), row = SETUP[f], old = f, changed = false, j, hit = -1;
-		if (k === "\r" || k === "\x1b") return;
-		if (row) for (j = 0; j < row.opts.length; j++) if (hotkeyOf(row.opts[j][1]) === ku) hit = j;
-		if (hit >= 0) { row.set(row.opts[hit][0]); changed = true; f++; }     // letters before arrows: L is also Right (isRight)
-		else if (isUp(k)) f = Math.max(0, f - 1);
-		else if (isDown(k)) f = Math.min(SETUP.length, f + 1);
-		else if (row && (isLeft(k) || isRight(k))) {
-			for (j = 0; j < row.opts.length; j++) if (row.opts[j][0] === row.get()) break;
-			j = clamp(j + (isLeft(k) ? -1 : 1), 0, row.opts.length - 1);
-			if (row.opts[j][0] !== row.get()) { row.set(row.opts[j][0]); changed = true; }
-		}
-		if (changed) { for (i = 0; i <= SETUP.length; i++) drawSetupRow(i, i === f); }   // the throw's note depends on the hand
-		else if (f !== old) { drawSetupRow(old, false); drawSetupRow(f, true); }
-	}
+	runForm(SETUP_FORM);
+}
+
+// ---- House rules ---------------------------------------------------------------------
+// The rules the next round is played by (house in state.js); each round keeps its own copy.
+var HOUSE_FORM = { x: 24, goY: 22, rows: [
+	{ y: 4, q: "Out of bounds", opts: [[true, "~Penalty stroke"], [false, "~No penalty"]],
+		get: function () { return house.obPenalty; }, set: function (v) { house.obPenalty = v; },
+		note: function () {
+			return house.obPenalty ? ["\x01h\x01cPenalty stroke.\x01n \x01k\x01hOB costs +1; play from where it went out (PDGA)."]
+				: ["\x01h\x01cNo penalty.\x01n \x01k\x01hOB costs nothing: just play from where it went out."];
+		} },
+	{ y: 7, q: "Optional relief", opts: [[true, "~Costs a stroke"], [false, "~Free"]],
+		get: function () { return house.reliefStroke; }, set: function (v) { house.reliefStroke = v; },
+		note: function () {
+			return house.reliefStroke ? ["\x01h\x01cCosts a stroke.\x01n \x01k\x01hR on a shot moves you back along the line for +1 (PDGA)."]
+				: ["\x01h\x01cFree.\x01n \x01k\x01hR on a shot moves you back along the line, no stroke added."];
+		} },
+	{ y: 10, q: "Bag size", num: { min: 0, max: BAG_MOST, label: function (v) { return v ? (v + 1) + " discs (" + v + " + putter)" : "1 disc (putter only)"; } },
+		get: function () { return house.bagSize; }, set: function (v) { house.bagSize = v; },
+		note: function () {
+			var over = bagOthers() - house.bagSize;
+			return [house.bagSize ? "\x01h\x01c" + (house.bagSize + 1) + " discs.\x01n \x01k\x01hOne is always your putter. Standard is " + (HOUSE_DEFAULT.bagSize + 1) + ", up to " + (BAG_MOST + 1) + "."
+				: "\x01h\x01cPutter only.\x01n \x01k\x01hEvery throw with your putter, tee to basket.",
+				over > 0 ? "\x01h\x01yYour bag is " + over + " over: the fastest " + (over > 1 ? over + " discs come" : "disc comes") + " out when you continue." : ""];
+		} },
+	{ y: 13, q: "Mulligans", opts: [[0, "~None"], [1, "~One"], [2, "~Two"]],
+		get: function () { return house.mulligans; }, set: function (v) { house.mulligans = v; },
+		note: function () {
+			return house.mulligans ? ["\x01h\x01c" + house.mulligans + (house.mulligans > 1 ? " mulligans " : " mulligan ") + mullPerName(house.mullPer) + ".\x01n \x01k\x01hAfter a throw, M takes it back to throw again.", "\x01k\x01hNot on putts."]
+				: ["\x01h\x01cNone.\x01n \x01k\x01hEvery throw counts."];
+		} },
+	{ y: 16, q: "Mulligans are", opts: [[9, "per ~9 holes"], [18, "per 1~8"], [27, "per 2~7"], [0, "per ~round"]],
+		get: function () { return house.mullPer; }, set: function (v) { house.mullPer = v; },
+		note: function () {
+			if (!house.mulligans) return ["\x01k\x01hNo mulligans, so this doesn't matter."];
+			return [house.mullPer ? "\x01h\x01cPer " + house.mullPer + " holes.\x01n \x01k\x01hHoles 1-" + house.mullPer + " get " + house.mulligans + ", the next " + house.mullPer + " get " + house.mulligans + " more, and so on."
+				: "\x01h\x01cPer round.\x01n \x01k\x01h" + house.mulligans + " for the whole round, however many holes it has."];
+		} },
+	{ y: 19, q: "Wind", opts: [["calm", "~Calm"], ["normal", "~Normal"], ["windy", "~Windy"]],
+		get: function () { return house.wind; }, set: function (v) { house.wind = v; },
+		note: function () {
+			var w = WINDS[house.wind];
+			return ["\x01h\x01c" + house.wind.charAt(0).toUpperCase() + house.wind.slice(1) + ".\x01n \x01k\x01h" +
+				(w[1] ? "Each hole gets a wind of " + w[0] + "-" + w[1] + " mph." : "No wind on any hole.")];
+		} }
+] };
+
+// After it, the bag is cut down to the new size if it has to be, and changes are saved
+function houseRules() {
+	cls();
+	put(3, 1, "\x01h\x01wHOUSE RULES  \x01n\x01k\x01hThe rules your rounds are played by.", 76);
+	put(3, 2, "\x01n\x01k\x01h" + (player.canSave ? "Changes are saved for next time." : "Not saved: " +
+		(player.handle ? "the save server isn't answering." : "settings aren't saved on the web version.")), 76);
+	put(3, 24, "\x01n\x01hUp/Down\x01n pick a rule   \x01hLeft/Right\x01n or a letter: change   \x01hENTER\x01n continue", 76);
+	var before = JSON.stringify(house), bagBefore = player.bag.join("|");
+	runForm(HOUSE_FORM);
+	var removed = fitBag(house.bagSize), names = [], i;
+	for (i = 0; i < removed.length; i++) names.push(discLabel(bagDisc(removed[i])));
+	if (names.length) notice = "\x01h\x01yTook out of your bag: " + (names.length > 2 ? names.length + " discs, fastest first" : names.join(", "));
+	if (!player.canSave || (JSON.stringify(house) === before && player.bag.join("|") === bagBefore)) return;
+	if (!saveSettings(["house", "bag"])) notice = "\x01h\x01yCouldn't save: the save server didn't answer.";
+	else if (!names.length) notice = "\x01h\x01gHouse rules saved for next time.";
 }
 
 // ---- Signing in ----------------------------------------------------------------------
@@ -328,13 +409,16 @@ function welcomeBack() {
 	put(3, 3, "\x01n\x01k\x01hYour saved settings");
 	var rows = [["Hand", handName(player.hand) + "-handed"], ["Usual throw", styleName(player.style)],
 		["Level", level().name], ["Flight path", player.flightPath ? "Shown" : "Hidden"],
-		["Putting view", PUTT_VIEW_NAMES[player.puttView]]], i, j;
-	for (i = 0; i < rows.length; i++) put(5, 5 + i, "\x01n\x01k\x01h" + pad(rows[i][0], 14) + "\x01n" + rows[i][1]);
-	var bag = [], line = "";                  // the bag, wrapped to fit
+		["Putting view", PUTT_VIEW_NAMES[player.puttView]], ["House rules", houseChanges(house).join(", ") || "Standard"]], i, j;
+	for (i = 0; i < rows.length; i++) put(5, 5 + i, "\x01n\x01k\x01h" + pad(rows[i][0], 14) + "\x01n" + rows[i][1], 74);
+	var bag = [], line = "";                  // the bag, wrapped to fit in 4 rows
 	var discs = bagDiscs();
 	for (i = 0; i < discs.length; i++) {
 		var add = (line ? ", " : "") + discLabel(discs[i]);
-		if (line && line.length + add.length > 58) { bag.push(line + ","); line = discLabel(discs[i]); }
+		if (line && line.length + add.length > (bag.length === 3 ? 44 : 58)) {   // the last row keeps room for "and N more"
+			if (bag.length === 3) { line += ", and " + (discs.length - i) + " more"; break; }
+			bag.push(line + ","); line = discLabel(discs[i]);
+		}
 		else line += add;
 	}
 	bag.push(line);
@@ -423,7 +507,8 @@ function bagOrder() {
 }
 
 function drawBagTitle() {
-	put(3, 1, "\x01h\x01wYOUR BAG & DISC CATALOG  \x01n\x01k\x01h(" + player.bag.length + " of " + BAG_MAX + " slots)", 44);
+	put(3, 1, "\x01h\x01wYOUR BAG & DISC CATALOG  \x01n\x01k\x01h(" + player.bag.length + (bagPutters() ? " of " : "/") + (house.bagSize + 1) +
+		(bagPutters() ? ")" : ", \x01h\x01rno putter\x01n\x01k\x01h)"), 43);
 }
 
 // Column headers with the sorted one lit, and how it's sorted
@@ -457,20 +542,24 @@ function drawBagList(order, top, sel) {
 
 // SPACE: add the disc at max weight, or take every copy of it out. 1 2 3: add or remove the
 // Light / Mid / Max copy (the same mold can be in the bag at more than one weight).
-// The bag never goes empty or past BAG_MAX.
+// The putter has its own slot: the other discs never go past the house rules' bag size, and a
+// putter always fits when the bag has none. (The screen can't be left without a putter.)
+// Returns why it couldn't, or what's missing, or "".
 function toggleBag(name, k) {
 	var keys = [], j, at;
 	if (k >= "1" && k <= "3") keys.push(bagKey(name, WEIGHTS[Number(k) - 1]));
 	else for (j = 0; j < WEIGHTS.length; j++) if (player.bag.indexOf(bagKey(name, WEIGHTS[j])) >= 0) keys.push(bagKey(name, WEIGHTS[j]));
 	if (!keys.length) keys.push(bagKey(name, MAX_G));
 	at = player.bag.indexOf(keys[0]);
-	if (at >= 0) {                                  // remove these (keeping at least one disc)
+	if (at >= 0) {
 		for (j = 0; j < keys.length; j++) {
 			at = player.bag.indexOf(keys[j]);
-			if (at >= 0 && player.bag.length > 1) player.bag.splice(at, 1);
+			if (at >= 0) player.bag.splice(at, 1);
 		}
 	}
-	else if (player.bag.length < BAG_MAX) player.bag.push(keys[0]);
+	else if ((isPutterKey(keys[0]) && !bagPutters()) || bagOthers() < house.bagSize) player.bag.push(keys[0]);
+	else return "Your bag is full (" + (house.bagSize + 1) + " with the putter). House rules sets the size.";
+	return bagPutters() ? "" : "No putter in your bag: add one before you leave (every bag needs one).";
 }
 
 function bagScreen() {
@@ -505,12 +594,16 @@ function bagScreen() {
 			drawBagList(order, top, sel);
 		}
 		else if (k === " " || k === "\r" || (ku >= "1" && ku <= "3")) {
-			toggleBag(DISCS[order[sel]].name, k);
+			put(3, 20, "\x01h\x01y" + toggleBag(DISCS[order[sel]].name, k), 77);
 			bagChanged();
 			drawBagTitle();
 			drawBagRow(order, sel, top, sel);
 		}
-		else if (ku === "Q" || k === "\x1b") return;
+		else if (ku === "Q" || k === "\x1b") {
+			if (bagPutters()) return;
+			put(3, 20, "\x01h\x01rYou can't leave without a putter.\x01n\x01h\x01y Pick one (sort by type: putters first).", 77);
+		}
+		else if (!k) return;                            // hung up
 	}
 }
 
@@ -522,7 +615,7 @@ function howTo() {
 		"            mark is 100%. Past it you overswing - the disc turns over and",
 		"            power drops. SPACE a third time as the marker comes back through",
 		"            the yellow: early pulls to your fade side, late pushes away.",
-		"\x01h\x01cDiscs\x01n       1-8 or ~D picks a disc. Fast discs fly far but need arm speed.",
+		"\x01h\x01cDiscs\x01n       1-9 or ~D picks a disc. Fast discs fly far but need arm speed.",
 		"            On the map, \x01h\x01c\xE9\x01n is where a perfect 100% throw lands, no wind; dots",
 		"            trace its flight, obstacles on red (Player setup can hide them).",
 		"\x01h\x01cWeight\x01n      150, 165 or 175 g (bag screen). Lighter: farther for slow arms,",

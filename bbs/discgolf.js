@@ -50,6 +50,7 @@ try {
 		}
 		else if (choice === "S") { setup(false); saveSetup(); }
 		else if (choice === "B") { var before = player.bag.join("|"); bagScreen(); offerBagSave(before); }
+		else if (choice === "R") houseRules();
 		else if (choice === "H") howTo();
 		else if (choice === "Q") break;
 	}

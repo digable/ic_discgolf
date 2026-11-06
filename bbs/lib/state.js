@@ -5,13 +5,44 @@
 
 // ---- Round state ------------------------------------------------------------
 // The game itself, with nothing about the screen in it (the door's view is V, in hud.js).
-var R = null;   // the round: { course, holes[], strokes[], lost[] } (the door adds lag); lost: { disc, hole, body }
+var R = null;   // the round: { course, holes[], strokes[], lost[], rules, mullUsed{}, mullTotal } (the door adds lag); lost: { disc, hole, body }
 var S = null;   // the hole being played: { H, lie, aim, strokes, disc, hand, style, angle, wind, pitch, found[] }
 var PT = null;  // the putt being lined up (see puttSetup)
 
+// ---- House rules ------------------------------------------------------------
+// The player picks these on the House rules screen. Each round copies them (R.rules) and the rules
+// read only that copy, so a round plays by one set from start to finish (and, with more players,
+// everyone in it plays by the same set).
+//   obPenalty: OB costs a stroke   reliefStroke: optional relief costs a stroke
+//   bagSize: discs in the bag besides the putter (a game rule, not a house rule: every bag has
+//     one, see fitBag), so the standard bag of 8 is 7 + the putter
+//   mulligans: rethrows allowed per mullPer holes (0: per round)   wind: a WINDS name
+var HOUSE_DEFAULT = { obPenalty: true, reliefStroke: true, bagSize: 7, mulligans: 0, mullPer: 0, wind: "normal" };
+var house = copyHouse(HOUSE_DEFAULT);
+
+function copyHouse(h) {
+	var c = {};
+	for (var k in HOUSE_DEFAULT) c[k] = h.hasOwnProperty(k) ? h[k] : HOUSE_DEFAULT[k];
+	return c;
+}
+
+function mullPerName(per) { return per ? "per " + per + " holes" : "per round"; }
+
+// How house rules h differ from the standard ones, as short phrases ("no OB penalty", ...)
+function houseChanges(h) {
+	var c = [];
+	if (!h.obPenalty) c.push("no OB penalty");
+	if (!h.reliefStroke) c.push("free relief");
+	if (h.bagSize !== HOUSE_DEFAULT.bagSize) c.push(h.bagSize ? (h.bagSize + 1) + "-disc bag" : "putter only");
+	if (h.mulligans) c.push(h.mulligans + (h.mulligans > 1 ? " mulligans per " : " mulligan per ") + (h.mullPer ? h.mullPer : "round"));
+	if (h.wind !== HOUSE_DEFAULT.wind) c.push(h.wind);
+	return c;
+}
+
 function newWind() {
 	var dirs = [[0, -1, "N"], [1, -1, "NE"], [1, 0, "E"], [1, 1, "SE"], [0, 1, "S"], [-1, 1, "SW"], [-1, 0, "W"], [-1, -1, "NW"]];
-	var d = dirs[Math.floor(rnd() * 8)], mph = Math.floor(rnd() * 13), L = hyp(d[0], d[1]);
+	var w = WINDS[R.rules.wind] || WINDS.normal;
+	var d = dirs[Math.floor(rnd() * 8)], mph = w[0] + Math.floor(rnd() * (w[1] - w[0] + 1)), L = hyp(d[0], d[1]);
 	return { mph: mph, to: d[2], x: d[0] / L * mph * MPH_TO_MS, y: d[1] / L * mph * MPH_TO_MS };
 }
 

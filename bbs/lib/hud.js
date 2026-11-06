@@ -32,7 +32,7 @@ function helpLine(mode) {
 	var t;
 	if (mode === "putt") t = " ~Scorecard  ~Quit   \x01k\x01hLeft/Right aim   SPACE putt";
 	else if (mode === "relief") t = " \x01hArrows\x01n slide   \x01hENTER\x01n take this spot   \x01hESC\x01n cancel";
-	else t = " ~View ~Relief ~Scorecard ~Quit  \x01k\x01h1-8 disc  Arrows " + (V.view === "pov" ? "turn" : "aim");
+	else t = " ~View ~Relief ~Scorecard ~Quit  \x01k\x01h1-9 disc  Arrows " + (V.view === "pov" ? "turn" : "aim");
 	put(1, HELP_Y, "\x01n\x01w" + t, PANEL_X - 2);
 }
 

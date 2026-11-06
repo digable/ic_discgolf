@@ -7,10 +7,11 @@
 "use strict";
 
 // ---- Round and hole ---------------------------------------------------------
+// The round plays by a copy of the house rules as they are now (see house in state.js)
 function startRound(course) {
-	R = { course: course, holes: [], strokes: [], lost: [] };
+	R = { course: course, holes: [], strokes: [], lost: [], rules: copyHouse(house), mullUsed: {}, mullTotal: 0 };
 	S = null;
-	bagChanged();
+	fitBag(R.rules.bagSize);                     // a putter, and no more discs than allowed
 	for (var i = 0; i < course.holes.length; i++) { R.holes.push(buildHole(course.holes[i], i)); R.strokes.push(0); }
 	return R;
 }
@@ -30,7 +31,7 @@ function startHole(idx) {
 		H: H, lie: { x: H.tee.x, y: H.tee.y }, aim: { x: H.basket.x, y: H.basket.y }, strokes: 0, disc: 0,
 		hand: prev ? prev.hand : player.hand,
 		style: prev ? (prev.style === "TH" ? player.style : prev.style) : player.style,
-		angle: "F", wind: newWind(), pitch: false, found: washedUp(H)
+		angle: "F", wind: newWind(), pitch: false, found: washedUp(H), undo: null
 	};
 	PT = null;
 	autoPickDisc();
@@ -60,14 +61,16 @@ function moveAim(dc, dr) {
 
 // ---- Throwing ---------------------------------------------------------------
 // One throw from S.lie toward S.aim with the swing sw (from the meter: { power, over,
-// accuracy } or { whiff, power }). Counts it (and an OB penalty), moves the lie and gets
-// ready for the next throw: aim back on the basket, the disc picked for it, no pitch-out. Returns
+// accuracy } or { whiff, power }). Counts it (and an OB penalty, if the house rules have one),
+// moves the lie and gets ready for the next throw: aim back on the basket, the disc picked for
+// it, no pitch-out. Remembers how things were before it, for a mulligan. Returns
 //   { sw, disc, style, pitch, from, dist (meters), flight (what fly returned),
-//     outcome: "in" (in the basket), "ob" (+1, now at flight.lastIn) or "lie",
-//     water: what waterFate returned, if it went in the water }
+//     outcome: "in" (in the basket), "ob" (+1 unless the house rules say not, now at
+//     flight.lastIn) or "lie", penalty: strokes added, water: what waterFate returned, if it went in the water }
 function takeThrow(sw) {
 	var H = S.H, from = { x: S.lie.x, y: S.lie.y };
-	var shot = { sw: sw, disc: curDisc(), style: S.style, pitch: S.pitch, from: from };
+	var shot = { sw: sw, disc: curDisc(), style: S.style, pitch: S.pitch, from: from, penalty: 0 };
+	S.undo = { lie: from, strokes: S.strokes, aim: { x: S.aim.x, y: S.aim.y }, disc: S.disc, pitch: S.pitch, lost: R.lost.length };
 	S.strokes++;
 	var f = fly(sw);
 	shot.flight = f;
@@ -79,7 +82,7 @@ function takeThrow(sw) {
 		return shot;
 	}
 	if (f.ob) {
-		S.strokes++;
+		if (R.rules.obPenalty) { S.strokes++; shot.penalty = 1; }
 		S.lie = f.lastIn || from;
 		shot.outcome = "ob";
 		if (f.obTile === "W") shot.water = waterFate(H, f.end, shot.disc);
@@ -88,6 +91,27 @@ function takeThrow(sw) {
 	S.aim = { x: H.basket.x, y: H.basket.y };
 	autoPickDisc();
 	return shot;
+}
+
+// ---- Mulligans (house rules) ----------------------------------------------------
+// The house rules allow R.rules.mulligans rethrows in each stretch of mullPer holes (0: the
+// whole round): holes 1-9 are one stretch, 10-18 the next, and so on.
+function mullStretch() { return R.rules.mullPer ? Math.floor((S.H.num - 1) / R.rules.mullPer) : 0; }
+function mulligansLeft() { return Math.max(0, R.rules.mulligans - (R.mullUsed[mullStretch()] || 0)); }
+// The last throw can be taken back (none since: no relief or putt)
+function canMulligan() { return !!S.undo && mulligansLeft() > 0; }
+
+// Takes the last throw back: the stroke, any penalty, a disc lost in the water. The player is back
+// where they threw from, with the same disc and aim, to throw again. False if not allowed.
+function takeMulligan() {
+	if (!canMulligan()) return false;
+	var u = S.undo, st = mullStretch();
+	if (R.lost.length > u.lost) { R.lost.length = u.lost; bagChanged(); }
+	S.lie = u.lie; S.strokes = u.strokes; S.aim = u.aim; S.disc = u.disc; S.pitch = u.pitch;
+	S.undo = null;
+	R.mullUsed[st] = (R.mullUsed[st] || 0) + 1;
+	R.mullTotal++;
+	return true;
 }
 
 // The chance of getting disc d back from depth meters out in the water
@@ -107,7 +131,7 @@ function waterFate(H, p, d) {
 	return { depth: depth, lost: lost, putter: putter };
 }
 
-// ---- Relief (PDGA optional relief: +1, back along the line of play) -------
+// ---- Relief (PDGA optional relief: +1 unless the house rules make it free, back along the line of play) -------
 // The spots relief can move to, a map column apart, from the lie (spots[0]) straight back
 // from the basket to the edge of the map. Each is { x, y, back (meters behind the lie) }.
 function reliefSpots() {
@@ -122,11 +146,13 @@ function reliefSpots() {
 	return spots;
 }
 
-// Takes relief at spot p (one of reliefSpots): +1 throw. False if p is out of bounds.
+// Takes relief at spot p (one of reliefSpots): +1 throw (house rules can make it free). False if
+// p is out of bounds.
 function takeRelief(p) {
 	var H = S.H;
 	if (isOB(tileAt(H, p))) return false;
-	S.strokes++;
+	if (R.rules.reliefStroke) S.strokes++;
+	S.undo = null;
 	S.lie = { x: p.x, y: p.y };
 	S.pitch = false;                             // out of the woods: no pitch-out
 	S.aim = { x: H.basket.x, y: H.basket.y };
@@ -177,11 +203,13 @@ function puttWorld(u, lat) {
 function tapIn() {
 	PT.comp = { aim: 0, timing: 0, drift: 0, fade: 0 };
 	S.strokes++;
+	S.undo = null;
 	S.lie = { x: S.H.basket.x, y: S.H.basket.y };
 }
 
 // One putt with the swing sw. Counts it and moves the lie to where the disc stops; a miss
-// that ends out of bounds (an island green, say) is +1 and stays where it was putted from.
+// that ends out of bounds (an island green, say) is +1 (unless the house rules say not) and stays
+// where it was putted from. Putts can't be mulliganed.
 // Returns { made, kind, band, lateral, along, endLat, need, thrown, over, ob }:
 //   kind: "made" (band: off the band and in), "short", "spit", "cage", "over" or "miss"
 //   lateral: meters right of the basket as it got there; along: where it ends, meters short of
@@ -190,6 +218,7 @@ function tapIn() {
 function takePutt(sw) {
 	var H = S.H, from = { x: S.lie.x, y: S.lie.y };
 	S.strokes++;
+	S.undo = null;
 	var dom = domHand(), accMul = (dom ? 1 : OFF_ACC) * (sw.over ? OVER_ACC : 1);
 	var need = PT.dist + PT.dz / FT;                          // uphill plays longer
 	var thrown = (sw.power / 100) * PUTT_M * (sw.whiff ? 0.6 : 1);
@@ -222,7 +251,7 @@ function takePutt(sw) {
 	else {
 		S.lie = { x: H.basket.x + PT.bx * along + PT.rx * endLat, y: H.basket.y + PT.by * along + PT.ry * endLat };
 		var endT = tileAt(H, S.lie);
-		if (isOB(endT)) { S.strokes++; S.lie = from; res.ob = endT; }
+		if (isOB(endT)) { if (R.rules.obPenalty) S.strokes++; S.lie = from; res.ob = endT; }
 	}
 	return res;
 }

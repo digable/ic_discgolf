@@ -21,9 +21,9 @@ BBS. Keep the split: a rule goes in a rules file, never in a door loop.
 | `lib/courses.js` | The courses and their holes. The comment at the top explains each field; each course's details are in the main README, "Courses". |
 | `lib/player.js` | The player: name, hands, throws and the bag. |
 | `lib/holes.js` | Building a hole from the course data: trees, lies and elevation. |
-| `lib/state.js` | The game state (`R` the round, `S` the hole being played, `PT` the putt), wind, disc range and the automatic disc pick. |
+| `lib/state.js` | The game state (`R` the round, `S` the hole being played, `PT` the putt), house rules, wind, disc range and the automatic disc pick. |
 | `lib/flight.js` | Disc flight: how a throw curves, and where it ends up. |
-| `lib/rules.js` | Playing it: start a round or hole, aim, throw, take relief, putt. Each changes the state and returns what happened. |
+| `lib/rules.js` | Playing it: start a round or hole, aim, throw, take a mulligan or relief, putt. Each changes the state and returns what happened. |
 | **The door** | |
 | `lib/screen.js` | The clock, raw ANSI output (tracks cursor and color) and key input. |
 | `lib/meter.js` | Lag measurement and the 3-click swing meter. |
@@ -34,7 +34,7 @@ BBS. Keep the split: a rule goes in a rules file, never in a door loop.
 | `lib/shot.js` | The throw (swing, the flight on the map, what happened) and the relief screen. |
 | `lib/putt.js` | Putting: overhead and from-the-player views. |
 | `lib/round.js` | Playing a hole, the scorecard and a full round. |
-| `lib/menus.js` | Title screen, signing in (BBS alias or a typed web name, welcome back), player setup, bag and how to play. |
+| `lib/menus.js` | Title screen, signing in (BBS alias or a typed web name, welcome back), player setup, house rules, bag and how to play. |
 
 ## How the files fit together
 
@@ -101,5 +101,9 @@ each visit.
   use a negative height for a dip.
 - **Meter and player tuning:** the constants in `lib/config.js` (`SWEEP_SEC`, `LEVELS`, `OFF_HAND`,
   `PUTT_M`, and so on).
+- **House rules:** the defaults are `HOUSE_DEFAULT` in `lib/state.js`, the biggest bag is `BAG_MOST` and the
+  wind ranges are `WINDS` in `lib/config.js`, and the screen is `HOUSE_FORM` in `lib/menus.js`. Rules code
+  reads only the round's copy, `R.rules`. If you add a rule, also add it to `houseFrom` in
+  `../api/players.js`, or the save service will refuse to save it.
 
 After editing, refresh the web page to play your changes; **Restart** reloads the game.

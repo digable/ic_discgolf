@@ -1,5 +1,5 @@
 // GET  /api/players/:handle   a BBS player's saved settings ({ saved: false } and 404 if none)
-// POST /api/players/:handle   save them: { name, hand, style, level, flightPath, puttView, bag }
+// POST /api/players/:handle   save them: { name, hand, style, level, flightPath, puttView, bag, house }
 //
 // Only the BBS door can use these routes (isDoor in _helpers.js: the door key, sent straight
 // from this machine). Anything else gets the same 404 as a route that doesn't exist, so web
@@ -10,8 +10,21 @@ const { checkRateLimit } = require("./_rateLimit");
 const { getIp, isDoor, send, err } = require("./_helpers");
 const { MAX_NAME, slugOf } = require("./_names");
 
-const BAG_MAX = 8;        // bbs/lib/config.js
+const BAG_MOST = 25;      // bbs/lib/config.js: the biggest bag, besides the putter
+const BAG_MAX = BAG_MOST + 1;
 const MAX_DISC_NAME = 30;
+const WINDS = ["calm", "normal", "windy"];   // bbs/lib/config.js
+
+// House rules (bbs/lib/state.js), or { error }. Doors from before house rules don't send them: {}.
+function houseFrom(h) {
+  if (h === undefined) return {};
+  if (!h || typeof h !== "object" || Array.isArray(h)) return { error: "Bad house rules" };
+  const ok = typeof h.obPenalty === "boolean" && typeof h.reliefStroke === "boolean" &&
+    Number.isInteger(h.bagSize) && h.bagSize >= 0 && h.bagSize <= BAG_MOST &&
+    [0, 1, 2].includes(h.mulligans) && [0, 9, 18, 27].includes(h.mullPer) && WINDS.includes(h.wind);
+  if (!ok) return { error: "Bad house rules" };
+  return { obPenalty: h.obPenalty, reliefStroke: h.reliefStroke, bagSize: h.bagSize, mulligans: h.mulligans, mullPer: h.mullPer, wind: h.wind };
+}
 
 // The settings in a POST body, or { error } if they don't make sense
 function settingsFrom(b) {
@@ -27,7 +40,9 @@ function settingsFrom(b) {
       bag.some((d) => typeof d !== "string" || !d || d.length > MAX_DISC_NAME) || new Set(bag).size !== bag.length) {
     return { error: "Bad bag" };
   }
-  return { name: b.name, hand: b.hand, style: b.style, level: b.level, flightPath: b.flightPath, puttView: b.puttView, bag };
+  const house = houseFrom(b.house);
+  if (house.error) return house;
+  return { name: b.name, hand: b.hand, style: b.style, level: b.level, flightPath: b.flightPath, puttView: b.puttView, bag, house };
 }
 
 module.exports = async function handler(req, res) {
@@ -54,13 +69,13 @@ module.exports = async function handler(req, res) {
       if (slugOf(s.name) !== handle) return err(res, 400, "Name doesn't match the handle");
       const now = Date.now();
       await db.run(
-        `INSERT INTO players (handle, name, hand, style, level, flight_path, putt_view, bag, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO players (handle, name, hand, style, level, flight_path, putt_view, bag, house, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (handle) DO UPDATE SET
            name = excluded.name, hand = excluded.hand, style = excluded.style, level = excluded.level,
            flight_path = excluded.flight_path, putt_view = excluded.putt_view, bag = excluded.bag,
-           updated_at = excluded.updated_at`,
-        [handle, s.name, s.hand, s.style, s.level, s.flightPath ? 1 : 0, s.puttView, JSON.stringify(s.bag), now, now]
+           house = excluded.house, updated_at = excluded.updated_at`,
+        [handle, s.name, s.hand, s.style, s.level, s.flightPath ? 1 : 0, s.puttView, JSON.stringify(s.bag), JSON.stringify(s.house), now, now]
       );
       return send(res, 200, { saved: true });
     }

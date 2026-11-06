@@ -31,7 +31,7 @@ function playHole(idx) {
 		var k = key(), ku = k.toUpperCase(), oldAim = { x: S.aim.x, y: S.aim.y };
 		if (k === " ") {
 			var r = throwShot();
-			if (r === "in") return S.strokes;
+			if (r === "in") return S.strokes;              // "mulligan": back where it was thrown from
 			V.view = null; V.pov = null;
 			needDraw = true;
 			continue;
@@ -85,9 +85,26 @@ function scorecard(cur, final) {
 	for (b = 0; b < nb; b++) scoreBlock(b * per, Math.min(n, (b + 1) * per), b === nb - 1, cur, (nb === 1 ? 6 : 5 + b * 5), gap);
 	var rel = roundToPar();
 	var y = nb === 1 ? 15 : 5 + nb * 5;
-	put(3, y, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)), 60);
+	put(3, y, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)) +
+		(R.rules.mulligans ? "\x01n\x01k\x01h    Mulligans used: \x01n" + R.mullTotal : ""), 60);
+	var hr = houseRows(R.rules, 76);                    // the rules this round is played by, if not standard
+	for (var i = 0; i < hr.length; i++) put(3, ++y, hr[i], 76);
 	lostLines(y + 1);
 	waitKey(final ? "Press any key to return to the clubhouse" : "Press any key to keep playing");
+}
+
+// House rules h that aren't standard, as screen rows of at most width characters:
+// ["House rules: no OB penalty, free relief, ...", "more, ..."], or [] with the standard rules
+function houseRows(h, width) {
+	var c = houseChanges(h), rows = [], line = "House rules: ", i;
+	for (i = 0; i < c.length; i++) {
+		var add = c[i] + (i < c.length - 1 ? "," : "");
+		if (line.length + add.length > width && line.length > 13) { rows.push(line); line = "             "; }
+		line += add + " ";
+	}
+	if (c.length) rows.push(line);
+	for (i = 0; i < rows.length; i++) rows[i] = i ? "\x01n" + rows[i] : "\x01n\x01yHouse rules: \x01n" + rows[i].slice(13);
+	return rows;
 }
 
 function discList(discs) {

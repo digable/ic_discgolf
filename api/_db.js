@@ -82,6 +82,7 @@ const ready = driver.exec(`
     flight_path INTEGER NOT NULL CHECK (flight_path IN (0, 1)),
     putt_view   TEXT    NOT NULL CHECK (putt_view IN ('side', 'top', 'pov')),
     bag         TEXT    NOT NULL DEFAULT '[]',      -- JSON ["KC Aviar", ...], slowest first
+    house       TEXT    NOT NULL DEFAULT '{}',      -- JSON house rules { obPenalty, bagSize, ... } (see bbs/lib/state.js)
     created_at  INTEGER NOT NULL,                   -- ms since epoch
     updated_at  INTEGER NOT NULL
   );
@@ -93,7 +94,11 @@ const ready = driver.exec(`
   );
   CREATE INDEX IF NOT EXISTS rate_limit_hits_key     ON rate_limit_hits (key, hit_at);
   CREATE INDEX IF NOT EXISTS rate_limit_hits_expires ON rate_limit_hits (expires_at);
-`);
+`).then(async () => {
+  // Databases made before house rules: add the column
+  const cols = await driver.all("PRAGMA table_info(players)");
+  if (!cols.some((c) => c.name === "house")) await driver.exec("ALTER TABLE players ADD COLUMN house TEXT NOT NULL DEFAULT '{}'");
+});
 
 // --- query queue --------------------------------------------------------------
 
@@ -145,6 +150,7 @@ function playerFromRow(row) {
     flightPath: !!row.flight_path,
     puttView: row.putt_view,
     bag: JSON.parse(row.bag),
+    house: JSON.parse(row.house || "{}"),
     updatedAt: new Date(row.updated_at).toISOString()
   };
 }

@@ -296,7 +296,7 @@ function putt() {
 	var p = takePutt(swingMeter(R.lag)), line = puttLine(p);
 	puttFlight(p.kind === "spit" ? "miss" : p.kind, p.along, p.endLat);
 	if (p.ob) {
-		msg(line + " \x01h\x01r" + (p.ob === "W" ? "In the water!" : "Out of bounds!") + "\x01n +1, putt again from your spot.");
+		msg(line + " \x01h\x01r" + (p.ob === "W" ? "In the water!" : "Out of bounds!") + "\x01n " + penaltyText(R.rules.obPenalty ? 1 : 0) + ", putt again from your spot.");
 		waitKey("Press any key");
 		return false;
 	}
