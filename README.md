@@ -8,7 +8,7 @@ meter. The same game script runs in two places:
   the real door, with a simulated connection (lag, jitter, modem speeds),
   so testers can play without dialing in.
 
-45 courses at 42 real disc golf parks in the USA, Sweden, Norway and Finland, including all of UDisc's top 25 in the USA and in the world (see [Courses](#courses)). Turkey Creek can also be played photo-accurate, traced from aerial photos.
+47 courses at 44 real disc golf parks in the USA, Sweden, Norway and Finland, including all of UDisc's top 25 in the USA and in the world (see [Courses](#courses)). Turkey Creek can also be played photo-accurate, traced from aerial photos.
 
 ## Players and saved settings
 
@@ -143,6 +143,8 @@ state, so they sort after the ones that do. A course with a photo-traced version
 | 43 | Äppelgården | 18 | 63 | 6,741 ft | 4.6 | Båstad, Sweden |
 | 44 | Järva | 18 | 56 | 5,815 ft | 4.6 | Kista, Sweden |
 | 45 | Häfla Bruks | 18 | 59 | 6,745 ft | 4.6 | Rejmyre, Sweden |
+| 46 | Graceland University | 9 | 27 | 3,645 ft | 3.3 | Graceland University, 1 University Pl, Lamoni, IA 50140 |
+| 47 | Legion Park | 26 | 86 | 10,003 ft | 3.2 | Legion Park, at the back of Thomas Park, Marion, IA 52302 |
 
 Every course's hole lengths and pars are the real ones, from its UDisc listing
 (2026). The rest of each hole (fairway shapes and bends, woods, single trees,
@@ -162,7 +164,7 @@ public course page shows hole by hole, which isn't always the main one, and some
 the Regular level's reach. Their pars and lengths are real, but sources describe very few of
 their holes one by one, so the shapes, woods, hills and most ponds were drawn by a script from
 each course's overall character. Treat them as much rougher than courses 1-9, and adjust any
-hole to match the real one.
+hole to match the real one. Graceland University (46) and Legion Park (47) are drawn the same way.
 
 ### 1. Turkey Creek
 
@@ -501,6 +503,18 @@ hole to match the real one.
 - **The course:** Established 2021, 50 kr a day. Very hilly, through forest and meadow, with longer holes and water in play on the back nine.
 - **In the game:** UDisc's "GUL (main course)" layout, par 59. Hole 15's water is from a photo caption. The other two ponds (holes 10 and 16) are guesses, on the back nine.
 
+### 46. Graceland University
+
+- **Where:** The Graceland University campus in Lamoni, Iowa. The first tee is at the top of the hill north of the library parking lot. [Map](https://www.google.com/maps?q=40.616342,-93.929094) · [UDisc](https://udisc.com/courses/graceland-university-deRg) · [PDGA](https://www.pdga.com/course-directory/course/graceland-university)
+- **The course:** 18 holes, free, established 1999, concrete tees and Mach II baskets. PDGA: "Long front 9, wide open over rolling hills and around Founders Lake. Back 9 has tight fairways and new growth rough." UDisc calls it mostly flat. Reviews say the back nine is poorly kept, and hole 5 tees off a public street.
+- **In the game:** UDisc's "Front 9" layout, its most played: 9 holes, all par 3, 3,645 ft. The full 18's hole lengths aren't public (UDisc needs a login, and no other source lists them), so the back nine isn't in the game. Open campus holes with gentle slopes, drawn by the same script as courses 10-45. The library lot by hole 1's tee, the street behind hole 5's tee, and Founders Lake along holes 6 and 7 are placed from the descriptions; which holes play by the lake is a guess.
+
+### 47. Legion Park
+
+- **Where:** Legion Park, at the back of Thomas Park in Marion, Iowa, along Indian Creek. Hole 1 is at the end of the road into Legion. [Map](https://www.google.com/maps?q=42.028694,-91.611015) · [UDisc](https://udisc.com/courses/legion-park-ecoX) · [PDGA](https://www.pdga.com/course-directory/course/legion-park)
+- **The course:** Free, established 1992, designed by Ed Headrick, concrete tees and Mach III/VII baskets. UDisc's 2024 layout mixes the old Legion course with Krumboltz: the first holes play in the open, the rest in Krumboltz's marsh, with tight fairways lined by long grass. Reviews: "a nice walk along Indian Creek", mostly 280-350 ft tunnels with swamp, creek and path out of bounds, and thick rough ("wear long socks"). PDGA: alternating open and wooded holes, water hazards, half flat and half hills.
+- **In the game:** UDisc's "Legion 26 Holes July 2026" layout, its most played: par 86, 10,003 ft (UDisc's total says 10,002). Holes 1-4 are open; the road is behind hole 1's tee; from hole 5 on it's mostly wooded tunnels. Indian Creek crosses holes 11, 13 and 26, and marsh lines 9, 18 and 19; those holes are guesses (no source says which ones), and the paths aren't drawn. A lost disc can wash up on a later hole on the same creek or marsh.
+
 
 ## Files
 
@@ -697,7 +711,11 @@ your own computer first").
   [High Bridge](https://udisc.com/courses/high-bridge-dgc-fhad),
   [Peninsula Park](https://udisc.com/courses/peninsula-park-jLph),
   [Altmaier Park](https://udisc.com/courses/coralville-disc-golf-altmaier-park-qUWO),
-  [Blue Ribbon Pines](https://udisc.com/courses/blue-ribbon-pines-aCxV), and each top 25 course's own link above.
+  [Blue Ribbon Pines](https://udisc.com/courses/blue-ribbon-pines-aCxV),
+  [Graceland University](https://udisc.com/courses/graceland-university-deRg),
+  [Legion Park](https://udisc.com/courses/legion-park-ecoX), and each top 25 course's own link above.
+- Legion Park's address, description and directions: [PDGA](https://www.pdga.com/course-directory/course/legion-park).
+- Graceland University's address, description and directions: [PDGA](https://www.pdga.com/course-directory/course/graceland-university).
 - Blue Ribbon Pines history, holes and reviews:
   [UDisc's article](https://udisc.com/blog/post/worlds-best-disc-golf-courses-6-blue-ribbon-pines),
   [Disc Golf Scene](https://www.discgolfscene.com/courses/Blue_Ribbon_Pines/reviews);
