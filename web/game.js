@@ -119,10 +119,12 @@
 			: "max " + ft(discRange(d, S.style, domHand()) * (S.pitch ? PITCH_POWER : 1)) + " ft";
 		$("discDot").style.background = discColor(pd);
 		$("discDot").setAttribute("aria-label", "Disc: " + pd.name + ". Next disc (D)");
-		chipText("tStyle", "Throw", S.pitch ? "pitch-out" : styleName(S.style).toLowerCase(), "T");
-		chipText("tHand", "Hand", handName(S.hand).toLowerCase() + (domHand() ? "" : " (off)"), "H");
-		chipText("tAngle", "Angle", S.style === "TH" ? "-" : angleName(S.angle).toLowerCase(), "A");
-		$("tStyle").disabled = $("tAngle").disabled = $("discDot").disabled = putting;
+		// the throw, hand and angle switches: every choice, the one in use filled in. Putting uses
+		// neither a throw nor an angle; a tomahawk has no angle. The hand you don't throw with says "off".
+		segHtml("tStyle", throwChoices().map(function (t) { return [t, t === "PO" ? "pitch-out" : styleName(t).toLowerCase()]; }), S.pitch ? "PO" : S.style, putting);
+		segHtml("tHand", HANDS.map(function (h) { return [h, handName(h).toLowerCase() + (h === player.hand ? "" : " <small>off</small>")]; }), S.hand, false);
+		segHtml("tAngle", [["H", "hyzer"], ["F", "flat"], ["A", "anhyzer"]], S.style === "TH" ? null : S.angle, putting || S.style === "TH");
+		$("discDot").disabled = putting;
 		$("wText").textContent = S.wind.mph ? S.wind.mph + " mph" : "calm";
 		// relief (any throw, as the door's R) and a mulligan (the throw just taken, if the house rules give one)
 		$("reliefBtn").hidden = phase !== "aim";
@@ -138,8 +140,12 @@
 		var f = Math.round(Math.abs(PT.aim) * FT);
 		return f ? f + " ft " + (PT.aim < 0 ? "left" : "right") + of : "straight at it";
 	}
-	function chipText(id, what, val, key) {
-		var b = $(id); b.querySelector(".v").textContent = val; b.setAttribute("aria-label", what + ": " + val + ". Change (" + key + ")");
+	// One switch: opts [value, label], cur the value in use (filled in), off: the whole switch can't be used now
+	function segHtml(id, opts, cur, off) {
+		setHtml($(id), opts.map(function (o) {
+			return "<button type='button' data-v='" + o[0] + "' aria-pressed='" + (o[0] === cur) + "'" + (off ? " disabled" : "") + ">" + o[1] + "</button>";
+		}).join(""));
+		$(id).classList.toggle("off", !!off);
 	}
 	// The wind arrow points the way the wind blows: on the map as the map is drawn, and in the
 	// view from the lie as you face (straight up is a wind at your back)
@@ -377,9 +383,16 @@
 		if (b && b.getAttribute("aria-pressed") !== "true") toggleView();
 	});
 	$("discDot").addEventListener("click", function () { if (phase === "aim") { S.disc = (S.disc + 1) % bagDiscs().length; hud(); } });
-	$("tStyle").addEventListener("click", function () { if (phase === "aim") { nextThrow(); hud(); } });
-	$("tHand").addEventListener("click", function () { if (phase === "aim" || phase === "putt") { S.hand = S.hand === "R" ? "L" : "R"; hud(); } });
-	$("tAngle").addEventListener("click", function () { if (phase === "aim" && S.style !== "TH") { S.angle = cycle(ANGLES, S.angle); hud(); } });
+	// The throw, hand and angle: a tap picks that choice; T, H and A cycle them (as on the BBS)
+	function setThrow(t) { if (phase !== "aim") return; S.pitch = t === "PO"; S.style = S.pitch ? "BH" : t; hud(); }
+	function setHand(h) { if (phase !== "aim" && phase !== "putt") return; S.hand = h; hud(); }
+	function setAngle(a) { if (phase !== "aim" || S.style === "TH") return; S.angle = a; hud(); }
+	$("toggles").addEventListener("click", function (e) {
+		var b = e.target.closest("button[data-v]");
+		if (!b || b.disabled) return;
+		var which = b.parentNode.id, v = b.dataset.v;
+		if (which === "tStyle") setThrow(v); else if (which === "tHand") setHand(v); else if (which === "tAngle") setAngle(v);
+	});
 	$("cardBtn").addEventListener("click", function () { if (cardOpen) closeCard(); else openCard(); });
 	$("reliefBtn").addEventListener("click", function () { startRelief(); });
 	$("mullBtn").addEventListener("click", function () { mulligan(); });
@@ -514,14 +527,14 @@
 			else if (k === "ArrowUp") { turn ? moveAim(1, 0) : moveAim(0, -1); e.preventDefault(); }
 			else if (k === "ArrowDown") { turn ? moveAim(-1, 0) : moveAim(0, 1); e.preventDefault(); }
 			else if (K === "D") $("discDot").click();
-			else if (K === "T") $("tStyle").click();
-			else if (K === "A") $("tAngle").click();
-			else if (K === "H") $("tHand").click();
+			else if (K === "T") setThrow(cycle(throwChoices(), S.pitch ? "PO" : S.style));
+			else if (K === "A") setAngle(cycle(ANGLES, S.angle));
+			else if (K === "H") setHand(cycle(HANDS, S.hand));
 			else if (/^[1-9]$/.test(k) && +k <= bagDiscs().length) { S.disc = +k - 1; hud(); }
 		} else if (phase === "putt") {
 			if (k === "ArrowLeft") { aimPutt(-0.25); hud(); e.preventDefault(); }
 			else if (k === "ArrowRight") { aimPutt(0.25); hud(); e.preventDefault(); }
-			else if (K === "H") $("tHand").click();
+			else if (K === "H") setHand(cycle(HANDS, S.hand));
 		}
 	});
 	// SPACE already pressed THROW on keydown; don't let it also click whatever button has focus

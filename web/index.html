@@ -38,10 +38,11 @@
       <div class="disc"><button class="dot" id="discDot" type="button" aria-label="Next disc (D)"><kbd class="key" aria-hidden="true">D</kbd></button>
         <div class="dinfo"><div class="dname"><span id="dName">-</span> <span class="label" id="dWeight"></span></div>
           <div class="nums" id="dNums"></div><div class="label" id="dRange"></div></div></div>
-      <div class="toggles">
-        <button class="tg" id="tStyle" type="button"><span class="v">backhand</span><kbd class="key" aria-hidden="true">T</kbd></button>
-        <button class="tg" id="tHand" type="button"><span class="v">right</span><kbd class="key" aria-hidden="true">H</kbd></button>
-        <button class="tg" id="tAngle" type="button"><span class="v">flat</span><kbd class="key" aria-hidden="true">A</kbd></button>
+      <!-- every choice shown, the one in use filled in (game.js fills them); the key cycles them -->
+      <div class="toggles" id="toggles">
+        <span class="cap">throw</span><div class="trow"><div class="seg" id="tStyle" role="group" aria-label="Throw (T cycles)"></div><kbd class="key" aria-hidden="true">T</kbd></div>
+        <span class="cap">hand</span><div class="trow"><div class="seg" id="tHand" role="group" aria-label="Hand (H switches)"></div><kbd class="key" aria-hidden="true">H</kbd></div>
+        <span class="cap">angle</span><div class="trow"><div class="seg" id="tAngle" role="group" aria-label="Release angle (A cycles)"></div><kbd class="key" aria-hidden="true">A</kbd></div>
       </div>
     </div>
     <div class="card windCard"><div class="arrow" id="wArrow" aria-hidden="true">↑</div><div><div class="label">wind</div><div class="dname" id="wText">calm</div></div></div>
