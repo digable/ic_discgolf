@@ -146,9 +146,10 @@ var POVW = (function () {
 
 	// The flight of a perfect 100% throw (world points, the last one where it lands: game.js's aimLine),
 	// along the ground under the disc - the map's dotted line, seen from here - and the landing ring
-	function rangePath(g, C, world) {
+	// path false (Setup's flight path: hidden): just the landing ring
+	function rangePath(g, C, world, path) {
 		var pts = [];
-		world.forEach(function (p) { var q = C.proj(p, 0); if (q) pts.push(q); });
+		if (path !== false) world.forEach(function (p) { var q = C.proj(p, 0); if (q) pts.push(q); });
 		g.save(); g.setLineDash([2, 7]); g.lineCap = "round"; g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,.9)";
 		g.beginPath(); pts.forEach(function (q, i) { if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.stroke(); g.restore();
 		var land = C.proj(world[world.length - 1], 0);

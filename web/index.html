@@ -21,6 +21,8 @@
     <div class="grow"></div>
     <div class="chip"><small id="hThrowLabel">throw</small><span id="hThrow">1</span></div>
     <div class="chip"><small>round</small><span id="hRound">E</span></div>
+    <button class="chip btn" id="reliefBtn" type="button" title="Optional relief: move back along the line from the basket (R)" hidden>relief</button>
+    <button class="chip btn" id="mullBtn" type="button" title="Mulligan: take that throw back and throw it again (M)" hidden>mulligan</button>
     <button class="chip btn" id="viewBtn" type="button" title="Switch between the map and the view from your lie (V)">view from lie</button>
     <button class="chip btn" id="cardBtn" type="button" title="The scorecard, and quitting the round (C)" aria-haspopup="dialog" aria-expanded="false">card</button>
   </div>
@@ -51,16 +53,13 @@
   </div>
 
   <div class="sheet" id="menu" hidden>
-    <div class="sheetIn" role="dialog" aria-label="Pick a course">
-      <h1>IC Disc Golf</h1>
-      <p class="label">The same game as the <a href="../">terminal</a> and the BBS, drawn for the web. Your hand, throw and arm are remembered in this browser; everyone plays the default bag.</p>
-      <div class="opts">
-        <div><span class="label">hand</span> <button class="tg" data-opt="hand" data-v="R">right</button><button class="tg" data-opt="hand" data-v="L">left</button></div>
-        <div><span class="label">usual throw</span> <button class="tg" data-opt="style" data-v="BH">backhand</button><button class="tg" data-opt="style" data-v="FH">forehand</button></div>
-        <div><span class="label">arm</span> <button class="tg" data-opt="level" data-v="reg">regular</button><button class="tg" data-opt="level" data-v="pro">pro</button></div>
+    <div class="sheetIn menuIn" role="dialog" aria-labelledby="menuTitle">
+      <h1 id="menuTitle">IC Disc Golf</h1>
+      <p class="label">The same game as the <a href="../">terminal</a> and the BBS, drawn for the web. Your setup, bag and house rules are kept in this browser.</p>
+      <div class="tabs" role="tablist" aria-label="Menu">
+        <button type="button" role="tab" data-tab="play">Play</button><button type="button" role="tab" data-tab="setup">Setup</button><button type="button" role="tab" data-tab="bag">Bag</button><button type="button" role="tab" data-tab="house">House rules</button>
       </div>
-      <input class="search" id="search" type="search" placeholder="Find a course" aria-label="Find a course">
-      <ul class="courses" id="courses"></ul>
+      <div id="menuBody" role="tabpanel"></div>
     </div>
   </div>
 
@@ -78,11 +77,15 @@
 <script src="../bbs/lib/flight.js"></script>
 <script src="../bbs/lib/rules.js"></script>
 <script src="../bbs/lib/meter.js"></script>
+<script src="../bbs/lib/saves.js"></script>  <!-- only its checks for saved settings (applySettings, currentSettings) -->
 <script src="../bbs/lib/pov.js"></script>    <!-- only its camera (POV) and the gap through the trees (povHits, gapInfo) -->
 <script src="../bbs/lib/shot.js"></script>   <!-- only its result wording (scoreName, waterLine...) -->
 <script src="../bbs/lib/putt.js"></script>   <!-- only its result wording (puttLine, puttWhy) -->
+<script src="../bbs/lib/menus.js"></script>  <!-- only its forms and lists (SETUP, HOUSE_FORM, BAG_COLS, toggleBag, courseOrder...) -->
+<script src="text.js"></script>
 <script src="draw.js"></script>
 <script src="pov.js"></script>
+<script src="menu.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

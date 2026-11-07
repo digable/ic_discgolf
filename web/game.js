@@ -19,56 +19,17 @@
 	var puttCam = null;        // where a putt is seen from (it stays put while the putt flies)
 	var cardOpen = false;      // the scorecard is open over the hole
 
-	// ---- text -----------------------------------------------------------------------------------
-	function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-	// The game's text is CP437 (what the terminal draws): bytes 128-255 as their DOS characters, the same table
-	// as the terminal's (scripts/terminal.js)
-	var CP437_HI = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ";
-	function cp(t) { return String(t).replace(/[\x80-\xff]/g, function (c) { return CP437_HI[c.charCodeAt(0) - 128]; }); }
-	function html(t) { return esc(cp(t)); }   // the game's own text (CP437) as HTML
-	// The door's wording, with its Ctrl-A colour codes, as HTML
-	var CA = { k: "c-k", r: "c-r", g: "c-g", y: "c-y", b: "c-b", m: "c-m", c: "c-c", w: "c-w" };
-	function ctrlA(s) {
-		s = cp(s);
-		var out = "", cls = [], open = false, i, ch;
-		for (i = 0; i < s.length; i++) {
-			ch = s[i];
-			if (ch === "\x01" && i + 1 < s.length) {
-				var c = s[++i].toLowerCase();
-				if (c === "n") cls = []; else if (c === "h") cls.push("hi"); else if (CA[c]) cls = cls.filter(function (x) { return x === "hi"; }).concat([CA[c]]);
-				if (open) { out += "</span>"; open = false; }
-				if (cls.length) { out += '<span class="' + cls.join(" ") + '">'; open = true; }
-				continue;
-			}
-			out += esc(ch);
-		}
-		return out + (open ? "</span>" : "");
-	}
+	// ---- text (text.js: the door's wording as HTML) ------------------------------------------------
+	var esc = TEXT.esc, cp = TEXT.cp, html = TEXT.html, ctrlA = TEXT.ctrlA;
 	// Sets an element's HTML only when it changed (no layout work for the same text every frame)
 	function setHtml(el, h) { if (el._html !== h) { el._html = h; el.innerHTML = h; } }
+	var lastSaid = "";         // the last result shown (the hole-done screen repeats how the hole ended)
 	function say(s) {
+		lastSaid = s;
 		$("msg").innerHTML = ctrlA(s); $("msg").hidden = !s;
 		if (S) layout();
 	}
 	function relText(rel) { return rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel)); }
-
-	// ---- settings, kept in this browser -----------------------------------------------------------
-	var SETTINGS = "icdg.settings";
-	function loadSettings() {
-		try {
-			var s = JSON.parse(localStorage.getItem(SETTINGS) || "{}");
-			if (!s.puttView) s.puttView = localStorage.getItem("icdg.puttView");   // kept on its own before
-			if (s.hand === "R" || s.hand === "L") player.hand = s.hand;
-			if (s.style === "BH" || s.style === "FH") player.style = s.style;
-			if (LEVELS.hasOwnProperty(s.level)) player.level = s.level;
-			if (s.puttView === "pov" || s.puttView === "top") player.puttView = s.puttView;
-		} catch (e) {}
-	}
-	function saveSettings() {
-		try {
-			localStorage.setItem(SETTINGS, JSON.stringify({ hand: player.hand, style: player.style, level: player.level, puttView: player.puttView }));
-		} catch (e) {}
-	}
 
 	// ---- layout -----------------------------------------------------------------------------
 	function layout() {
@@ -91,57 +52,14 @@
 	}
 	window.addEventListener("resize", layout);
 
-	// ---- the course menu ----------------------------------------------------------------------
-	var traced = {};          // course index -> its photo-traced version's index
-	COURSES.forEach(function (C, i) { if (C.of) COURSES.forEach(function (B, j) { if (B.name === C.of) traced[j] = i; }); });
-	var useTraced = {};
-	function courseRow(i) {
-		var C = COURSES[useTraced[i] ? traced[i] : i], par = 0, len = 0;
-		C.holes.forEach(function (h) { par += h.par; len += h.ft; });
-		var li = document.createElement("li");
-		var b = document.createElement("button"); b.type = "button"; b.className = "course";
-		b.innerHTML = "<b></b><span class='label'></span><span class='meta'></span>";
-		b.querySelector("b").textContent = cp(COURSES[i].name);
-		b.querySelector(".label").textContent = cp(C.where + ", " + C.country);
-		b.querySelector(".meta").textContent = C.holes.length + " holes · par " + par + " · " + len.toLocaleString() + " ft · UDisc " + C.rating.toFixed(1);
-		b.addEventListener("click", function () { play(useTraced[i] ? traced[i] : i); });
-		li.appendChild(b);
-		if (traced[i] !== undefined) {
-			var v = document.createElement("button"); v.type = "button"; v.className = "tg ver" + (useTraced[i] ? " on" : "");
-			v.textContent = useTraced[i] ? "photo-accurate" : "drawn";
-			v.title = "Switch between the drawn course and the one traced from aerial photos";
-			v.setAttribute("aria-pressed", useTraced[i] ? "true" : "false");
-			v.setAttribute("aria-label", "Photo-accurate version of " + cp(COURSES[i].name));
-			v.addEventListener("click", function () { useTraced[i] = !useTraced[i]; listCourses(); });
-			li.appendChild(v);
-		}
-		return li;
-	}
-	function listCourses() {
-		var q = $("search").value.trim().toLowerCase(), ul = $("courses");
-		ul.innerHTML = "";
-		COURSES.map(function (C, i) { return i; }).filter(function (i) { return !COURSES[i].of; })
-			.sort(function (a, b) { var x = sortName(COURSES[a].name), y = sortName(COURSES[b].name); return x < y ? -1 : (x > y ? 1 : 0); })
-			.filter(function (i) { return !q || cp(COURSES[i].name + " " + COURSES[i].where).toLowerCase().indexOf(q) >= 0; })
-			.forEach(function (i) { ul.appendChild(courseRow(i)); });
-	}
-	function syncOpts() {
-		document.querySelectorAll("[data-opt]").forEach(function (b) {
-			var on = String(player[b.dataset.opt]) === b.dataset.v;
-			b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false");
-		});
-	}
-	document.querySelectorAll("[data-opt]").forEach(function (b) {
-		b.addEventListener("click", function () { player[b.dataset.opt] = b.dataset.v; syncOpts(); saveSettings(); });
-	});
-	$("search").addEventListener("input", listCourses);
+	// ---- the menu (menu.js: Play, Setup, Bag, House rules) ------------------------------------------
 	function showMenu() {
-		phase = "menu"; $("menu").hidden = false; $("done").hidden = true; syncOpts(); listCourses();
+		phase = "menu"; $("done").hidden = true;
+		MENU.show();
 	}
 
 	// ---- a round ----------------------------------------------------------------------------
 	function play(ci) {
-		$("menu").hidden = true;
 		player.name = "You";
 		startRound(COURSES[ci]);
 		holeIdx = 0;
@@ -155,8 +73,19 @@
 		readyToThrow();
 	}
 	function readyToThrow() {
-		if (inPuttRange()) { puttSetup(); if (isTapIn()) { tapIn(); say("Tap-in."); return holeOut(); } phase = "putt"; }
+		if (inPuttRange()) {
+			puttSetup();
+			// a tap-in: inside 4 ft the disc is dropped in (one more throw), not putted. Say so, so a hole
+			// that ends without a throw going in doesn't look like it did.
+			if (isTapIn()) {
+				var from = Math.max(1, ft(PT.dist));
+				tapIn();
+				return holeOut("\x01h\x01gTap-in.\x01n It stopped " + from + " ft from the basket, so you dropped it in \x01k\x01h(+1 throw)\x01n.");
+			}
+			phase = "putt";
+		}
 		else phase = "aim";
+		relief = null;
 		view = "map"; pov = null;
 		puttCam = phase === "putt" ? { from: { x: S.lie.x, y: S.lie.y }, ang: Math.atan2(-PT.by, -PT.bx) } : null;
 		if (phase === "aim" && lieInTrees()) startPov();
@@ -164,8 +93,9 @@
 	}
 	// Back to the course menu, from the end of a round or partway through one
 	function leaveRound() {
-		anim = null; meter = null; cardOpen = false; pov = null; puttCam = null;
+		anim = null; meter = null; cardOpen = false; pov = null; puttCam = null; relief = null;
 		$("cardBtn").setAttribute("aria-expanded", "false");
+		$("reliefBtn").hidden = $("mullBtn").hidden = true;
 		endRound(); S = null; pic = null; vw = null;
 		$("gapChip").hidden = true;
 		showMenu();
@@ -194,6 +124,12 @@
 		chipText("tAngle", "Angle", S.style === "TH" ? "-" : angleName(S.angle).toLowerCase(), "A");
 		$("tStyle").disabled = $("tAngle").disabled = $("discDot").disabled = putting;
 		$("wText").textContent = S.wind.mph ? S.wind.mph + " mph" : "calm";
+		// relief (any throw, as the door's R) and a mulligan (the throw just taken, if the house rules give one)
+		$("reliefBtn").hidden = phase !== "aim";
+		$("reliefBtn").textContent = "relief" + (R.rules.reliefStroke ? " +1" : "");
+		var mull = (phase === "aim" || phase === "putt") && canMulligan();
+		$("mullBtn").hidden = !mull;
+		if (mull) $("mullBtn").textContent = "mulligan (" + mulligansLeft() + " left)";
 		windArrow();
 		kick();
 	}
@@ -348,12 +284,18 @@
 	}
 
 	// ---- end of a hole / round -----------------------------------------------------------------
-	function holeOut() {
+	// The hole's done. The screen repeats how it ended (the last result), and then: a tap-in's note, that it
+	// was dropped in rather than thrown in
+	function holeOut(then) {
+		var how = lastSaid;
+		if (then) say(then);
 		R.strokes[holeIdx] = S.strokes;
 		phase = "holeDone";
 		var last = holeIdx === R.holes.length - 1;
 		hud();
-		openSheet("<h2>" + ctrlA(scoreName(S.strokes, S.H.par)) + "</h2><p class='label'>" + S.strokes + " on a par " + S.H.par +
+		var ending = [how, then].filter(function (s) { return s; }).map(ctrlA).join("<br>");
+		openSheet("<h2>" + ctrlA(scoreName(S.strokes, S.H.par)) + "</h2>" + (ending ? "<p class='how'>" + ending + "</p>" : "") +
+			"<p class='label'>" + S.strokes + " on a par " + S.H.par +
 			" · round " + (roundToPar() === 0 ? "even" : relText(roundToPar())) + "</p>" + scorecardHtml() +
 			"<button class='go' id='goBtn' type='button'>" + (last ? "Finish" : "Hole " + (holeIdx + 2) + " →") + "</button>");
 		$("goBtn").addEventListener("click", nextHole);
@@ -435,9 +377,71 @@
 	$("tHand").addEventListener("click", function () { if (phase === "aim" || phase === "putt") { S.hand = S.hand === "R" ? "L" : "R"; hud(); } });
 	$("tAngle").addEventListener("click", function () { if (phase === "aim" && S.style !== "TH") { S.angle = cycle(ANGLES, S.angle); hud(); } });
 	$("cardBtn").addEventListener("click", function () { if (cardOpen) closeCard(); else openCard(); });
+	$("reliefBtn").addEventListener("click", function () { startRelief(); });
+	$("mullBtn").addEventListener("click", function () { mulligan(); });
+
+	// ---- mulligans (house rules): the last throw taken back, to throw again --------------------------
+	function mulligan() {
+		if ((phase !== "aim" && phase !== "putt") || !canMulligan()) return;
+		takeMulligan();
+		say("\x01h\x01mMulligan!\x01n That throw doesn't count. Throw it again" + (mulligansLeft() ? " (" + mulligansLeft() + " left)." : " (that was your last)."));
+		readyToThrow();
+	}
+
+	// ---- relief (house rules: +1 throw, or free): slide back along the line from the basket ---------
+	// As the door's relief screen: the spots a map column apart straight back from the basket; Left/Down
+	// goes further back, Right/Up comes closer, Enter takes it; a tap on the map picks the nearest spot.
+	var relief = null;   // { spots, at }
+	function startRelief() {
+		if (phase !== "aim") return;
+		var spots = reliefSpots();
+		if (spots.length < 2) { say("No room to move back here."); return; }
+		relief = { spots: spots, at: Math.min(spots.length - 1, Math.max(1, Math.round(4 / spots[1].back))) };
+		phase = "relief";
+		say(R.rules.reliefStroke ? "\x01h\x01mOptional relief\x01n (PDGA): +1 throw, move back along the line from the basket."
+			: "\x01h\x01mFree relief\x01n (house rules): move back along the line from the basket.");
+		hud(); syncView(); reliefChip();
+	}
+	function reliefChip() {
+		var sp = relief.spots[relief.at], t = tileAt(S.H, sp), ob = isOB(t);
+		showChip("<b class='c-m'>Relief " + (R.rules.reliefStroke ? "+1 throw" : "free") + "</b> · " + ft(sp.back) + " ft back · " +
+			(ob ? "<span class='c-r hi'>out of bounds</span>" : lieName(t).replace(/^in the |^on the /, "")) + " · " +
+			ft(hyp(S.H.basket.x - sp.x, S.H.basket.y - sp.y)) + " ft to the pin" +
+			"<div class='row center'><button type='button' class='tg' data-relief='take'" + (ob ? " disabled" : "") + ">Take relief here</button>" +
+			"<button type='button' class='tg' data-relief='cancel'>Cancel</button></div>" +
+			"<span class='label kb'>←/→ slide back or forward · Enter takes it · Esc cancels · </span><span class='label tap'>tap a dot to move there</span>");
+		kick();
+	}
+	function slideRelief(d) { relief.at = clamp(relief.at + d, 1, relief.spots.length - 1); reliefChip(); }
+	function takeReliefHere() {
+		var sp = relief.spots[relief.at];
+		if (!takeRelief(sp)) { say("\x01h\x01rThat spot is out of bounds."); return; }
+		say("\x01h\x01mTook relief.\x01n " + (R.rules.reliefStroke ? "+1 throw" : "Free") + ", " + ft(sp.back) + " ft back. " + ft(pinDist()) + " ft to go.");
+		readyToThrow();
+	}
+	function cancelRelief() {
+		relief = null; phase = "aim";
+		say("");
+		$("gapChip").hidden = true;
+		hud(); syncView(); layout();
+		if (view === "pov" && pov) povAim(pov.ang);
+	}
+	$("gapChip").addEventListener("click", function (e) {
+		var b = e.target.closest("[data-relief]");
+		if (!b || !relief) return;
+		if (b.dataset.relief === "take") takeReliefHere(); else cancelRelief();
+	});
+	// A tap on the map in relief: the spot nearest it
+	function reliefAt(ev) {
+		var r = cv.getBoundingClientRect(), p = vw.s2w(ev.clientX - r.left, ev.clientY - r.top), best = 1, bd = 1e9;
+		relief.spots.forEach(function (s, i) { var d = hyp(s.x - p.x, s.y - p.y); if (i && d < bd) { bd = d; best = i; } });
+		relief.at = best; reliefChip();
+	}
+
 	// Aim: click or tap the map (the meter keeps going if it's running)
 	function aimAt(ev, first) {
 		if (!vw) return;
+		if (phase === "relief") return reliefAt(ev);
 		if (phase === "putt") return aimPuttAt(ev);
 		if (phase !== "aim") return;
 		if (view === "pov") {   // in the view from the lie: tap or drag left and right to turn
@@ -478,9 +482,18 @@
 	window.addEventListener("keydown", function (e) {
 		if (e.ctrlKey || e.metaKey || e.altKey || e.target.tagName === "INPUT") return;
 		var k = e.key, K = k.toUpperCase();
-		if (k === "Escape") { closeCard(); return; }
+		if (k === "Escape") { if (cardOpen) closeCard(); else if (relief && gameKeys()) cancelRelief(); return; }
 		if (!gameKeys()) return;
 		kick();
+		if (phase === "relief") {
+			if (k === "ArrowLeft" || k === "ArrowDown") { slideRelief(1); e.preventDefault(); }
+			else if (k === "ArrowRight" || k === "ArrowUp") { slideRelief(-1); e.preventDefault(); }
+			else if (k === "Enter" && e.target.tagName !== "BUTTON") { takeReliefHere(); e.preventDefault(); }
+			else if (K === "R") cancelRelief();
+			return;
+		}
+		if (K === "R" && phase === "aim") { startRelief(); return; }
+		if (K === "M") { mulligan(); return; }
 		if (k === " " || k === "Enter") { if (e.target.tagName === "BUTTON" && k === "Enter") return; e.preventDefault(); if (!e.repeat) press(e.timeStamp); return; }
 		if (K === "V" && (phase === "aim" || phase === "meter" || phase === "putt")) { toggleView(); return; }
 		if (K === "C" && (phase === "aim" || phase === "putt")) { openCard(); return; }
@@ -528,7 +541,7 @@
 	function toggleView() {
 		if (S && puttingNow() && phase !== "rolling") {
 			player.puttView = player.puttView === "pov" ? "top" : "pov";
-			saveSettings();
+			MENU.save();
 			return syncView();
 		}
 		if (!S || !aimingThrow()) return;
@@ -547,7 +560,7 @@
 		$("viewBtn").textContent = on ? (putting ? "overhead" : "map") : (putting ? "from the player" : "view from lie");
 		$("viewBtn").hidden = !(putting || aimingThrow());
 		cv.setAttribute("aria-label", on ? "The view from your lie" : "The hole, seen from above");
-		if (!on && !$("gapChip").hidden) { $("gapChip").hidden = true; layout(); }
+		if (!on && phase !== "relief" && !$("gapChip").hidden) { $("gapChip").hidden = true; layout(); }
 		if (S) windArrow();
 		kick();
 	}
@@ -569,12 +582,13 @@
 		var w = Math.round(box.w), h = Math.round(box.h), C = POVW.cam(S.lie, pov.ang, w, h), line = aimLine();
 		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
 		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
-		g.drawImage(POVW.scene(S.H, C, dpr, line.red), 0, 0, w, h);
-		POVW.rangePath(g, C, line.pts);
+		var path = player.flightPath;   // Setup's flight path: hidden, just the landing ring (and no red trees)
+		g.drawImage(POVW.scene(S.H, C, dpr, path ? line.red : {}), 0, 0, w, h);
+		POVW.rangePath(g, C, line.pts, path);
 		POVW.basket(g, S.H, C);
 		POVW.crosshair(g, C, S.aim);
 		g.restore();
-		var gp = POVW.gap(S.H, S.lie, pov.ang), red = Object.keys(line.red).length;
+		var gp = POVW.gap(S.H, S.lie, pov.ang), red = path ? Object.keys(line.red).length : 0;
 		showChip((gp.far ? "clear past " + ft(POV.maxD) + " ft" : "gap " + Math.max(1, ft(gp.width)) + " ft wide · clear " + ft(gp.clear) + " ft") +
 			" · " + bearing() + (red ? " · <span class='c-r hi'>" + red + " tree" + (red === 1 ? "" : "s") + " in the line</span>" : "") +
 			"<span class='label kb'><br>←/→ to turn · V for the map</span><span class='label tap'> · drag to turn</span>");
@@ -659,8 +673,9 @@
 		g.imageSmoothingEnabled = true;
 		g.drawImage(pic.canvas, 0, 0, pic.mw, pic.mh);
 		var px = 1 / vw.sc;                                  // one screen pixel, in metres
-		if (aimingThrow()) DRAW.aimOverlay(g, S.H, aimLine(), S.aim, px);
+		if (aimingThrow()) DRAW.aimOverlay(g, S.H, aimLine(), S.aim, px, player.flightPath);
 		if (aimingPutt()) DRAW.puttLine(g, S.lie, puttWorld(1, PT.aim), px);
+		if (relief) DRAW.reliefSpots(g, relief.spots, relief.at, px, isOB(tileAt(S.H, relief.spots[relief.at])));
 		var A = animAt(now);
 		if (A) DRAW.trail(g, A, px);
 		DRAW.basket(g, S.H.basket, px);
@@ -668,7 +683,7 @@
 		if (A) DRAW.disc(g, A.at, Math.sin(A.t * Math.PI) * (phase === "fly" ? 6 : 1.5), px);
 	}
 
-	loadSettings();
+	MENU.init({ onPlay: play });
 	showMenu();
 	layout();
 })();

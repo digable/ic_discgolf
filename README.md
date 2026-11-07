@@ -531,24 +531,33 @@ off the basket, up to 3 m either side. V (or the chip) switches the putt between
 overhead and from the player, like the door's Putting view. The wind arrow points the way the wind
 blows: on the map as drawn, and in the view from the lie as you face (up is a wind at your back).
 The **card** chip (or C) opens the scorecard (out / in on 18 holes, and the total), where you can
-also quit the round; Escape closes it. The browser remembers your hand, usual throw, arm and
-putting view.
+also quit the round; Escape closes it.
+
+The menu has the BBS's screens as tabs: **Play** (a course picker: tap it for a scrolling list you
+can search and sort, plus the drawn / photo-accurate switch where there is one), **Setup** (hand,
+usual throw, arm, flight path on the map, putting view), **Bag** (the disc catalog: tap a weight to
+put that disc in your bag or take it out, sorted and searched like the BBS's bag screen) and
+**House rules** (OB penalty, relief, bag size, mulligans, wind). The questions, notes and bag rules
+are the door's own (`menus.js`), and the browser keeps all of it, checked the way the BBS checks a
+saved player (`saves.js`). With the house rules' relief, the **relief** chip (or R) slides you back
+along the line from the basket (Left/Right or a tap on the dots, Enter or the button takes it); with
+mulligans, the **mulligan** chip (or M) takes back the throw just made. A hole that ends in a tap-in
+says so: the disc was dropped in from where it stopped, one more throw, not thrown in.
 The basket is drawn to the PDGA target standard (rim 82 cm up, 66 cm across, 51 cm of chains
 above it), and a putt that's in is shown reaching the chains (off the band: the band). On phones the chips and panel sit above
 and below the hole, or in a column beside it when the phone is on its side.
 
 It runs the game's own rule files from `bbs/lib/` (`config`, `util`, `discs`, `courses`, `player`,
-`holes`, `state`, `flight`, `rules`, `meter`, the result wording in `shot`/`putt`, and the POV
-camera and gap through the trees in `pov`), so courses, discs, weights, wind, water and house rules
-are the same as on the BBS. Not there yet: a saved bag (web players get the default bag), bag
-editing, relief, mulligans and house rules settings. Courses with a photo-traced version show a drawn / photo-accurate switch.
+`holes`, `state`, `flight`, `rules`, `meter`, `saves`, the result wording in `shot`/`putt`, the POV
+camera and gap through the trees in `pov`, and the menus' forms and lists in `menus`), so courses,
+discs, weights, wind, water and house rules are the same as on the BBS.
 
 ## Files
 
 | Path | What it is |
 |---|---|
 | `bbs/` | The game: the Synchronet door (`discgolf.js`) and its `lib/` files. The web page plays these same files. See [`bbs/README.md`](bbs/README.md). |
-| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks) and what goes over it (the aim, the flight, the players), and holds the colours both views share; `pov.js` the view from the lie (the door's POV in 3D), `game.js` is the screens, meter, aiming and input, `style.css` the look, `fonts/` the two typefaces (Inter and Space Grotesk, SIL Open Font License). See [Web version](#web-version). |
+| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks) and what goes over it (the aim, the flight, the players), and holds the colours both views share; `pov.js` the view from the lie (the door's POV in 3D), `menu.js` the menu (Play, Setup, Bag, House rules), `text.js` the door's wording as HTML, `game.js` is the screens, meter, aiming and input, `style.css` the look, `fonts/` the two typefaces (Inter and Space Grotesk, SIL Open Font License). See [Web version](#web-version). |
 | `index.html` | The browser version's page: the terminal, the connection settings and the on-screen keys. |
 | `styles/` | The page's CSS: `base.css` (colors, fonts), `layout.css` (page layout), `components.css` (terminal, keys, panels). |
 | `scripts/` | The emulator, as ES modules (listed below). |

@@ -93,16 +93,19 @@ var DRAW = (function () {
 
 	// ---- the overlay, drawn each frame over the picture in world metres (px: one screen pixel) ----
 	// The aim (line: game.js's aimLine): the dotted flight of a perfect 100% throw, a red ring
-	// on each tree in the line, the landing ring, and the aim point
-	function aimOverlay(g, H, line, aim, px) {
-		g.save(); g.setLineDash([2 * px, 7 * px]); g.lineCap = "round"; g.lineWidth = 3 * px; g.strokeStyle = "rgba(255,255,255,.9)";
-		g.beginPath(); line.pts.forEach(function (p, i) { if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); });
-		g.stroke(); g.restore();
-		H.trunks.forEach(function (t, j) {
-			if (!line.red[j]) return;
-			g.fillStyle = "rgba(255,60,60,.35)"; g.strokeStyle = "#ff3b3b"; g.lineWidth = 2.5 * px;
-			g.beginPath(); g.arc(t.x, t.y, crownR(H, j), 0, 7); g.fill(); g.stroke();
-		});
+	// on each tree in the line, the landing ring, and the aim point. path false (Setup's flight path:
+	// hidden): just the landing ring and the aim point, as on the BBS.
+	function aimOverlay(g, H, line, aim, px, path) {
+		if (path !== false) {
+			g.save(); g.setLineDash([2 * px, 7 * px]); g.lineCap = "round"; g.lineWidth = 3 * px; g.strokeStyle = "rgba(255,255,255,.9)";
+			g.beginPath(); line.pts.forEach(function (p, i) { if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); });
+			g.stroke(); g.restore();
+			H.trunks.forEach(function (t, j) {
+				if (!line.red[j]) return;
+				g.fillStyle = "rgba(255,60,60,.35)"; g.strokeStyle = "#ff3b3b"; g.lineWidth = 2.5 * px;
+				g.beginPath(); g.arc(t.x, t.y, crownR(H, j), 0, 7); g.fill(); g.stroke();
+			});
+		}
 		var land = line.pts[line.pts.length - 1];
 		g.fillStyle = "rgba(255,255,255,.25)"; g.strokeStyle = "#fff"; g.lineWidth = 2.5 * px;
 		g.beginPath(); g.arc(land.x, land.y, 11 * px, 0, 7); g.fill(); g.stroke();
@@ -129,6 +132,17 @@ var DRAW = (function () {
 		g.fillStyle = "#ffd400"; g.beginPath(); g.arc(bk.x, bk.y, 9 * px, 0, 7); g.fill();
 		g.strokeStyle = "#4a4a4a"; g.lineWidth = 2 * px; g.beginPath(); g.arc(bk.x, bk.y, 5.5 * px, 0, 7); g.stroke();
 	}
+	// Relief: the spots back along the line (spots[0] is the lie) as dots, and the one picked (at) as a ring
+	// with a line back to it from the lie; red when it's out of bounds
+	function reliefSpots(g, spots, at, px, ob) {
+		var col = ob ? "#ff5d5d" : "#ff7ad9", sp = spots[at];
+		g.save(); g.setLineDash([3 * px, 5 * px]); g.strokeStyle = col; g.lineWidth = 2 * px;
+		g.beginPath(); g.moveTo(spots[0].x, spots[0].y); g.lineTo(sp.x, sp.y); g.stroke(); g.restore();
+		g.fillStyle = "rgba(255,122,217,.8)";
+		for (var i = 1; i < spots.length; i++) { g.beginPath(); g.arc(spots[i].x, spots[i].y, 2.5 * px, 0, 7); g.fill(); }
+		g.strokeStyle = col; g.lineWidth = 3 * px; g.fillStyle = "rgba(255,255,255,.25)";
+		g.beginPath(); g.arc(sp.x, sp.y, 9 * px, 0, 7); g.fill(); g.stroke();
+	}
 	// A player standing at p (col: their colour, white when left out)
 	function player(g, p, px, col) {
 		g.fillStyle = col || "#fff"; g.strokeStyle = "#0b1020"; g.lineWidth = 3 * px;
@@ -145,6 +159,6 @@ var DRAW = (function () {
 		GROUND: GROUND, DEEP: DEEP, AIM_COL: AIM_COL, TRAIL_COL: TRAIL_COL, DISC_COL: DISC_COL, DISC_EDGE: DISC_EDGE,
 		crownR: crownR, leaf: leaf, crownRand: crownRand, rgb: rgb,
 		holePicture: holePicture, view: view,
-		aimOverlay: aimOverlay, puttLine: puttLine, trail: trail, basket: basket, player: player, disc: disc
+		aimOverlay: aimOverlay, puttLine: puttLine, reliefSpots: reliefSpots, trail: trail, basket: basket, player: player, disc: disc
 	};
 })();
