@@ -126,10 +126,10 @@
 		$("wText").textContent = S.wind.mph ? S.wind.mph + " mph" : "calm";
 		// relief (any throw, as the door's R) and a mulligan (the throw just taken, if the house rules give one)
 		$("reliefBtn").hidden = phase !== "aim";
-		$("reliefBtn").textContent = "relief" + (R.rules.reliefStroke ? " +1" : "");
+		$("reliefBtn").querySelector(".v").textContent = "relief" + (R.rules.reliefStroke ? " +1" : "");
 		var mull = (phase === "aim" || phase === "putt") && canMulligan();
 		$("mullBtn").hidden = !mull;
-		if (mull) $("mullBtn").textContent = "mulligan (" + mulligansLeft() + " left)";
+		if (mull) $("mullBtn").querySelector(".v").textContent = "mulligan (" + mulligansLeft() + " left)";
 		windArrow();
 		kick();
 	}
@@ -139,7 +139,7 @@
 		return f ? f + " ft " + (PT.aim < 0 ? "left" : "right") + of : "straight at it";
 	}
 	function chipText(id, what, val, key) {
-		var b = $(id); b.textContent = val; b.setAttribute("aria-label", what + ": " + val + ". Change (" + key + ")");
+		var b = $(id); b.querySelector(".v").textContent = val; b.setAttribute("aria-label", what + ": " + val + ". Change (" + key + ")");
 	}
 	// The wind arrow points the way the wind blows: on the map as the map is drawn, and in the
 	// view from the lie as you face (straight up is a wind at your back)
@@ -371,7 +371,11 @@
 	// preventDefault keeps it from taking focus, so SPACE never presses it a second time.
 	$("throwBtn").addEventListener("pointerdown", function (e) { if (e.button) return; e.preventDefault(); press(e.timeStamp); });
 	$("throwBtn").addEventListener("click", function (e) { if (e.detail === 0) press(); });   // Enter on the focused button
-	$("viewBtn").addEventListener("click", function () { toggleView(); });
+	// The view switch: the view you're on is lit; tapping the other one switches (as V does)
+	$("viewSeg").addEventListener("click", function (e) {
+		var b = e.target.closest("button[data-view]");
+		if (b && b.getAttribute("aria-pressed") !== "true") toggleView();
+	});
 	$("discDot").addEventListener("click", function () { if (phase === "aim") { S.disc = (S.disc + 1) % bagDiscs().length; hud(); } });
 	$("tStyle").addEventListener("click", function () { if (phase === "aim") { nextThrow(); hud(); } });
 	$("tHand").addEventListener("click", function () { if (phase === "aim" || phase === "putt") { S.hand = S.hand === "R" ? "L" : "R"; hud(); } });
@@ -557,8 +561,13 @@
 	function facing() { return !showingPov() ? null : (puttingNow() ? puttCam.ang : pov.ang); }
 	function syncView() {
 		var on = showingPov(), putting = puttingNow();
-		$("viewBtn").textContent = on ? (putting ? "overhead" : "map") : (putting ? "from the player" : "view from lie");
-		$("viewBtn").hidden = !(putting || aimingThrow());
+		var seg = $("viewSeg"), bs = seg.querySelectorAll("button");
+		bs[0].textContent = putting ? "overhead" : "map";
+		bs[1].textContent = putting ? "player" : "lie";
+		bs[1].title = putting ? "From the player: the basket from where you stand" : "The view from your lie";
+		bs[0].setAttribute("aria-pressed", on ? "false" : "true");
+		bs[1].setAttribute("aria-pressed", on ? "true" : "false");
+		seg.hidden = !(putting || aimingThrow());
 		cv.setAttribute("aria-label", on ? "The view from your lie" : "The hole, seen from above");
 		if (!on && phase !== "relief" && !$("gapChip").hidden) { $("gapChip").hidden = true; layout(); }
 		if (S) windArrow();

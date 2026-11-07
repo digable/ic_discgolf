@@ -21,10 +21,13 @@
     <div class="grow"></div>
     <div class="chip"><small id="hThrowLabel">throw</small><span id="hThrow">1</span></div>
     <div class="chip"><small>round</small><span id="hRound">E</span></div>
-    <button class="chip btn" id="reliefBtn" type="button" title="Optional relief: move back along the line from the basket (R)" hidden>relief</button>
-    <button class="chip btn" id="mullBtn" type="button" title="Mulligan: take that throw back and throw it again (M)" hidden>mulligan</button>
-    <button class="chip btn" id="viewBtn" type="button" title="Switch between the map and the view from your lie (V)">view from lie</button>
-    <button class="chip btn" id="cardBtn" type="button" title="The scorecard, and quitting the round (C)" aria-haspopup="dialog" aria-expanded="false">card</button>
+    <!-- Buttons (outlined in blue) as against the information chips above. Each shows its key (hidden on phones). -->
+    <button class="chip btn" id="reliefBtn" type="button" title="Optional relief: move back along the line from the basket (R)" hidden><span class="v">relief</span><kbd class="key" aria-hidden="true">R</kbd></button>
+    <button class="chip btn" id="mullBtn" type="button" title="Mulligan: take that throw back and throw it again (M)" hidden><span class="v">mulligan</span><kbd class="key" aria-hidden="true">M</kbd></button>
+    <div class="chip seg" id="viewSeg" role="group" aria-label="View (V switches)">
+      <button type="button" data-view="map" aria-pressed="true">map</button><button type="button" data-view="pov" aria-pressed="false">lie</button><kbd class="key" aria-hidden="true">V</kbd>
+    </div>
+    <button class="chip btn" id="cardBtn" type="button" title="The scorecard, and quitting the round (C)" aria-haspopup="dialog" aria-expanded="false"><span class="v">card</span><kbd class="key" aria-hidden="true">C</kbd></button>
   </div>
 
   <div class="msg" id="msg" aria-live="polite"></div>
@@ -32,13 +35,13 @@
   <div class="panel" id="panel">
     <div class="card gapChip" id="gapChip" hidden></div>
     <div class="card discCard">
-      <div class="disc"><button class="dot" id="discDot" type="button" aria-label="Next disc (D)"></button>
+      <div class="disc"><button class="dot" id="discDot" type="button" aria-label="Next disc (D)"><kbd class="key" aria-hidden="true">D</kbd></button>
         <div class="dinfo"><div class="dname"><span id="dName">-</span> <span class="label" id="dWeight"></span></div>
           <div class="nums" id="dNums"></div><div class="label" id="dRange"></div></div></div>
       <div class="toggles">
-        <button class="tg" id="tStyle" type="button">backhand</button>
-        <button class="tg" id="tHand" type="button">right</button>
-        <button class="tg" id="tAngle" type="button">flat</button>
+        <button class="tg" id="tStyle" type="button"><span class="v">backhand</span><kbd class="key" aria-hidden="true">T</kbd></button>
+        <button class="tg" id="tHand" type="button"><span class="v">right</span><kbd class="key" aria-hidden="true">H</kbd></button>
+        <button class="tg" id="tAngle" type="button"><span class="v">flat</span><kbd class="key" aria-hidden="true">A</kbd></button>
       </div>
     </div>
     <div class="card windCard"><div class="arrow" id="wArrow" aria-hidden="true">↑</div><div><div class="label">wind</div><div class="dname" id="wText">calm</div></div></div>
