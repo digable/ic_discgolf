@@ -3,7 +3,8 @@
 "use strict";
 
 var TEXT = (function () {
-	function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+	// Quotes too: the menus put text inside attribute values (value='...', data-d='...')
+	function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 	// Bytes 128-255 as their DOS characters: the same table as the terminal's (scripts/terminal.js)
 	var CP437_HI = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ";
 	function cp(t) { return String(t).replace(/[\x80-\xff]/g, function (c) { return CP437_HI[c.charCodeAt(0) - 128]; }); }
