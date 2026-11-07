@@ -249,7 +249,7 @@
 		var t = clamp((now - anim.start) / anim.ms, 0, 1), path = anim.path, n = path.length - 1;
 		var e = 1 - Math.pow(1 - t, 1.6), fi = e * n, i0 = Math.min(Math.floor(fi), n), fr = fi - Math.floor(fi);
 		var a = path[i0], b = path[Math.min(i0 + 1, n)];
-		return { t: t, e: e, n: n, i0: i0, path: path, endHt: anim.endHt, at: { x: a.x + (b.x - a.x) * fr, y: a.y + (b.y - a.y) * fr } };
+		return { t: t, e: e, n: n, i0: i0, path: path, endHt: anim.endHt, lift: anim.lift, at: { x: a.x + (b.x - a.x) * fr, y: a.y + (b.y - a.y) * fr } };
 	}
 	function finishAnim(now) {
 		if (anim && now - anim.start >= anim.ms) { var dn = anim.done; anim = null; dn(); }
@@ -272,7 +272,9 @@
 			if (res.made) return holeOut();
 			readyToThrow();
 		});
-		anim.endHt = res.made ? 1.0 : (res.kind === "cage" ? 0.7 : 0.05);
+		var BK = POVW.BASKET;   // in: the middle of the chains; off the cage: the tray's side; otherwise down on the ground
+		anim.endHt = res.made ? (res.band ? (BK.chainsTop + BK.bandTop) / 2 : BK.chainsMid) : (res.kind === "cage" ? (BK.rim + BK.trayBottom) / 2 : 0.05);
+		anim.lift = res.kind === "over" ? 1.0 : 0.3;   // sailing over: high enough to clear the band
 	}
 
 	// ---- end of a hole / round -----------------------------------------------------------------
@@ -445,22 +447,26 @@
 		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
 		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
 		g.drawImage(POVW.scene(S.H, C, dpr), 0, 0, w, h);
+		var a = animAt(now), inChains = a && a.endHt > 1 && a.e > 0.85;
+		if (inChains) drawPuttDisc(g, C, a);   // going in: the basket's chains and tray are drawn over it
 		POVW.basket(g, S.H, C);
+		if (a && !inChains) drawPuttDisc(g, C, a);
 		if (phase !== "rolling") POVW.puttAim(g, C, puttCam.from, puttWorld(1, PT.aim));
-		var a = animAt(now);
-		if (a) {   // the putt in the air: released at waist height, at the chains (1 m) by the basket
-			var end = a.endHt === undefined ? 1 : a.endHt;
-			var hts = function (f) { return 1.0 + (end - 1.0) * f * f + 0.3 * Math.sin(f * Math.PI); };
-			var trail = [];
-			for (var i = 0; i <= a.i0; i++) trail.push({ p: a.path[i], ht: hts(i / a.n) });
-			trail.push({ p: a.at, ht: hts(a.e) });
-			POVW.disc(g, C, a.at, Math.max(0.03, hts(a.e)), trail);
-		}
 		g.restore();
 		var chip = $("gapChip");
 		if (chip.hidden) { chip.hidden = false; layout(); }
 		chip.innerHTML = ft(PT.dist) + " ft · " + (PT.aim ? Math.abs(Math.round(PT.aim * FT)) + " ft " + (PT.aim < 0 ? "left" : "right") + " of the basket" : "straight at it") +
 			" · " + fadeText().toLowerCase() + "<span class='label kb'><br>←/→ to aim · V for overhead</span>";
+	}
+
+	// The putt in the air: let go at 1 m, a small rise, then the height it ends at (anim.endHt)
+	function drawPuttDisc(g, C, a) {
+		var end = a.endHt === undefined ? 1.1 : a.endHt;
+		var lift = a.lift || 0.3, hts = function (f) { return 1.0 + (end - 1.0) * f * f + lift * Math.sin(f * Math.PI); };
+		var trail = [];
+		for (var i = 0; i <= a.i0; i++) trail.push({ p: a.path[i], ht: hts(i / a.n) });
+		trail.push({ p: a.at, ht: hts(a.e) });
+		POVW.disc(g, C, a.at, Math.max(0.03, hts(a.e)), trail);
 	}
 
 	// The trees a perfect, full-power throw on this line runs into (or passes within half a metre of)

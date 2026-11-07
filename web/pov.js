@@ -9,6 +9,12 @@ var POVW = (function () {
 		"P": [140, 145, 150], "W": [60, 140, 205], "O": [52, 84, 46], "S": [200, 196, 186], "B": [128, 190, 92] };
 	var SKY = [150, 196, 235];
 	var cache = { key: "", canvas: null };
+	// A basket, in metres, from the PDGA Technical Standards for Championship and Standard targets:
+	// rim 82 cm above the ground, 66 cm across inside the tray, 18 cm deep at least (24 cm on a DGA Mach X),
+	// the target zone (the chains) 51 cm tall above the rim, and the deflector support (the top band) 57 cm
+	// across and at most 15 cm above the target zone. The band's own height and the pole top are drawn to look right.
+	var BASKET = { rim: 0.82, trayBottom: 0.58, trayW: 0.68, chainsTop: 1.33, bandTop: 1.39, bandW: 0.57, top: 1.42,
+		chainsMid: 1.075 };
 
 	// fov: the view's width (the 70 degrees of the door when left out; putting looks narrower, at the basket).
 	// tilt: how far the camera looks down (radians; putting looks down at the basket, throws look level)
@@ -137,13 +143,17 @@ var POVW = (function () {
 		var b = H.basket, q = C.proj(b, 0), d = hyp(b.x - C.from.x, b.y - C.from.y), lab = ft(d) + " ft";
 		g.font = "600 13px Inter, sans-serif"; g.textAlign = "center";
 		if (q && q.x > 8 && q.x < C.w - 8) {
-			var top = C.proj(b, 1.4), cage = C.proj(b, 0.85), band = C.proj(b, 1.3), w = Math.max(2, 0.55 / q.z * C.F);
+			// sizes from the PDGA's target standard (Championship/Standard, see BASKET)
+			var top = C.proj(b, BASKET.top), trayLo = C.proj(b, BASKET.trayBottom), trayHi = C.proj(b, BASKET.rim);
+			var bandLo = C.proj(b, BASKET.chainsTop), band = C.proj(b, BASKET.bandTop);
+			var w = Math.max(2, BASKET.trayW / q.z * C.F), wc = Math.max(2, BASKET.bandW / q.z * C.F);
 			g.strokeStyle = "#9aa3ad"; g.lineWidth = Math.max(1, 0.05 / q.z * C.F);
 			g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(top.x, top.y); g.stroke();
-			g.fillStyle = "#ffd400"; g.fillRect(cage.x - w / 2, cage.y - Math.max(2, w * 0.35), w, Math.max(2, w * 0.35));
-			g.fillRect(band.x - w / 2, band.y - Math.max(1.5, w * 0.12), w, Math.max(1.5, w * 0.12));
-			g.strokeStyle = "rgba(200,200,200,.7)"; g.lineWidth = 1;
-			for (var i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(band.x + i * w / 6, band.y); g.lineTo(cage.x + i * w / 8, cage.y - w * 0.35); g.stroke(); }
+			g.strokeStyle = "rgba(215,215,215,.85)"; g.lineWidth = Math.max(1, 0.012 / q.z * C.F);
+			for (var i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(band.x + i * wc / 9, bandLo.y); g.lineTo(trayHi.x + i * w / 11, trayHi.y); g.stroke(); }
+			g.fillStyle = "#ffd400";
+			g.fillRect(trayLo.x - w / 2, trayHi.y, w, Math.max(2, trayLo.y - trayHi.y));
+			g.fillRect(band.x - wc / 2, band.y, wc, Math.max(1.5, bandLo.y - band.y));
 			g.fillStyle = "#ffd84d"; g.fillText(lab, top.x, Math.min(top.y - 10, C.hor - 6));
 		} else {
 			var rx = (b.x - C.from.x) * -C.s + (b.y - C.from.y) * C.c, left = rx < 0;
@@ -205,5 +215,5 @@ var POVW = (function () {
 		g.beginPath(); g.ellipse(q.x, q.y, r, r * 0.45, 0, 0, 7); g.fill(); g.stroke();
 	}
 
-	return { FOV: FOV, puttAim: puttAim, disc: disc, cam: cam, scene: scene, basket: basket, rangePath: rangePath, crosshair: crosshair, gap: gap };
+	return { BASKET: BASKET, FOV: FOV, puttAim: puttAim, disc: disc, cam: cam, scene: scene, basket: basket, rangePath: rangePath, crosshair: crosshair, gap: gap };
 })();

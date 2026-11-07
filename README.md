@@ -527,7 +527,9 @@ passes within half a metre of) turn red. In the trees it switches to the view fr
 the door's POV (V or the chip switches back): Left/Right or drag turns, and it shows the gap, how
 far it's clear and where the basket is. Inside 66 ft you putt; the meter marks every 10 ft and the
 basket's distance, and Left/Right aims off the basket. V (or the chip) switches the putt between
-overhead and from the player, like the door's Putting view; the browser remembers which. On phones the chips and panel sit above
+overhead and from the player, like the door's Putting view; the browser remembers which.
+The basket is drawn to the PDGA target standard (rim 82 cm up, 66 cm across, 51 cm of chains
+above it), and a putt that's in is shown reaching the chains (off the band: the band). On phones the chips and panel sit above
 and below the hole, or in a column beside it when the phone is on its side.
 
 It runs the game's own rule files from `bbs/lib/` (`config`, `util`, `discs`, `courses`, `player`,
