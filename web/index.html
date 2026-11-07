@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="IC Disc Golf, web version: a 3-click swing meter disc golf game on real courses.">
+<title>IC Disc Golf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="map" aria-label="The hole, seen from above"></canvas>
+
+  <div class="top" id="top">
+    <div class="chip"><b id="hCourse">IC Disc Golf</b><small>hole</small><span id="hHole">-</span></div>
+    <div class="chip"><small>par</small><span id="hPar">-</span></div>
+    <div class="chip"><small>pin</small><span id="hPin">-</span></div>
+    <div class="grow"></div>
+    <div class="chip"><small>throw</small><span id="hThrow">1</span></div>
+    <div class="chip"><small>round</small><span id="hRound">E</span></div>
+    <button class="chip btn" id="cardBtn" type="button">card</button>
+  </div>
+
+  <div class="msg" id="msg" aria-live="polite"></div>
+
+  <div class="panel" id="panel">
+    <div class="card discCard">
+      <div class="disc"><button class="dot" id="discDot" type="button" aria-label="Next disc (D)"></button>
+        <div class="dinfo"><div class="dname"><span id="dName">-</span> <span class="label" id="dWeight"></span></div>
+          <div class="nums" id="dNums"></div><div class="label" id="dRange"></div></div></div>
+      <div class="toggles">
+        <button class="tg" id="tStyle" type="button">backhand</button>
+        <button class="tg" id="tHand" type="button">right</button>
+        <button class="tg" id="tAngle" type="button">flat</button>
+      </div>
+    </div>
+    <div class="card meterCard">
+      <div class="label" id="mLabel">Tap THROW (or press SPACE) to reach back</div>
+      <div class="bar" id="bar"><div class="over"></div><div class="snap" id="snap"></div><div class="p100" id="p100"></div>
+        <div class="press" id="pressP"></div><div class="mark" id="mark"></div></div>
+      <div class="ticks"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+      <button class="throw" id="throwBtn" type="button">THROW</button>
+    </div>
+    <div class="card windCard"><div class="arrow" id="wArrow">↑</div><div><div class="label">wind</div><div class="dname" id="wText">calm</div></div></div>
+  </div>
+
+  <div class="sheet" id="menu" hidden>
+    <div class="sheetIn">
+      <h1>IC Disc Golf</h1>
+      <p class="label">The same game as the <a href="../">terminal</a> and the BBS, drawn for the web. Your settings and bag aren't saved here.</p>
+      <div class="opts">
+        <div><span class="label">hand</span> <button class="tg" data-opt="hand" data-v="R">right</button><button class="tg" data-opt="hand" data-v="L">left</button></div>
+        <div><span class="label">usual throw</span> <button class="tg" data-opt="style" data-v="BH">backhand</button><button class="tg" data-opt="style" data-v="FH">forehand</button></div>
+        <div><span class="label">arm</span> <button class="tg" data-opt="level" data-v="reg">regular</button><button class="tg" data-opt="level" data-v="pro">pro</button></div>
+      </div>
+      <input class="search" id="search" type="search" placeholder="Find a course" aria-label="Find a course">
+      <ul class="courses" id="courses"></ul>
+    </div>
+  </div>
+
+  <div class="sheet" id="done" hidden><div class="sheetIn" id="doneIn"></div></div>
+</div>
+
+<!-- The game itself: the same files the BBS door and the terminal version run -->
+<script src="../bbs/lib/config.js"></script>
+<script src="../bbs/lib/util.js"></script>
+<script src="../bbs/lib/discs.js"></script>
+<script src="../bbs/lib/courses.js"></script>
+<script src="../bbs/lib/player.js"></script>
+<script src="../bbs/lib/holes.js"></script>
+<script src="../bbs/lib/state.js"></script>
+<script src="../bbs/lib/flight.js"></script>
+<script src="../bbs/lib/rules.js"></script>
+<script src="../bbs/lib/meter.js"></script>
+<script src="../bbs/lib/shot.js"></script>   <!-- only its result wording (scoreName, waterLine...) -->
+<script src="../bbs/lib/putt.js"></script>   <!-- only its result wording (puttLine, puttWhy) -->
+<script src="draw.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

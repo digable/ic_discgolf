@@ -516,11 +516,27 @@ hole to match the real one. Graceland University (46) and Legion Park (47) are d
 - **In the game:** UDisc's "Legion 26 Holes July 2026" layout, its most played: par 86, 10,003 ft (UDisc's total says 10,002). Holes 1-4 are open; the road is behind hole 1's tee; from hole 5 on it's mostly wooded tunnels. Indian Creek crosses holes 11, 13 and 26, and marsh lines 9, 18 and 19; those holes are guesses (no source says which ones), and the paths aren't drawn. A lost disc can wash up on a later hole on the same creek or marsh.
 
 
+## Web version
+
+`discgolf.sodamachine.net/web/` plays the same game with real graphics instead of the 80×25
+terminal: the hole from above (tee on the left, or at the bottom on a phone), the flight of a
+perfect 100% throw as a dotted line, and the same 3-click meter (THROW button, or SPACE).
+Click or drag on the map (or use the arrows) to aim; tap the disc to change it (or 1-9 / D),
+and the chips for backhand/forehand/tomahawk, hand and angle. Inside 66 ft you putt; Left/Right
+aims off the basket.
+
+It runs the game's own rule files from `bbs/lib/` (`config`, `util`, `discs`, `courses`, `player`,
+`holes`, `state`, `flight`, `rules`, `meter`, and the result wording in `shot`/`putt`), so courses,
+discs, weights, wind, water and house rules are the same as on the BBS. Not there yet: saved
+settings and bag (web players get the default bag), bag editing, relief, mulligans and house
+rules settings. Courses with a photo-traced version show a drawn / photo-accurate switch.
+
 ## Files
 
 | Path | What it is |
 |---|---|
 | `bbs/` | The game: the Synchronet door (`discgolf.js`) and its `lib/` files. The web page plays these same files. See [`bbs/README.md`](bbs/README.md). |
+| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks), `game.js` is the screens, meter, aiming and animation, `style.css` the look. See [Web version](#web-version). |
 | `index.html` | The browser version's page: the terminal, the connection settings and the on-screen keys. |
 | `styles/` | The page's CSS: `base.css` (colors, fonts), `layout.css` (page layout), `components.css` (terminal, keys, panels). |
 | `scripts/` | The emulator, as ES modules (listed below). |
