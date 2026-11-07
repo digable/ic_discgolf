@@ -10,7 +10,7 @@
 	var phase = "menu";        // menu, aim, meter, fly, putt, rolling, holeDone, roundDone
 	var holeIdx = 0, anim = null, sw = null, meter = null, message = "", lastPath = null;
 	var reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-	var view = "map", pov = null, inPath = {};   // map or the view from the lie (pov: {ang}); trees the throw's line runs into
+	var view = "map", pov = null, inPath = {}, puttCam = null;   // puttCam: where a putt is seen from (it stays put while the putt flies)   // map or the view from the lie (pov: {ang}); trees the throw's line runs into
 
 	// ---- text from the door's own wording (Ctrl-A colour codes -> HTML) ----------------------
 	var CA = { k: "c-k", r: "c-r", g: "c-g", y: "c-y", b: "c-b", m: "c-m", c: "c-c", w: "c-w" };
@@ -122,6 +122,7 @@
 		if (inPuttRange()) { puttSetup(); if (isTapIn()) { tapIn(); say("Tap-in."); return holeOut(); } phase = "putt"; }
 		else phase = "aim";
 		view = "map"; pov = null;
+		puttCam = phase === "putt" ? { from: { x: S.lie.x, y: S.lie.y }, ang: Math.atan2(-PT.by, -PT.bx) } : null;
 		if (phase === "aim" && lieInTrees()) startPov();
 		meterReset(); hud(); syncView();
 	}
@@ -242,6 +243,17 @@
 			readyToThrow();
 		});
 	}
+	// Where the animation is: the point, how far along (e, 0-1), and the last path point passed
+	function animAt(now) {
+		if (!anim) return null;
+		var t = clamp((now - anim.start) / anim.ms, 0, 1), path = anim.path, n = path.length - 1;
+		var e = 1 - Math.pow(1 - t, 1.6), fi = e * n, i0 = Math.min(Math.floor(fi), n), fr = fi - Math.floor(fi);
+		var a = path[i0], b = path[Math.min(i0 + 1, n)];
+		return { t: t, e: e, n: n, i0: i0, path: path, endHt: anim.endHt, at: { x: a.x + (b.x - a.x) * fr, y: a.y + (b.y - a.y) * fr } };
+	}
+	function finishAnim(now) {
+		if (anim && now - anim.start >= anim.ms) { var dn = anim.done; anim = null; dn(); }
+	}
 	function flyAlong(path, ms, done) {
 		if (reduceMotion) ms = 1;
 		anim = { path: path, start: performance.now(), ms: ms, done: done };
@@ -260,6 +272,7 @@
 			if (res.made) return holeOut();
 			readyToThrow();
 		});
+		anim.endHt = res.made ? 1.0 : (res.kind === "cage" ? 0.7 : 0.05);
 	}
 
 	// ---- end of a hole / round -----------------------------------------------------------------
@@ -334,7 +347,7 @@
 		if (e.ctrlKey || e.metaKey || e.altKey || e.target.tagName === "INPUT") return;
 		var k = e.key, K = k.toUpperCase();
 		if (k === " " || k === "Enter") { if (e.target.tagName === "BUTTON" && k === "Enter") return; e.preventDefault(); if (!e.repeat) press(e.timeStamp); return; }
-		if (K === "V" && (phase === "aim" || phase === "meter")) { toggleView(); return; }
+		if (K === "V" && (phase === "aim" || phase === "meter" || phase === "putt")) { toggleView(); return; }
 		if (phase === "aim" && view === "pov") {
 			var step = POVW.FOV / MAP_W;   // one of the door's columns
 			if (k === "ArrowLeft") { povAim(pov.ang - step * (e.shiftKey ? 5 : 1)); e.preventDefault(); return; }
@@ -373,16 +386,26 @@
 		var d = Math.max(pinDist(), 15);
 		S.aim = { x: S.lie.x + d * Math.cos(a), y: S.lie.y + d * Math.sin(a) };
 	}
+	// Putting, like the door: V switches overhead / from the player, and that's kept for the next putt
+	function puttingNow() { return !!puttCam && (phase === "putt" || phase === "rolling" || (phase === "meter" && meter && meter.putting)); }
 	function toggleView() {
+		if (S && puttingNow() && phase !== "rolling") {
+			player.puttView = player.puttView === "pov" ? "top" : "pov";
+			try { localStorage.setItem("icdg.puttView", player.puttView); } catch (e) {}
+			return syncView();
+		}
 		if (!S || (phase !== "aim" && phase !== "meter") || (meter && meter.putting)) return;
 		if (view === "pov") view = "map"; else if (pov) view = "pov"; else startPov();
 		syncView();
 	}
-	function showingPov() { return view === "pov" && pov && (phase === "aim" || (phase === "meter" && meter && !meter.putting)); }
+	function showingPov() {
+		if (puttingNow()) return player.puttView === "pov";
+		return view === "pov" && pov && (phase === "aim" || (phase === "meter" && meter && !meter.putting));
+	}
 	function syncView() {
-		var on = showingPov();
-		$("viewBtn").textContent = on ? "map" : "view from lie";
-		$("viewBtn").hidden = !(phase === "aim" || (phase === "meter" && meter && !meter.putting));
+		var on = showingPov(), putting = puttingNow();
+		$("viewBtn").textContent = on ? (putting ? "overhead" : "map") : (putting ? "from the player" : "view from lie");
+		$("viewBtn").hidden = !(putting || phase === "aim" || (phase === "meter" && meter && !meter.putting));
 		if (!on && !$("gapChip").hidden) { $("gapChip").hidden = true; layout(); }
 	}
 	function bearing() {
@@ -393,7 +416,8 @@
 		return Math.abs(deg) < 2 ? "basket straight ahead" : "basket " + Math.abs(deg) + "° " + (deg < 0 ? "left" : "right");
 	}
 	// Drawn in the same box as the map, so the chips and the panel never sit on it
-	function drawPov() {
+	function drawPov(now) {
+		if (puttingNow()) return drawPuttPov(now);
 		var w = Math.round(box.w), h = Math.round(box.h), C = POVW.cam(S.lie, pov.ang, w, h);
 		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
 		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
@@ -409,6 +433,34 @@
 		chip.innerHTML = (gp.far ? "clear past " + ft(60) + " ft" : "gap " + Math.max(1, ft(gp.width)) + " ft wide · clear " + ft(gp.clear) + " ft") +
 			" · " + bearing() + (red ? " · <span class='c-r hi'>" + red + " tree" + (red === 1 ? "" : "s") + " in the line</span>" : "") +
 			"<span class='label kb'><br>←/→ to turn · V for the map</span><span class='label tap'> · drag to turn</span>";
+	}
+
+	// A putt from the player: looking at the basket, narrower than the 70 degree view so the basket is a good size
+	var PUTT_FOV = 40 * Math.PI / 180;
+	function drawPuttPov(now) {
+		var w = Math.round(box.w), h = Math.round(box.h), F = (w / 2) / Math.tan(PUTT_FOV / 2);
+		// look down just enough that the foot of the basket sits low in the view, with the ground up to it showing
+		var tilt = Math.max(0, Math.atan(1.6 / Math.max(PT.dist, 1)) - Math.atan(0.33 * h / F));
+		var C = POVW.cam(puttCam.from, puttCam.ang, w, h, PUTT_FOV, tilt);
+		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
+		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
+		g.drawImage(POVW.scene(S.H, C, dpr), 0, 0, w, h);
+		POVW.basket(g, S.H, C);
+		if (phase !== "rolling") POVW.puttAim(g, C, puttCam.from, puttWorld(1, PT.aim));
+		var a = animAt(now);
+		if (a) {   // the putt in the air: released at waist height, at the chains (1 m) by the basket
+			var end = a.endHt === undefined ? 1 : a.endHt;
+			var hts = function (f) { return 1.0 + (end - 1.0) * f * f + 0.3 * Math.sin(f * Math.PI); };
+			var trail = [];
+			for (var i = 0; i <= a.i0; i++) trail.push({ p: a.path[i], ht: hts(i / a.n) });
+			trail.push({ p: a.at, ht: hts(a.e) });
+			POVW.disc(g, C, a.at, Math.max(0.03, hts(a.e)), trail);
+		}
+		g.restore();
+		var chip = $("gapChip");
+		if (chip.hidden) { chip.hidden = false; layout(); }
+		chip.innerHTML = ft(PT.dist) + " ft · " + (PT.aim ? Math.abs(Math.round(PT.aim * FT)) + " ft " + (PT.aim < 0 ? "left" : "right") + " of the basket" : "straight at it") +
+			" · " + fadeText().toLowerCase() + "<span class='label kb'><br>←/→ to aim · V for overhead</span>";
 	}
 
 	// The trees a perfect, full-power throw on this line runs into (or passes within half a metre of)
@@ -438,7 +490,7 @@
 		if (!S || !pic || !vw) return;
 		var aiming = phase === "aim" || (phase === "meter" && meter && !meter.putting);
 		inPath = aiming ? treesInPath() : {};
-		if (showingPov()) { drawPov(); if (phase === "aim") hud(); return; }
+		if (showingPov()) { drawPov(now); finishAnim(now); if (phase === "aim" || phase === "putt") hud(); return; }
 		vw.apply(g, dpr);
 		g.imageSmoothingEnabled = true;
 		g.drawImage(pic.canvas, 0, 0, pic.mw, pic.mh);
@@ -472,16 +524,14 @@
 		}
 		// the disc in flight, and its trail
 		var at = null;
-		if (anim) {
-			var t = clamp((now - anim.start) / anim.ms, 0, 1), path = anim.path, n = path.length - 1;
-			var e = 1 - Math.pow(1 - t, 1.6), fi = e * n, i0 = Math.floor(fi), fr = fi - i0;
-			var a = path[Math.min(i0, n)], b = path[Math.min(i0 + 1, n)];
-			at = { x: a.x + (b.x - a.x) * fr, y: a.y + (b.y - a.y) * fr };
-			g.strokeStyle = "rgba(255,240,150,.8)"; g.lineWidth = 2 * px; g.beginPath(); g.moveTo(path[0].x, path[0].y);
-			for (var j = 1; j <= i0 && j <= n; j++) g.lineTo(path[j].x, path[j].y);
+		var A = animAt(now);
+		if (A) {
+			at = A.at;
+			g.strokeStyle = "rgba(255,240,150,.8)"; g.lineWidth = 2 * px; g.beginPath(); g.moveTo(A.path[0].x, A.path[0].y);
+			for (var j = 1; j <= A.i0 && j <= A.n; j++) g.lineTo(A.path[j].x, A.path[j].y);
 			g.lineTo(at.x, at.y); g.stroke();
-			if (t >= 1) { var dn = anim.done; anim = null; dn(); }
 		}
+		finishAnim(now);
 		// the basket: drawn at a fixed size on screen, so it's easy to find on a long hole
 		var bk = S.H.basket;
 		g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(bk.x + 4 * px, bk.y + 5 * px, 11 * px, 7 * px, 0, 0, 7); g.fill();
@@ -501,6 +551,7 @@
 		if (phase === "aim" || phase === "putt") hud();
 	}
 
+	try { var pv = localStorage.getItem("icdg.puttView"); if (pv === "pov" || pv === "top") player.puttView = pv; } catch (e) {}
 	showMenu();
 	layout();
 	requestAnimationFrame(frame);

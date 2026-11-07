@@ -10,15 +10,27 @@ var POVW = (function () {
 	var SKY = [150, 196, 235];
 	var cache = { key: "", canvas: null };
 
-	function cam(from, ang, w, h) {
-		var hor = Math.round(h * 0.42), F = (w / 2) / Math.tan(FOV / 2), c = Math.cos(ang), s = Math.sin(ang);
+	// fov: the view's width (the 70 degrees of the door when left out; putting looks narrower, at the basket).
+	// tilt: how far the camera looks down (radians; putting looks down at the basket, throws look level)
+	function cam(from, ang, w, h, fov, tilt) {
+		var F = (w / 2) / Math.tan((fov || FOV) / 2), c = Math.cos(ang), s = Math.sin(ang);
+		var tl = tilt || 0, ct = Math.cos(tl), st = Math.sin(tl), mid = Math.round(h * (tl ? 0.45 : 0.42));
 		return {
-			from: from, ang: ang, w: w, h: h, hor: hor, F: F, c: c, s: s,
+			from: from, ang: ang, w: w, h: h, F: F, c: c, s: s,
+			hor: Math.round(mid - F * Math.tan(tl)),   // where the horizon is on screen
 			// world point (with height above ground) -> screen; null when behind the camera
 			proj: function (p, ht) {
-				var dx = p.x - from.x, dy = p.y - from.y, z = dx * c + dy * s, x = -dx * s + dy * c;
-				if (z < 0.3) return null;
-				return { x: w / 2 + x / z * F, y: hor + (CAM_H - (ht || 0)) / z * F, z: z };
+				var dx = p.x - from.x, dy = p.y - from.y, z = dx * c + dy * s, x = -dx * s + dy * c, up = (ht || 0) - CAM_H;
+				var fw = z * ct - up * st, dn = -z * st - up * ct;
+				if (fw < 0.3) return null;
+				return { x: w / 2 + x / fw * F, y: mid + dn / fw * F, z: fw };
+			},
+			// screen point -> the ground there (metres ahead and to the right), null above the horizon
+			ground: function (sx, sy) {
+				var v = (sy - mid) / F, fall = st + v * ct;
+				if (fall <= 0.002) return null;
+				var t = CAM_H / fall, z = t * (ct - v * st);
+				return { z: z, lat: (sx - w / 2) / F * t };
 			}
 		};
 	}
@@ -59,7 +71,7 @@ var POVW = (function () {
 	// The scene (sky, ground, trees, basket) for a camera, cached until the lie, direction or size change
 	function scene(H, C, dpr, red) {
 		red = red || {};
-		var key = [Object.keys(red).join(","), H.num, C.from.x.toFixed(2), C.from.y.toFixed(2), C.ang.toFixed(4), C.w, C.h, dpr].join("|");
+		var key = [Object.keys(red).join(","), C.F.toFixed(1), C.hor, H.num, C.from.x.toFixed(2), C.from.y.toFixed(2), C.ang.toFixed(4), C.w, C.h, dpr].join("|");
 		if (cache.key === key) return cache.canvas;
 		var cv = cache.canvas || document.createElement("canvas");
 		cv.width = Math.round(C.w * dpr); cv.height = Math.round(C.h * dpr);
@@ -73,9 +85,9 @@ var POVW = (function () {
 		var lc = document.createElement("canvas"); lc.width = lw; lc.height = lh;
 		var lg = lc.getContext("2d"), img = lg.createImageData(lw, lh);
 		for (var yy = 0; yy < lh; yy++) {
-			var sy = C.hor + (yy + 0.5) * B, z = CAM_H * C.F / Math.max(0.5, sy - C.hor);
+			var sy = C.hor + (yy + 0.5) * B;
 			for (var xx = 0; xx < lw; xx++) {
-				var lat = ((xx + 0.5) * B - C.w / 2) * z / C.F;
+				var gp = C.ground((xx + 0.5) * B, Math.max(sy, C.hor + 0.5)), z = gp ? gp.z : FAR, lat = gp ? gp.lat : 0;
 				var p = { x: C.from.x + C.c * z - C.s * lat, y: C.from.y + C.s * z + C.c * lat };
 				var t = tileAt(H, p), col = GROUND[t] || GROUND.O;
 				if (t === "W") { var cc = cellOf(H, p); if (H.deep[cc.r] && H.deep[cc.r][cc.c]) col = [40, 105, 170]; }
@@ -163,5 +175,35 @@ var POVW = (function () {
 		g.beginPath(); g.moveTo(x - 9, y); g.lineTo(x + 9, y); g.moveTo(x, y - 9); g.lineTo(x, y + 9); g.stroke();
 	}
 
-	return { FOV: FOV, cam: cam, scene: scene, basket: basket, rangePath: rangePath, crosshair: crosshair, gap: gap };
+	// Lining up a putt: the line along the ground to the aim spot, and a mark at chain height there
+	function puttAim(g, C, from, tgt) {
+		var a = C.proj(from, 0), steps = 40, pts = [];
+		for (var i = 1; i <= steps; i++) {
+			var u = i / steps, q = C.proj({ x: from.x + (tgt.x - from.x) * u, y: from.y + (tgt.y - from.y) * u }, 0);
+			if (q) pts.push(q);
+		}
+		g.save(); g.setLineDash([3, 8]); g.lineCap = "round"; g.lineWidth = 3; g.strokeStyle = "rgba(255,255,255,.85)";
+		g.beginPath(); pts.forEach(function (q, i) { if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.stroke(); g.restore();
+		var m = C.proj(tgt, 1.0);
+		if (m) {
+			g.strokeStyle = "rgba(255,120,220,.95)"; g.lineWidth = 2.5;
+			g.beginPath(); g.moveTo(m.x - 10, m.y); g.lineTo(m.x + 10, m.y); g.moveTo(m.x, m.y - 10); g.lineTo(m.x, m.y + 10); g.stroke();
+		}
+	}
+	// A disc in the air at p, ht metres up, with its shadow; and the trail behind it
+	function disc(g, C, p, ht, trail) {
+		if (trail && trail.length > 1) {
+			g.strokeStyle = "rgba(255,240,150,.85)"; g.lineWidth = 2; g.beginPath();
+			trail.forEach(function (o, i) { var q = C.proj(o.p, o.ht); if (!q) return; if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); });
+			g.stroke();
+		}
+		var sh = C.proj(p, 0), q = C.proj(p, ht);
+		if (!q) return;
+		var r = Math.max(3, 0.11 / q.z * C.F);
+		g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(sh.x, sh.y, r, r * 0.3, 0, 0, 7); g.fill();
+		g.fillStyle = "#ffd84d"; g.strokeStyle = "#7a5a00"; g.lineWidth = 1.5;
+		g.beginPath(); g.ellipse(q.x, q.y, r, r * 0.45, 0, 0, 7); g.fill(); g.stroke();
+	}
+
+	return { FOV: FOV, puttAim: puttAim, disc: disc, cam: cam, scene: scene, basket: basket, rangePath: rangePath, crosshair: crosshair, gap: gap };
 })();
