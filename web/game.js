@@ -580,20 +580,25 @@
 			"<span class='label kb'><br>←/→ to turn · V for the map</span><span class='label tap'> · drag to turn</span>");
 	}
 
-	// A putt from the player: looking at the basket, narrower than the 70 degree view so the basket is a good size
-	var PUTT_FOV = 40 * Math.PI / 180;
+	// A putt from the player: looking at the basket, narrower than the 70 degree view so the basket is a good size.
+	// Close in, the camera steps back along the line until the whole basket fits (its height at most
+	// BASKET_FILL of the view), so a short putt shows the basket, the ground up to it, and where you stand.
+	var PUTT_FOV = 40 * Math.PI / 180, BASKET_FILL = 0.6;
 	function drawPuttPov(now) {
 		var w = Math.round(box.w), h = Math.round(box.h), F = (w / 2) / Math.tan(PUTT_FOV / 2);
+		var D = Math.max(PT.dist, POVW.BASKET.top * F / (BASKET_FILL * h)), back = D - PT.dist;
+		var from = { x: puttCam.from.x + PT.bx * back, y: puttCam.from.y + PT.by * back };
 		// look down just enough that the foot of the basket sits low in the view, with the ground up to it showing
-		var tilt = Math.max(0, Math.atan(1.6 / Math.max(PT.dist, 1)) - Math.atan(0.33 * h / F));
-		var C = POVW.cam(puttCam.from, puttCam.ang, w, h, PUTT_FOV, tilt);
+		var tilt = Math.max(0, Math.atan(1.6 / Math.max(D, 1)) - Math.atan(0.33 * h / F));
+		var C = POVW.cam(from, puttCam.ang, w, h, PUTT_FOV, tilt);
+		C.skipNear = back + CLEARING_M;   // no trees between the camera and the player
 		puttCamDrawn = C;
 		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
 		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
 		g.drawImage(POVW.scene(S.H, C, dpr), 0, 0, w, h);
 		var a = animAt(now), inChains = a && a.endHt > 1 && a.e > 0.85;
 		if (inChains) drawPuttDisc(g, C, a);   // going in: the basket's chains and tray are drawn over it
-		POVW.basket(g, S.H, C);
+		POVW.basket(g, S.H, C, PT.dist);
 		if (a && !inChains) drawPuttDisc(g, C, a);
 		if (phase !== "rolling") POVW.puttAim(g, C, puttCam.from, puttWorld(1, PT.aim));
 		g.restore();

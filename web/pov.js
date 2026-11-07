@@ -60,7 +60,7 @@ var POVW = (function () {
 	// The scene (sky, ground, trees, basket) for a camera, cached until the lie, direction or size change
 	function scene(H, C, dpr, red) {
 		red = red || {};
-		var key = [Object.keys(red).join(","), C.F.toFixed(1), C.hor, H.num, C.from.x.toFixed(2), C.from.y.toFixed(2), C.ang.toFixed(4), C.w, C.h, dpr].join("|");
+		var key = [Object.keys(red).join(","), C.F.toFixed(1), C.hor, H.num, C.from.x.toFixed(2), C.from.y.toFixed(2), C.ang.toFixed(4), C.w, C.h, dpr, C.skipNear || 0].join("|");
 		if (cache.key === key) return cache.canvas;
 		var cv = cache.canvas || document.createElement("canvas");
 		cv.width = Math.round(C.w * dpr); cv.height = Math.round(C.h * dpr);
@@ -92,7 +92,7 @@ var POVW = (function () {
 		var trees = [];
 		H.trunks.forEach(function (t, j) {
 			var q = C.proj(t, 0);
-			if (!q || hyp(t.x - C.from.x, t.y - C.from.y) < CLEARING_M || q.z > FAR) return;
+			if (!q || hyp(t.x - C.from.x, t.y - C.from.y) < (C.skipNear || CLEARING_M) || q.z > FAR) return;
 			if (q.x < -C.w || q.x > 2 * C.w) return;
 			trees.push({ t: t, j: j, z: q.z });
 		});
@@ -119,9 +119,10 @@ var POVW = (function () {
 		return cv;
 	}
 
-	// The basket, or an arrow toward it at the edge
-	function basket(g, H, C) {
-		var b = H.basket, q = C.proj(b, 0), d = hyp(b.x - C.from.x, b.y - C.from.y), lab = ft(d) + " ft";
+	// The basket, or an arrow toward it at the edge. dist: the distance to label it with (m), when the
+	// camera isn't where the player stands (a short putt is seen from further back)
+	function basket(g, H, C, dist) {
+		var b = H.basket, q = C.proj(b, 0), d = dist === undefined ? hyp(b.x - C.from.x, b.y - C.from.y) : dist, lab = ft(d) + " ft";
 		g.font = "600 13px Inter, sans-serif"; g.textAlign = "center";
 		if (q && q.x > 8 && q.x < C.w - 8) {
 			// sizes from the PDGA's target standard (Championship/Standard, see BASKET)
