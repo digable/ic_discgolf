@@ -44,6 +44,8 @@ var PITCH_POWER = 0.4;   // a pitch-out tops out at 40% power
 var PUTT_M = 20;         // inside 20 m (66 ft) you putt (circle 2)
 var C1_M = 10;           // circle 1: 10 m (33 ft)
 var CLEARING_M = 2.2;    // trees closer than this to the lie don't block a throw (or the view from it)
+var DISC_R = 0.11;       // a disc's radius in meters (22 cm across): how close to a trunk it clips the tree...
+var PITCH_DISC_R = 0.04; // ...and for a pitch-out, which threads gaps more easily
 var BAG_MOST = 25;       // house rules: the most discs a bag can have besides its putter (every bag has one)
 // House rules' wind: the range of wind speeds (mph) a hole can get
 var WINDS = { calm: [0, 0], normal: [0, 12], windy: [10, 25] };

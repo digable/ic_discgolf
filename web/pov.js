@@ -189,7 +189,7 @@ var POVW = (function () {
 		}
 		var sh = C.proj(p, 0), q = C.proj(p, ht);
 		if (!q) return;
-		var r = Math.max(3, 0.11 / q.z * C.F);
+		var r = Math.max(3, DISC_R / q.z * C.F);
 		g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(sh.x, sh.y, r, r * 0.3, 0, 0, 7); g.fill();
 		g.fillStyle = DRAW.DISC_COL; g.strokeStyle = DRAW.DISC_EDGE; g.lineWidth = 1.5;
 		g.beginPath(); g.ellipse(q.x, q.y, r, r * 0.45, 0, 0, 7); g.fill(); g.stroke();

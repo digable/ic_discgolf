@@ -93,34 +93,36 @@ a { color: var(--accent); }
 .tg.quit.sure { background: #ff5d5d; border-color: #ff5d5d; color: #0b1020; }
 .go { font: 700 16px "Space Grotesk", sans-serif; background: var(--accent); color: #0a2a66; border: 0; border-radius: 12px; padding: 12px 22px; cursor: pointer; }
 
-/* phones, held upright: the chips and message on top, the panel at the bottom, the hole between them (nothing over it) */
-@media (max-width: 760px) {
+/* phones, either way up: no key hints, smaller chips, and the wind as a narrow column beside the disc */
+@media (max-width: 760px), (max-height: 520px) and (orientation: landscape) {
   .kb { display: none; }
   .top { gap: 5px; }
   .top .chip { font-size: 12px; padding: 4px 8px; }
   .top .chip b { font-size: 14px; }
-  .msg { position: absolute; left: 8px; right: 8px; transform: none; top: var(--msgTop, 52px); max-width: none; font-size: 13px; padding: 5px 10px; }
-  .panel { left: 6px; right: 6px; bottom: max(6px, env(safe-area-inset-bottom)); grid-template-columns: 1fr auto; gap: 6px; }
-  .discCard { grid-column: 1; padding: 8px 10px; } .windCard { grid-column: 2; align-self: stretch; padding: 6px 10px; flex-direction: column; justify-content: center; gap: 2px; }
-  .windCard .label { display: none; } .windCard .dname { font-size: 14px; }
+  .msg { max-width: none; transform: none; }
+  .panel { grid-template-columns: 1fr auto; gap: 6px; }
+  .discCard { grid-column: 1; } .windCard { grid-column: 2; align-self: stretch; flex-direction: column; justify-content: center; gap: 2px; }
+  .windCard .label { display: none; }
+}
+/* held upright: the chips and message on top, the panel at the bottom, the hole between them (nothing over it) */
+@media (max-width: 760px) {
+  .msg { left: 8px; right: 8px; top: var(--msgTop, 52px); font-size: 13px; padding: 5px 10px; }
+  .panel { left: 6px; right: 6px; bottom: max(6px, env(safe-area-inset-bottom)); }
+  .discCard { padding: 8px 10px; } .windCard { padding: 6px 10px; } .windCard .dname { font-size: 14px; }
   .meterCard { padding: 8px 10px; column-gap: 10px; }
   .throw { padding: 0 16px; }
   .dot { width: 40px; height: 40px; }
   .toggles { margin-top: 6px; }
   .gapChip { font-size: 12px; padding: 5px 8px; }
 }
-/* phones on their side and other short screens: everything in a column at the side, the hole on the left */
+/* on their side, and other short screens: everything in a column at the side, the hole on the left */
 @media (max-height: 520px) and (orientation: landscape) {
-  .kb { display: none; }
-  .top, .msg, .panel { left: auto !important; right: max(8px, env(safe-area-inset-right)); width: 300px; transform: none; }
-  .top { top: 8px; gap: 5px; }
+  .top, .msg, .panel { left: auto !important; right: max(8px, env(safe-area-inset-right)); width: 300px; }
+  .top { top: 8px; }
   .top .grow { display: none; }
-  .top .chip { font-size: 12px; padding: 4px 8px; }
-  .top .chip b { font-size: 14px; }
-  .msg { top: var(--msgTop, 80px); max-width: none; font-size: 12px; padding: 5px 9px; }
-  .panel { bottom: 8px; grid-template-columns: 1fr auto; gap: 6px; }
-  .discCard { grid-column: 1; padding: 7px 9px; } .windCard { grid-column: 2; align-self: stretch; padding: 6px 8px; flex-direction: column; justify-content: center; gap: 2px; }
-  .windCard .label { display: none; } .windCard .dname { font-size: 13px; }
+  .msg { top: var(--msgTop, 80px); font-size: 12px; padding: 5px 9px; }
+  .panel { bottom: 8px; }
+  .discCard { padding: 7px 9px; } .windCard { padding: 6px 8px; } .windCard .dname { font-size: 13px; }
   .meterCard { padding: 7px 9px; column-gap: 8px; } .meterCard .label { font-size: 11px; }
   .throw { padding: 0 12px; height: 50px; }
   .dot { width: 34px; height: 34px; } .dname { font-size: 16px; }

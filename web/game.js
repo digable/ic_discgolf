@@ -21,10 +21,10 @@
 
 	// ---- text -----------------------------------------------------------------------------------
 	function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-	var CP437 = { "\x80": "Ç", "\x81": "ü", "\x82": "é", "\x83": "â", "\x84": "ä", "\x85": "à", "\x86": "å", "\x87": "ç", "\x88": "ê", "\x89": "ë", "\x8a": "è",
-		"\x8b": "ï", "\x8c": "î", "\x8d": "ì", "\x8e": "Ä", "\x8f": "Å", "\x90": "É", "\x91": "æ", "\x92": "Æ", "\x93": "ô", "\x94": "ö", "\x95": "ò", "\x96": "û",
-		"\x97": "ù", "\x98": "ÿ", "\x99": "Ö", "\x9a": "Ü", "\xa0": "á", "\xa1": "í", "\xa2": "ó", "\xa3": "ú", "\xa4": "ñ", "\xa5": "Ñ" };
-	function cp(t) { return String(t).replace(/[\x80-\xa5]/g, function (c) { return CP437[c] || c; }); }
+	// The game's text is CP437 (what the terminal draws): bytes 128-255 as their DOS characters, the same table
+	// as the terminal's (scripts/terminal.js)
+	var CP437_HI = "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ ";
+	function cp(t) { return String(t).replace(/[\x80-\xff]/g, function (c) { return CP437_HI[c.charCodeAt(0) - 128]; }); }
 	function html(t) { return esc(cp(t)); }   // the game's own text (CP437) as HTML
 	// The door's wording, with its Ctrl-A colour codes, as HTML
 	var CA = { k: "c-k", r: "c-r", g: "c-g", y: "c-y", b: "c-b", m: "c-m", c: "c-c", w: "c-w" };
@@ -575,7 +575,7 @@
 		POVW.crosshair(g, C, S.aim);
 		g.restore();
 		var gp = POVW.gap(S.H, S.lie, pov.ang), red = Object.keys(line.red).length;
-		showChip((gp.far ? "clear past " + ft(60) + " ft" : "gap " + Math.max(1, ft(gp.width)) + " ft wide · clear " + ft(gp.clear) + " ft") +
+		showChip((gp.far ? "clear past " + ft(POV.maxD) + " ft" : "gap " + Math.max(1, ft(gp.width)) + " ft wide · clear " + ft(gp.clear) + " ft") +
 			" · " + bearing() + (red ? " · <span class='c-r hi'>" + red + " tree" + (red === 1 ? "" : "s") + " in the line</span>" : "") +
 			"<span class='label kb'><br>←/→ to turn · V for the map</span><span class='label tap'> · drag to turn</span>");
 	}
@@ -589,7 +589,7 @@
 		var D = Math.max(PT.dist, POVW.BASKET.top * F / (BASKET_FILL * h)), back = D - PT.dist;
 		var from = { x: puttCam.from.x + PT.bx * back, y: puttCam.from.y + PT.by * back };
 		// look down just enough that the foot of the basket sits low in the view, with the ground up to it showing
-		var tilt = Math.max(0, Math.atan(1.6 / Math.max(D, 1)) - Math.atan(0.33 * h / F));
+		var tilt = Math.max(0, Math.atan(POV.camH / Math.max(D, 1)) - Math.atan(0.33 * h / F));
 		var C = POVW.cam(from, puttCam.ang, w, h, PUTT_FOV, tilt);
 		C.skipNear = back + CLEARING_M;   // no trees between the camera and the player
 		puttCamDrawn = C;
@@ -624,7 +624,7 @@
 		var d = curDisc(), key = [holeIdx, S.lie.x, S.lie.y, S.aim.x, S.aim.y, d.key, S.style, S.angle, S.hand, S.pitch].join("|");
 		if (lineCache.key === key) return lineCache.line;
 		var H = S.H, sh = throwShape(1, false); applyAngle(sh);
-		var discR = S.pitch ? 0.04 : 0.11, pts = [S.lie], red = {}, i;
+		var discR = S.pitch ? PITCH_DISC_R : DISC_R, pts = [S.lie], red = {}, i;   // the flight's own (flight.js)
 		for (i = 1; i <= 100; i++) pts.push(idealPoint(sh, i / 100));
 		H.trunks.forEach(function (t, j) {
 			if (hyp(t.x - S.lie.x, t.y - S.lie.y) <= CLEARING_M) return;
@@ -652,7 +652,7 @@
 	}
 	function draw(now) {
 		g.setTransform(1, 0, 0, 1, 0, 0);
-		g.fillStyle = "#2c4a27"; g.fillRect(0, 0, cv.width, cv.height);
+		g.clearRect(0, 0, cv.width, cv.height);   // the page's own background (style.css) shows around the hole
 		if (!S || !pic || !vw || !$("menu").hidden) return;
 		if (showingPov()) return drawPov(now);
 		vw.apply(g, dpr);

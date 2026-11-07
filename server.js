@@ -10,6 +10,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 
 const PORT = Number(process.env.PORT) || 3002;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -35,7 +36,36 @@ const MIME = {
 };
 
 // Never served as static files
-const BLOCKED = /^\/(api|data|deploy|node_modules)(\/|$)|\/\.|^\/(server\.js|package(-lock)?\.json)$/;
+const BLOCKED = /^\/(api|data|deploy|node_modules|tools)(\/|$)|\/\.|^\/(server\.js|package(-lock)?\.json)$/;
+
+// Text files go out gzipped to browsers that take it (the courses alone are 206 KB, 29 KB gzipped).
+// Each is compressed once and kept until the file changes (they're small: under 1 MB in all).
+const COMPRESS = /\.(html|js|css|json|txt|svg)$/i;
+const MAX_GZIP_BYTES = 4 * 1024 * 1024;
+const gzipped = new Map();   // file path -> { tag, buf }
+
+function gzipOf(filePath, tag, done) {
+  const hit = gzipped.get(filePath);
+  if (hit && hit.tag === tag) return done(null, hit.buf);
+  fs.readFile(filePath, (err, data) => {
+    if (err) return done(err);
+    zlib.gzip(data, { level: 9 }, (err2, buf) => {
+      if (err2) return done(err2);
+      gzipped.set(filePath, { tag, buf });
+      done(null, buf);
+    });
+  });
+}
+
+// A file's version tag (size and time changed): the browser keeps a copy and asks "still this one?",
+// so an unchanged file costs a 304 instead of the whole file, and a changed one is always fetched fresh
+function etagOf(stat, gz) {
+  return `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}${gz ? "-gz" : ""}"`;
+}
+function stillFresh(req, tag) {
+  const inm = req.headers["if-none-match"];
+  return !!inm && inm.split(",").some((t) => t.trim().replace(/^W\//, "") === tag);
+}
 
 // Add the Express-style helpers the handlers expect
 function decorate(res) {
@@ -106,15 +136,27 @@ function serveStatic(req, res, url) {
       res.writeHead(404, { "Content-Type": "text/plain" });
       return res.end("Not found");
     }
-    const headers = {
-      "Content-Type": MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream",
-      "Content-Length": stat.size
-    };
-    // Always fetch fresh game scripts (the page and the door)
-    if (/^\/(scripts|bbs)\//.test(pathname)) headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-    res.writeHead(200, headers);
-    if (req.method === "HEAD") return res.end();
-    fs.createReadStream(filePath).pipe(res);
+    const text = COMPRESS.test(filePath);
+    const gz = text && stat.size <= MAX_GZIP_BYTES && /\bgzip\b/.test(req.headers["accept-encoding"] || "");
+    const tag = etagOf(stat, gz);
+    // Every file is checked with the server before it's used (no-cache), so a deploy shows up on the next load
+    const headers = { "Cache-Control": "no-cache", "ETag": tag, "Last-Modified": stat.mtime.toUTCString() };
+    if (text) headers["Vary"] = "Accept-Encoding";
+    if (stillFresh(req, tag)) { res.writeHead(304, headers); return res.end(); }
+    headers["Content-Type"] = MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+    if (!gz) {
+      headers["Content-Length"] = stat.size;
+      res.writeHead(200, headers);
+      if (req.method === "HEAD") return res.end();
+      return fs.createReadStream(filePath).pipe(res);
+    }
+    gzipOf(filePath, tag, (err2, buf) => {
+      if (err2) { res.writeHead(500, { "Content-Type": "text/plain" }); return res.end("Server error"); }
+      headers["Content-Encoding"] = "gzip";
+      headers["Content-Length"] = buf.length;
+      res.writeHead(200, headers);
+      res.end(req.method === "HEAD" ? undefined : buf);
+    });
   });
 }
 

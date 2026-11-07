@@ -90,7 +90,7 @@ function fly(sw) {
 	var gx = -fy, gy = fx;                                // rotated right
 
 	var path = [], lastIn = { x: S.lie.x, y: S.lie.y }, res = { tree: false, basket: false, ob: false };
-	var steps = Math.max(2, Math.ceil(dist / 0.5)), discR = pitch ? 0.04 : 0.11;
+	var steps = Math.max(2, Math.ceil(dist / 0.5)), discR = pitch ? PITCH_DISC_R : DISC_R;
 	for (var i = 1; i <= steps; i++) {
 		var s = dist * i / steps, u = s / dist, lat = curveLat(sh, u, dist, cross);
 		var p = { x: S.lie.x + fx * s + gx * lat, y: S.lie.y + fy * s + gy * lat };

@@ -554,9 +554,10 @@ editing, relief, mulligans and house rules settings. Courses with a photo-traced
 | `scripts/` | The emulator, as ES modules (listed below). |
 | `vendor/acorn.js` | JavaScript parser the web page uses to run the door script in the browser (acorn 8.12.1, MIT license). |
 | `vendor/acorn-LICENSE.txt` | acorn's license. |
-| `server.js` | The disc golf service: serves the game files and the BBS door's save API (Node built-ins only). See "The save service". |
+| `server.js` | The disc golf service: serves the game files and the BBS door's save API (Node built-ins only). See "The save service". Text files go out gzipped (the web page is about 80 KB instead of 357 KB), and every file has a version tag the browser checks on each load, so an unchanged file costs a "not modified" reply and a deployed change shows up right away. |
+| `tools/check-web-scripts.js` | `npm run check`: makes sure `web/index.html` loads the door's rule files in the door's order and that they load cleanly. Run it after changing which `bbs/lib` files the web page uses, or the order `bbs/discgolf.js` loads them in. |
 | `api/` | The service's routes and database: `players.js` (the save API), `_db.js` (SQLite: players, rate limits), `_names.js` (player name rules and web-name tags), `_helpers.js` (door check, client address), `_rateLimit.js`. |
-| `package.json` | `npm start` runs `server.js`. No dependencies. |
+| `package.json` | `npm start` runs `server.js`; `npm run check` runs the web page's load-order check. No dependencies. |
 | `LICENSE` | MIT license. |
 | `deploy/update-discgolf.sh` | The script digiweb runs to publish a push (see "Automatic deploys"). |
 | `deploy/ic-discgolf.service`, `deploy/nginx-discgolf.conf` | The service's systemd unit and the nginx change for it, to install once (see "The save service"). |
