@@ -526,7 +526,8 @@ and the chips for backhand/forehand/tomahawk, hand and angle. Trees the line run
 passes within half a metre of) turn red. In the trees it switches to the view from your lie, like
 the door's POV (V or the chip switches back): Left/Right or drag turns, and it shows the gap, how
 far it's clear and where the basket is. Inside 66 ft you putt; the meter marks every 10 ft and the
-basket's distance, and Left/Right aims off the basket. V (or the chip) switches the putt between
+basket's distance, and Left/Right (or a tap or drag on the hole, overhead or from the player) aims
+off the basket, up to 3 m either side. V (or the chip) switches the putt between
 overhead and from the player, like the door's Putting view. The wind arrow points the way the wind
 blows: on the map as drawn, and in the view from the lie as you face (up is a wind at your back).
 The **card** chip (or C) opens the scorecard (out / in on 18 holes, and the total), where you can

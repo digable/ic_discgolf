@@ -178,11 +178,14 @@
 		var d = curDisc(), putting = phase === "putt", pd = putting ? puttDisc() : d;
 		$("hCourse").textContent = cp(R.course.name); $("hHole").textContent = S.H.num + "/" + R.holes.length;
 		$("hPar").textContent = S.H.par; $("hPin").textContent = ft(pinDist()) + " ft";
-		$("hThrow").textContent = S.strokes + 1;
+		// the throw coming up; once it's in (the rules put the lie exactly on the basket), the hole's score
+		var done = S.lie.x === S.H.basket.x && S.lie.y === S.H.basket.y;
+		$("hThrowLabel").textContent = done ? "score" : "throw";
+		$("hThrow").textContent = done ? S.strokes : S.strokes + 1;
 		$("hRound").textContent = relText(roundToPar());
 		$("dName").textContent = pd.name; $("dWeight").textContent = (pd.g || MAX_G) + "g";
 		setHtml($("dNums"), pd.n.map(function (n) { return "<span>" + n + "</span>"; }).join(""));
-		$("dRange").textContent = putting ? "putting · " + (PT.aim ? Math.abs(Math.round(PT.aim * FT)) + " ft " + (PT.aim < 0 ? "left" : "right") : "straight at it")
+		$("dRange").textContent = putting ? "putting · " + puttAimText("")
 			: "max " + ft(discRange(d, S.style, domHand()) * (S.pitch ? PITCH_POWER : 1)) + " ft";
 		$("discDot").style.background = discColor(pd);
 		$("discDot").setAttribute("aria-label", "Disc: " + pd.name + ". Next disc (D)");
@@ -193,6 +196,11 @@
 		$("wText").textContent = S.wind.mph ? S.wind.mph + " mph" : "calm";
 		windArrow();
 		kick();
+	}
+	// Where the putt is aimed, in whole feet ("3 ft left" + of, or "straight at it" under half a foot)
+	function puttAimText(of) {
+		var f = Math.round(Math.abs(PT.aim) * FT);
+		return f ? f + " ft " + (PT.aim < 0 ? "left" : "right") + of : "straight at it";
 	}
 	function chipText(id, what, val, key) {
 		var b = $(id); b.textContent = val; b.setAttribute("aria-label", what + ": " + val + ". Change (" + key + ")");
@@ -429,7 +437,9 @@
 	$("cardBtn").addEventListener("click", function () { if (cardOpen) closeCard(); else openCard(); });
 	// Aim: click or tap the map (the meter keeps going if it's running)
 	function aimAt(ev, first) {
-		if (phase !== "aim" || !vw) return;
+		if (!vw) return;
+		if (phase === "putt") return aimPuttAt(ev);
+		if (phase !== "aim") return;
 		if (view === "pov") {   // in the view from the lie: tap or drag left and right to turn
 			var x = ev.clientX - cv.getBoundingClientRect().left - box.x, F = (box.w / 2) / Math.tan(POVW.FOV / 2);
 			if (first) pov.drag = pov.ang;
@@ -439,6 +449,24 @@
 		var H = S.H;
 		S.aim = { x: clamp(w.x, 0, (MAP_W - 1) * H.S), y: clamp(w.y, -AIM_PAST_ROWS * 2 * H.S, (MAP_H - 1 + AIM_PAST_ROWS) * 2 * H.S) };
 		kick();
+	}
+	// Putting: tap or drag to aim off the basket, as far as the arrows go (aimPutt: 3 m either side).
+	// Overhead: the spot across the line at the basket. From the player: left/right on the screen,
+	// matched to where the aim mark is drawn (puttCamDrawn: the last putting camera drawn).
+	var puttCamDrawn = null;
+	function aimPuttAt(ev) {
+		var r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, lat;
+		if (showingPov() && puttCamDrawn) {
+			var x0 = puttCamDrawn.proj(puttWorld(1, 0), 1.0), x1 = puttCamDrawn.proj(puttWorld(1, 1), 1.0);
+			if (!x0 || !x1 || x1.x === x0.x) return;
+			lat = (x - box.x - x0.x) / (x1.x - x0.x);
+		} else {
+			var p = vw.s2w(x, y), b = S.H.basket;
+			lat = (p.x - b.x) * PT.rx + (p.y - b.y) * PT.ry;
+		}
+		PT.aim = 0;
+		aimPutt(Math.round(lat * 20) / 20);   // to 5 cm, kept inside the rules' limits
+		hud();
 	}
 	var dragging = false;
 	cv.addEventListener("pointerdown", function (e) { dragging = true; aimAt(e, true); });
@@ -559,6 +587,7 @@
 		// look down just enough that the foot of the basket sits low in the view, with the ground up to it showing
 		var tilt = Math.max(0, Math.atan(1.6 / Math.max(PT.dist, 1)) - Math.atan(0.33 * h / F));
 		var C = POVW.cam(puttCam.from, puttCam.ang, w, h, PUTT_FOV, tilt);
+		puttCamDrawn = C;
 		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
 		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
 		g.drawImage(POVW.scene(S.H, C, dpr), 0, 0, w, h);
@@ -568,8 +597,8 @@
 		if (a && !inChains) drawPuttDisc(g, C, a);
 		if (phase !== "rolling") POVW.puttAim(g, C, puttCam.from, puttWorld(1, PT.aim));
 		g.restore();
-		showChip(ft(PT.dist) + " ft · " + (PT.aim ? Math.abs(Math.round(PT.aim * FT)) + " ft " + (PT.aim < 0 ? "left" : "right") + " of the basket" : "straight at it") +
-			" · " + fadeText().toLowerCase() + "<span class='label kb'><br>←/→ to aim · V for overhead</span>");
+		showChip(ft(PT.dist) + " ft · " + puttAimText(" of the basket") +
+			" · " + fadeText().toLowerCase() + "<span class='label kb'><br>←/→ to aim · V for overhead</span><span class='label tap'> · tap or drag to aim</span>");
 	}
 
 	// The putt in the air: let go at 1 m, a small rise, then the height it ends at (anim.endHt)
