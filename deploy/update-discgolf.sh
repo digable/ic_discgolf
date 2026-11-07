@@ -33,6 +33,7 @@ rsync -a --delete --delete-excluded \
     --include='/bbs/discgolf.js' \
     --include='/bbs/lib/***' \
     --include='/vendor/***' \
+    --include='/web/***' \
     --include='/server.js' \
     --include='/package.json' \
     --include='/api/***' \
