@@ -120,10 +120,12 @@ function basketMarker() {
 	}
 }
 
-function gapInfo(col) {
-	var P = V.pov, c = clamp(col, 0, MAP_W - 1), clear = P.hit[c], need = Math.min(clear, 12) * 0.8, l = c, r = c;
-	while (l > 0 && P.hit[l - 1] >= need) l--;
-	while (r < MAP_W - 1 && P.hit[r + 1] >= need) r++;
+// The gap along column col of povHits' distances (hit): its width and how far it's clear, in metres.
+// No screen state, so the web page's view from the lie uses it too.
+function gapInfo(hit, col) {
+	var c = clamp(col, 0, MAP_W - 1), clear = hit[c], need = Math.min(clear, 12) * 0.8, l = c, r = c;
+	while (l > 0 && hit[l - 1] >= need) l--;
+	while (r < MAP_W - 1 && hit[r + 1] >= need) r++;
 	var w = (r - l + 1) / MAP_W * POV.fov, at = Math.min(clear, 12);
 	return { clear: clear, width: 2 * Math.tan(w / 2) * at };
 }

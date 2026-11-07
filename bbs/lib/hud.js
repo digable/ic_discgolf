@@ -66,7 +66,7 @@ function panel() {
 		angleLine()
 	];
 	if (V.view === "pov" && V.pov) {
-		var gi = gapInfo(V.pov.aimCol);
+		var gi = gapInfo(V.pov.hit, V.pov.aimCol);
 		lines.push("\x01n\x01hGap \x01n" + ft(gi.width) + " ft, clear " + (gi.clear > POV.maxD ? "far" : ft(gi.clear)));
 		lines.push("\x01n\x01hBasket \x01n" + bearingText());
 	} else {
