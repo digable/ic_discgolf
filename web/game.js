@@ -10,10 +10,12 @@
 	var phase = "menu";        // menu, aim, meter, fly, putt, rolling, holeDone, roundDone
 	var holeIdx = 0, anim = null, sw = null, meter = null, message = "", lastPath = null;
 	var reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+	var view = "map", pov = null, inPath = {};   // map or the view from the lie (pov: {ang}); trees the throw's line runs into
 
 	// ---- text from the door's own wording (Ctrl-A colour codes -> HTML) ----------------------
 	var CA = { k: "c-k", r: "c-r", g: "c-g", y: "c-y", b: "c-b", m: "c-m", c: "c-c", w: "c-w" };
 	function ctrlA(s) {
+		s = cp(s);
 		var out = "", cls = [], open = false, i, ch;
 		var esc = function (t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
 		for (i = 0; i < s.length; i++) {
@@ -29,7 +31,14 @@
 		}
 		return out + (open ? "</span>" : "");
 	}
-	function say(s) { message = s; $("msg").innerHTML = ctrlA(s); $("msg").hidden = !s; }
+	var CP437 = { "\x80": "Ç", "\x81": "ü", "\x82": "é", "\x83": "â", "\x84": "ä", "\x85": "à", "\x86": "å", "\x87": "ç", "\x88": "ê", "\x89": "ë", "\x8a": "è",
+		"\x8b": "ï", "\x8c": "î", "\x8d": "ì", "\x8e": "Ä", "\x8f": "Å", "\x90": "É", "\x91": "æ", "\x92": "Æ", "\x93": "ô", "\x94": "ö", "\x95": "ò", "\x96": "û",
+		"\x97": "ù", "\x98": "ÿ", "\x99": "Ö", "\x9a": "Ü", "\xa0": "á", "\xa1": "í", "\xa2": "ó", "\xa3": "ú", "\xa4": "ñ", "\xa5": "Ñ" };
+	function cp(t) { return String(t).replace(/[\x80-\xa5]/g, function (c) { return CP437[c] || c; }); }
+	function say(s) {
+		message = s; $("msg").innerHTML = ctrlA(s); $("msg").hidden = !s;
+		if (S) layout();
+	}
 
 	// ---- layout -----------------------------------------------------------------------------
 	function layout() {
@@ -38,7 +47,15 @@
 		cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
 		cv.style.width = w + "px"; cv.style.height = h + "px";
 		var top = $("top").getBoundingClientRect(), pan = $("panel").getBoundingClientRect();
-		box = { x: 8, y: top.bottom + 6, w: w - 16, h: Math.max(80, pan.top - top.bottom - 12) };
+		document.documentElement.style.setProperty("--msgTop", Math.round(top.bottom + 6) + "px");
+		var side = pan.left > w * 0.35;                         // short screens: the panels are a column at the right
+		if (side) box = { x: 8, y: 8, w: Math.max(80, pan.left - 20), h: h - 16 };
+		else {
+			// phones: the hole goes below the message too, so nothing sits on top of it
+			var under = top.bottom, msg = $("msg");
+			if (!msg.hidden) under = Math.max(under, msg.getBoundingClientRect().bottom);
+			box = { x: 8, y: under + 6, w: w - 16, h: Math.max(80, pan.top - under - 12) };
+		}
 		if (S) vw = DRAW.view(S.H, box);
 	}
 	window.addEventListener("resize", function () { layout(); });
@@ -53,8 +70,8 @@
 		var li = document.createElement("li");
 		var b = document.createElement("button"); b.type = "button"; b.className = "course";
 		b.innerHTML = "<b></b><span class='label'></span><span class='meta'></span>";
-		b.querySelector("b").textContent = COURSES[i].name;
-		b.querySelector(".label").textContent = C.where + ", " + C.country;
+		b.querySelector("b").textContent = cp(COURSES[i].name);
+		b.querySelector(".label").textContent = cp(C.where + ", " + C.country);
 		b.querySelector(".meta").textContent = C.holes.length + " holes · par " + par + " · " + len.toLocaleString() + " ft · UDisc " + C.rating.toFixed(1);
 		b.addEventListener("click", function () { play(useTraced[i] ? traced[i] : i); });
 		li.appendChild(b);
@@ -104,13 +121,15 @@
 	function readyToThrow() {
 		if (inPuttRange()) { puttSetup(); if (isTapIn()) { tapIn(); say("Tap-in."); return holeOut(); } phase = "putt"; }
 		else phase = "aim";
-		meterReset(); hud();
+		view = "map"; pov = null;
+		if (phase === "aim" && lieInTrees()) startPov();
+		meterReset(); hud(); syncView();
 	}
 
 	// ---- the panel ---------------------------------------------------------------------------
 	function hud() {
 		var d = curDisc();
-		$("hCourse").textContent = R.course.name; $("hHole").textContent = S.H.num + "/" + R.holes.length;
+		$("hCourse").textContent = cp(R.course.name); $("hHole").textContent = S.H.num + "/" + R.holes.length;
 		$("hPar").textContent = S.H.par; $("hPin").textContent = ft(pinDist()) + " ft";
 		$("hThrow").textContent = S.strokes + 1;
 		var rel = roundToPar(); $("hRound").textContent = rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel));
@@ -138,22 +157,40 @@
 	// ---- the meter (the same 3 clicks and timing as the door: meter.js's posAt and powerAt) --------
 	function meterReset() {
 		meter = null; sw = null;
+		setTicks(phase === "putt");
 		$("mark").style.left = pctOf(0); $("pressP").hidden = true;
-		$("mLabel").innerHTML = phase === "putt" ? "Putt: tap <b>THROW</b> (or SPACE) to start" : "Tap <b>THROW</b> (or press SPACE) to reach back";
+		$("mLabel").innerHTML = phase === "putt" ? "Putt: tap <b>PUTT</b><span class='kb'> (or SPACE)</span> to start" : "Tap <b>THROW</b><span class='kb'> (or press SPACE)</span> to reach back";
 		$("throwBtn").textContent = phase === "putt" ? "PUTT" : "THROW";
 	}
 	function pctOf(col) { return (col / (BAR_W - 1) * 100) + "%"; }
 	$("snap").style.left = pctOf(SNAP - 0.5); $("snap").style.width = (SNAP_W / (BAR_W - 1) * 100) + "%";
 	$("p100").style.left = pctOf(P100);
 	document.querySelector("#bar .over").style.left = pctOf(P100);
-	// the power marks: 0% is the yellow release zone, 100% the white line (as on the BBS meter)
-	document.querySelectorAll(".ticks span").forEach(function (sp, i) { sp.style.left = pctOf(SNAP_MID + i / 4 * (P100 - SNAP_MID)); });
-	function press() {
+	// Where a power sits on the bar: 0% at the yellow release zone, 100% at the white line (meter.js's powerAt)
+	function powCol(p) { return SNAP + p / 100 * (P100 - SNAP); }
+	// The marks over the bar. Putting, like the door: every 10 ft, full power is 66 ft, and the basket at the
+	// putt's length (the power that just gets there: a putt goes power% of 66 ft)
+	function setTicks(putting) {
+		var marks = [], el = $("ticks"), pin = $("pinMark");
+		if (putting) {
+			var full = ft(PUTT_M);
+			for (var f = 10; f < full - 8; f += 10) marks.push([f / full * 100, String(f)]);
+			marks.push([100, full + " ft"]);
+		} else marks = [[0, "0"], [25, "25"], [50, "50"], [75, "75"], [100, "100%"]];
+		el.innerHTML = marks.map(function (m) { return "<span style='left:" + pctOf(powCol(m[0])) + "'>" + m[1] + "</span>"; }).join("");
+		pin.hidden = !putting;
+		if (putting) {
+			var need = Math.min(100, ft(PT.dist) / ft(PUTT_M) * 100);
+			pin.style.left = pctOf(powCol(need));
+			$("pinFt").textContent = ft(PT.dist) + " ft";
+		}
+	}
+	function press(when) {
 		if (phase === "holeDone") return nextHole();
 		if (phase !== "aim" && phase !== "putt" && phase !== "meter") return;
-		var t = performance.now() / 1000;
+		var t = (typeof when === "number" ? when : performance.now()) / 1000;   // the moment of the tap, not when it's handled
 		if (!meter) { meter = { start: t, power: null, over: false, turnT: null, turnPos: 0, putting: phase === "putt" }; phase = "meter";
-			$("mLabel").textContent = "Reach back... tap again for power"; return; }
+			$("mLabel").textContent = "Reach back... tap again for power"; syncView(); return; }
 		var e = t - meter.start;
 		if (meter.power === null) {
 			var hp = posAt(e);
@@ -197,6 +234,7 @@
 			line += "Lying " + lieName(tileAt(S.H, S.lie)) + ", " + ft(pinDist()) + " ft to go.";
 		}
 		phase = "fly";
+		syncView();
 		lastPath = [shot.from].concat(f.path);
 		flyAlong(lastPath, 900 + shot.dist * 9, function () {
 			say(line);
@@ -261,7 +299,11 @@
 	}
 
 	// ---- controls ----------------------------------------------------------------------------
-	$("throwBtn").addEventListener("click", press);
+	// THROW fires the moment it's pressed (a click waits for the release, which made the 3rd tap late).
+	// preventDefault keeps it from taking focus, so SPACE never presses it a second time.
+	$("throwBtn").addEventListener("pointerdown", function (e) { if (e.button) return; e.preventDefault(); press(e.timeStamp); });
+	$("throwBtn").addEventListener("click", function (e) { if (e.detail === 0) press(); });   // Enter on the focused button
+	$("viewBtn").addEventListener("click", function () { toggleView(); });
 	$("discDot").addEventListener("click", function () { if (phase === "aim") { S.disc = (S.disc + 1) % bagDiscs().length; hud(); } });
 	$("tStyle").addEventListener("click", function () { if (phase === "aim") { nextThrow(); hud(); } });
 	$("tHand").addEventListener("click", function () { if (phase === "aim" || phase === "putt") { S.hand = S.hand === "R" ? "L" : "R"; hud(); } });
@@ -273,20 +315,32 @@
 		$("closeCard").addEventListener("click", function () { d.hidden = true; });
 	});
 	// Aim: click or tap the map (the meter keeps going if it's running)
-	function aimAt(ev) {
+	function aimAt(ev, first) {
 		if (phase !== "aim" || !vw) return;
+		if (view === "pov") {   // in the view from the lie: tap or drag left and right to turn
+			var x = ev.clientX - cv.getBoundingClientRect().left - box.x, F = (box.w / 2) / Math.tan(POVW.FOV / 2);
+			if (first) pov.drag = pov.ang;
+			return povAim(pov.drag + Math.atan((x - box.w / 2) / F));
+		}
 		var r = cv.getBoundingClientRect(), w = vw.s2w(ev.clientX - r.left, ev.clientY - r.top);
 		var H = S.H;
 		S.aim = { x: clamp(w.x, 0, (MAP_W - 1) * H.S), y: clamp(w.y, -AIM_PAST_ROWS * 2 * H.S, (MAP_H - 1 + AIM_PAST_ROWS) * 2 * H.S) };
 	}
 	var dragging = false;
-	cv.addEventListener("pointerdown", function (e) { dragging = true; aimAt(e); });
+	cv.addEventListener("pointerdown", function (e) { dragging = true; aimAt(e, true); });
 	cv.addEventListener("pointermove", function (e) { if (dragging) aimAt(e); });
 	window.addEventListener("pointerup", function () { dragging = false; });
 	window.addEventListener("keydown", function (e) {
 		if (e.ctrlKey || e.metaKey || e.altKey || e.target.tagName === "INPUT") return;
 		var k = e.key, K = k.toUpperCase();
-		if (k === " " || k === "Enter") { if (e.target.tagName === "BUTTON" && k === "Enter") return; e.preventDefault(); if (!e.repeat) press(); return; }
+		if (k === " " || k === "Enter") { if (e.target.tagName === "BUTTON" && k === "Enter") return; e.preventDefault(); if (!e.repeat) press(e.timeStamp); return; }
+		if (K === "V" && (phase === "aim" || phase === "meter")) { toggleView(); return; }
+		if (phase === "aim" && view === "pov") {
+			var step = POVW.FOV / MAP_W;   // one of the door's columns
+			if (k === "ArrowLeft") { povAim(pov.ang - step * (e.shiftKey ? 5 : 1)); e.preventDefault(); return; }
+			if (k === "ArrowRight") { povAim(pov.ang + step * (e.shiftKey ? 5 : 1)); e.preventDefault(); return; }
+			if (k === "ArrowUp" || k === "ArrowDown") { e.preventDefault(); return; }
+		}
 		if (phase === "aim") {
 			var turn = vw && vw.tall;
 			if (k === "ArrowLeft") { turn ? moveAim(0, -1) : moveAim(-1, 0); e.preventDefault(); }
@@ -304,6 +358,76 @@
 			else if (K === "H") $("tHand").click();
 		}
 	});
+	// SPACE already pressed THROW on keydown; don't let it also click whatever button has focus
+	window.addEventListener("keyup", function (e) { if (e.key === " " && e.target.tagName === "BUTTON") e.preventDefault(); });
+
+	// ---- the view from the lie (the door's POV: pov.js) ------------------------------------------
+	function startPov() {
+		view = "pov";
+		pov = { ang: Math.atan2(S.aim.y - S.lie.y, S.aim.x - S.lie.x) };
+		povAim(pov.ang);
+	}
+	// Turn to an angle and aim along it, as the door's povSetAim: at the pin's distance, at least 15 m out
+	function povAim(a) {
+		pov.ang = a;
+		var d = Math.max(pinDist(), 15);
+		S.aim = { x: S.lie.x + d * Math.cos(a), y: S.lie.y + d * Math.sin(a) };
+	}
+	function toggleView() {
+		if (!S || (phase !== "aim" && phase !== "meter") || (meter && meter.putting)) return;
+		if (view === "pov") view = "map"; else if (pov) view = "pov"; else startPov();
+		syncView();
+	}
+	function showingPov() { return view === "pov" && pov && (phase === "aim" || (phase === "meter" && meter && !meter.putting)); }
+	function syncView() {
+		var on = showingPov();
+		$("viewBtn").textContent = on ? "map" : "view from lie";
+		$("viewBtn").hidden = !(phase === "aim" || (phase === "meter" && meter && !meter.putting));
+		if (!on && !$("gapChip").hidden) { $("gapChip").hidden = true; layout(); }
+	}
+	function bearing() {
+		var b = Math.atan2(S.H.basket.y - S.lie.y, S.H.basket.x - S.lie.x) - pov.ang;
+		while (b > Math.PI) b -= 2 * Math.PI;
+		while (b < -Math.PI) b += 2 * Math.PI;
+		var deg = Math.round(b * 180 / Math.PI);
+		return Math.abs(deg) < 2 ? "basket straight ahead" : "basket " + Math.abs(deg) + "° " + (deg < 0 ? "left" : "right");
+	}
+	// Drawn in the same box as the map, so the chips and the panel never sit on it
+	function drawPov() {
+		var w = Math.round(box.w), h = Math.round(box.h), C = POVW.cam(S.lie, pov.ang, w, h);
+		g.setTransform(dpr, 0, 0, dpr, dpr * box.x, dpr * box.y);
+		g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
+		g.drawImage(POVW.scene(S.H, C, dpr, inPath), 0, 0, w, h);
+		var sh = throwShape(1, false); applyAngle(sh);
+		POVW.rangePath(g, C, sh, S.lie, sh.dist);
+		POVW.basket(g, S.H, C);
+		POVW.crosshair(g, C, S.aim);
+		g.restore();
+		var gp = POVW.gap(S.H, S.lie, pov.ang), red = Object.keys(inPath).length;
+		var chip = $("gapChip");
+		if (chip.hidden) { chip.hidden = false; layout(); }
+		chip.innerHTML = (gp.far ? "clear past " + ft(60) + " ft" : "gap " + Math.max(1, ft(gp.width)) + " ft wide · clear " + ft(gp.clear) + " ft") +
+			" · " + bearing() + (red ? " · <span class='c-r hi'>" + red + " tree" + (red === 1 ? "" : "s") + " in the line</span>" : "") +
+			"<span class='label kb'><br>←/→ to turn · V for the map</span><span class='label tap'> · drag to turn</span>";
+	}
+
+	// The trees a perfect, full-power throw on this line runs into (or passes within half a metre of)
+	var PATH_MARGIN = 0.5;
+	function treesInPath() {
+		var out = {}, H = S.H, sh = throwShape(1, false); applyAngle(sh);
+		var discR = S.pitch ? 0.04 : 0.11, pts = [S.lie];
+		for (var u = 0.01; u <= 1.0001; u += 0.01) pts.push(idealPoint(sh, u));
+		H.trunks.forEach(function (t, j) {
+			if (hyp(t.x - S.lie.x, t.y - S.lie.y) <= CLEARING_M) return;
+			for (var i = 1; i < pts.length; i++) {
+				if (sh.tomahawk && i < pts.length * 0.8) continue;   // a tomahawk is over the trees until it comes down
+				var a = pts[i - 1], b = pts[i], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1e-9;
+				var q = clamp(((t.x - a.x) * dx + (t.y - a.y) * dy) / L2, 0, 1);
+				if (hyp(t.x - a.x - q * dx, t.y - a.y - q * dy) < t.rad + discR + PATH_MARGIN) { out[j] = 1; return; }
+			}
+		});
+		return out;
+	}
 
 	// ---- each frame ----------------------------------------------------------------------------
 	function frame(now) {
@@ -312,6 +436,9 @@
 		g.setTransform(1, 0, 0, 1, 0, 0);
 		g.fillStyle = "#2c4a27"; g.fillRect(0, 0, cv.width, cv.height);
 		if (!S || !pic || !vw) return;
+		var aiming = phase === "aim" || (phase === "meter" && meter && !meter.putting);
+		inPath = aiming ? treesInPath() : {};
+		if (showingPov()) { drawPov(); if (phase === "aim") hud(); return; }
 		vw.apply(g, dpr);
 		g.imageSmoothingEnabled = true;
 		g.drawImage(pic.canvas, 0, 0, pic.mw, pic.mh);
@@ -323,6 +450,13 @@
 			g.beginPath(); g.moveTo(S.lie.x, S.lie.y);
 			for (var u = 0.02; u <= 1.0001; u += 0.02) { var p = idealPoint(sh, u); g.lineTo(p.x, p.y); }
 			g.stroke(); g.restore();
+			// trees in the line: a red ring around the crown
+			S.H.trunks.forEach(function (t, j) {
+				if (!inPath[j]) return;
+				var r = clamp(S.H.S * (1.1 + ((j * 37) % 17) / 17), 1.2, 4);
+				g.fillStyle = "rgba(255,60,60,.35)"; g.strokeStyle = "#ff3b3b"; g.lineWidth = 2.5 * px;
+				g.beginPath(); g.arc(t.x, t.y, r, 0, 7); g.fill(); g.stroke();
+			});
 			var land = idealPoint(sh, 1);
 			g.fillStyle = "rgba(255,255,255,.25)"; g.strokeStyle = "#fff"; g.lineWidth = 2.5 * px;
 			g.beginPath(); g.arc(land.x, land.y, 11 * px, 0, 7); g.fill(); g.stroke();

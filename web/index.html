@@ -21,12 +21,14 @@
     <div class="grow"></div>
     <div class="chip"><small>throw</small><span id="hThrow">1</span></div>
     <div class="chip"><small>round</small><span id="hRound">E</span></div>
+    <button class="chip btn" id="viewBtn" type="button" title="Switch between the map and the view from your lie (V)">view from lie</button>
     <button class="chip btn" id="cardBtn" type="button">card</button>
   </div>
 
   <div class="msg" id="msg" aria-live="polite"></div>
 
   <div class="panel" id="panel">
+    <div class="card gapChip" id="gapChip" hidden></div>
     <div class="card discCard">
       <div class="disc"><button class="dot" id="discDot" type="button" aria-label="Next disc (D)"></button>
         <div class="dinfo"><div class="dname"><span id="dName">-</span> <span class="label" id="dWeight"></span></div>
@@ -37,14 +39,15 @@
         <button class="tg" id="tAngle" type="button">flat</button>
       </div>
     </div>
+    <div class="card windCard"><div class="arrow" id="wArrow">↑</div><div><div class="label">wind</div><div class="dname" id="wText">calm</div></div></div>
     <div class="card meterCard">
       <div class="label" id="mLabel">Tap THROW (or press SPACE) to reach back</div>
+      <div class="ticks" id="ticks"></div>
       <div class="bar" id="bar"><div class="over"></div><div class="snap" id="snap"></div><div class="p100" id="p100"></div>
+        <div class="pin" id="pinMark" hidden><span id="pinFt"></span></div>
         <div class="press" id="pressP"></div><div class="mark" id="mark"></div></div>
-      <div class="ticks"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
       <button class="throw" id="throwBtn" type="button">THROW</button>
     </div>
-    <div class="card windCard"><div class="arrow" id="wArrow">↑</div><div><div class="label">wind</div><div class="dname" id="wText">calm</div></div></div>
   </div>
 
   <div class="sheet" id="menu" hidden>
@@ -78,6 +81,7 @@
 <script src="../bbs/lib/shot.js"></script>   <!-- only its result wording (scoreName, waterLine...) -->
 <script src="../bbs/lib/putt.js"></script>   <!-- only its result wording (puttLine, puttWhy) -->
 <script src="draw.js"></script>
+<script src="pov.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

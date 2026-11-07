@@ -522,8 +522,12 @@ hole to match the real one. Graceland University (46) and Legion Park (47) are d
 terminal: the hole from above (tee on the left, or at the bottom on a phone), the flight of a
 perfect 100% throw as a dotted line, and the same 3-click meter (THROW button, or SPACE).
 Click or drag on the map (or use the arrows) to aim; tap the disc to change it (or 1-9 / D),
-and the chips for backhand/forehand/tomahawk, hand and angle. Inside 66 ft you putt; Left/Right
-aims off the basket.
+and the chips for backhand/forehand/tomahawk, hand and angle. Trees the line runs into (or
+passes within half a metre of) turn red. In the trees it switches to the view from your lie, like
+the door's POV (V or the chip switches back): Left/Right or drag turns, and it shows the gap, how
+far it's clear and where the basket is. Inside 66 ft you putt; the meter marks every 10 ft and the
+basket's distance, and Left/Right aims off the basket. On phones the chips and panel sit above
+and below the hole, or in a column beside it when the phone is on its side.
 
 It runs the game's own rule files from `bbs/lib/` (`config`, `util`, `discs`, `courses`, `player`,
 `holes`, `state`, `flight`, `rules`, `meter`, and the result wording in `shot`/`putt`), so courses,
@@ -536,7 +540,7 @@ rules settings. Courses with a photo-traced version show a drawn / photo-accurat
 | Path | What it is |
 |---|---|
 | `bbs/` | The game: the Synchronet door (`discgolf.js`) and its `lib/` files. The web page plays these same files. See [`bbs/README.md`](bbs/README.md). |
-| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks), `game.js` is the screens, meter, aiming and animation, `style.css` the look. See [Web version](#web-version). |
+| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks), `pov.js` the view from the lie (the door's POV in 3D), `game.js` is the screens, meter, aiming and animation, `style.css` the look. See [Web version](#web-version). |
 | `index.html` | The browser version's page: the terminal, the connection settings and the on-screen keys. |
 | `styles/` | The page's CSS: `base.css` (colors, fonts), `layout.css` (page layout), `components.css` (terminal, keys, panels). |
 | `scripts/` | The emulator, as ES modules (listed below). |
