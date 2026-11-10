@@ -63,6 +63,40 @@ function onlineStartHole(st) {
 	return S;
 }
 
+// A throw the room didn't take (you were skipped while taking it): back to where the room has you on
+// this hole, with the throw count it has. A disc that throw lost in the water comes back too.
+function onlineResync(st) {
+	var me = st.players[ONLINE.slot], B = S.H.basket;
+	if (S.undo && R.lost.length > S.undo.lost) { R.lost.length = S.undo.lost; bagChanged(); }
+	S.undo = null; PT = null; S.pitch = false;
+	S.strokes = me.cur;
+	S.lie = me.done ? { x: B.x, y: B.y } : (me.lie ? { x: me.lie.x, y: me.lie.y } : { x: S.H.tee.x, y: S.H.tee.y });
+	S.aim = { x: B.x, y: B.y };
+	R.strokes[st.hole] = me.strokes[st.hole] || 0;
+	autoPickDisc();
+}
+
+// What a skip means for you: the first on a hole, you throw after the others; the second, you're out
+// until you rejoin. lost: you were taking a throw, and it doesn't count.
+function onlineSkippedMsg(st, lost) {
+	// (each fits the door's 79-column message line)
+	var me = st.players[ONLINE.slot];
+	if (lost) return me.gone ? "\x01h\x01ySkipped again:\x01n that throw didn't count. You're out until you rejoin."
+		: "\x01h\x01ySkipped (too slow):\x01n that throw didn't count. You throw after the others.";
+	return me.gone ? "\x01h\x01yYou were skipped again:\x01n you're out until you rejoin."
+		: "\x01h\x01yYou were skipped\x01n for taking too long: you'll throw after the others.";
+}
+
+// The players skipped on this hole who throw after the others (not counting whose turn it is)
+function onlineLater(st) {
+	var n = [];
+	for (var i = 0; i < st.players.length; i++) {
+		var p = st.players[i];
+		if (p.later && !p.gone && !p.done && i !== st.turn) n.push(i);
+	}
+	return n;
+}
+
 // Your throw as the room takes it (room.js's roomApply)
 function onlineMe(done) {
 	return done ? { cur: S.strokes, done: true } : { cur: S.strokes, lie: { x: S.lie.x, y: S.lie.y }, dist: pinDist(), done: false };
@@ -363,10 +397,20 @@ function onlineWatch() {
 	var shown = "";
 	for (;;) {
 		if (hungUp()) return "quit";
-		// skipped (too long over a throw): out until you rejoin. Otherwise, after 3 minutes, anyone can skip.
-		var out_ = st.players[ONLINE.slot].gone, can = !out_ && onlineTurnAge(st) > ROOM_SKIP_MS;
-		var line = out_ ? "\x01h\x01yYou were skipped.\x01n  ~Rejoin  ~Scorecard ~Quit"
-			: "Waiting for \x01h" + onlineName(st, st.turn) + "\x01n" + (can ? "  \x01h\x01y~K\x01n skip them" : "") + "  ~Scorecard ~Quit";
+		// skipped twice on a hole: out until you rejoin; once: you throw after the others. After 3 minutes
+		// over a throw, anyone else can skip whoever's turn it is.
+		var me = st.players[ONLINE.slot], out_ = me.gone, can = !out_ && onlineTurnAge(st) > ROOM_SKIP_MS;
+		var line;
+		if (out_) line = "\x01h\x01yYou were skipped.\x01n  ~Rejoin  ~Scorecard ~Quit";
+		else if (me.later) line = "\x01h\x01ySkipped:\x01n you throw last" + (can ? "  \x01h\x01y~K\x01n skip" : "") + "  ~Scorecard ~Quit";
+		else {
+			// whose turn it is, and the skipped ones who throw after everyone (if it fits)
+			var later = onlineLater(st), then_ = [];
+			for (var li = 0; li < later.length; li++) then_.push(onlineShortName(onlineName(st, later[li])));
+			var tail = (can ? "  \x01h\x01y~K\x01n skip" : "") + "  ~Scorecard ~Quit";
+			line = "Waiting for \x01h" + onlineShortName(onlineName(st, st.turn)) + "\x01n" + (then_.length ? ", then " + then_.join(", ") : "") + tail;
+			if (line.replace(/\x01.|~/g, "").length > BAR_W + 2) line = "Waiting for \x01h" + onlineShortName(onlineName(st, st.turn)) + "\x01n" + tail;
+		}
 		if (line !== shown) { shown = line; status(line); }
 		var k = keyWithin(250), ku = k.toUpperCase();
 		if (ku === "S") { scorecard(st.hole, false); drawShotScreen(); shown = ""; continue; }
@@ -406,7 +450,9 @@ function onlinePush(done) {
 			if (got.state.players[ONLINE.slot].cur >= body.me.cur) { onlineTake(got.state, false); return true; }
 			if (got.state.turn !== ONLINE.slot) {
 				onlineTake(got.state, false);
-				V.lastMsg = "\x01h\x01yYou were skipped\x01n for taking too long: that throw didn't count.";
+				onlineResync(got.state);
+				V.view = null; V.pov = null;
+				V.lastMsg = onlineSkippedMsg(got.state, true);
 				return "skipped";
 			}
 		}
@@ -454,7 +500,7 @@ function onlineRound(st) {
 				if (done) R.strokes[hole] = S.strokes;
 				var sent = onlinePush(done);
 				if (!sent) break;
-				if (sent === "skipped") { R.strokes[hole] = 0; continue; }
+				if (sent === "skipped") continue;   // onlinePush put you back where the room has you
 				if (capped) V.lastMsg = "\x01h\x01y" + S.strokes + " throws:\x01n the hole stops counting there.";
 				else if (done) V.lastMsg = scoreName(S.strokes, S.H.par) + "\x01n  " + S.strokes + " on a par " + S.H.par + ".";
 				continue;

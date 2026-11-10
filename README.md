@@ -68,14 +68,19 @@ top). Every player polls the room every 1.5 seconds. The scorecard on the BBS an
 the web's scores strip, leave off the "(web)" tag to fit: "Digable (web)" is "Digable", and "Digable (web01)",
 the second web Digable, is "Digable 2".
 
-**Leaving and coming back.** Quit (Q on the BBS, **Quit round** on the web) or hanging up
-gives up your seat: your scores stay on the card, and the others play on without you. Join
+**Leaving and coming back.** You can leave any time, on your turn or while the others throw: Q
+on the BBS and in the terminal (then Y), or on the web the **card** button (C) and **Leave the
+round** (tapped twice). Leaving or hanging up gives up your seat: your scores stay on the card, and the others play on without you. Join
 the same room again (the same BBS alias, or the same browser) and you're back in from the
 next hole. Reloading the web page rejoins the room by itself. If a player takes more than 3
-minutes over a throw, anyone else can **skip** them (K on the BBS, **skip them** on the web):
-they're out from then on, unless they rejoin (R on the BBS, **rejoin** on the web, or joining
-the room again) and play on from the next hole. A throw they were still taking when skipped
-doesn't count. A hole stops counting at 30 throws. Rooms are deleted after a day with nobody
+minutes over a throw, anyone else can **skip** them (K on the BBS, **skip them** on the web).
+The first skip on a hole sends them to the **back of the line**: they keep their lie and throw
+count, the others play on, and once everyone else is in the turn comes back to them to finish the
+hole (everyone sees who's waiting: "Waiting for Bob, then Wes (skipped)"). If they're still gone
+then and take another 3 minutes, a second skip puts them **out**: no score for that hole, and they
+sit out until they rejoin (R on the BBS, **rejoin** on the web, or joining the room again) and
+play on from the next hole. A throw they were still taking when skipped doesn't count: their
+screen puts them back where the room has them. A hole stops counting at 30 throws. Rooms are deleted after a day with nobody
 playing, as in IC Zombies.
 
 **Who decides what.** The server (`api/games.js`) keeps each room in SQLite and decides whose

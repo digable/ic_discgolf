@@ -11,13 +11,16 @@
 //   players: one per slot, as the server's player list:
 //     { name, bbs (a BBS login), strokes: [per hole, 0 = not finished], cur: throws on this hole,
 //       lie: { x, y } or null (on the tee), dist: meters to the basket or null (on the tee),
-//       done: in the basket on this hole, gone: left the room (skipped from then on) }
+//       done: in the basket on this hole, later: skipped once on this hole (throws after the others),
+//       gone: left the room, or skipped twice on a hole (passed over until they rejoin) }
 //   last: the latest throw, for the others to watch: { slot, hole, kind: "throw" | "putt" | "tap",
 //     path: [[x, y], ...], line: what happened (Ctrl-A colors), done: it went in }
 //   seq: goes up by one with every change   over: the round is finished
 //
 // Turn order is the real game's: on the tee, the order of the last hole's scores (honors, lowest
 // first; ties keep the order they were in); after that, whoever is farthest from the basket throws.
+// A player skipped for taking too long goes to the back of the line on that hole: they keep their lie
+// and throw once everyone else is in. Skipped again there, they're out until they rejoin.
 
 "use strict";
 
@@ -46,20 +49,24 @@ function roomNewState(course, holes, rules, winds, names, now) {
 function roomNewPlayer(name, bbs, holes) {
 	var s = [];
 	for (var h = 0; h < holes; h++) s.push(0);
-	return { name: name, bbs: !!bbs, strokes: s, cur: 0, lie: null, dist: null, done: false, gone: false };
+	return { name: name, bbs: !!bbs, strokes: s, cur: 0, lie: null, dist: null, done: false, later: false, gone: false };
 }
 
 // Whose throw it is: the farthest from the basket among those still playing the hole (on the tee
-// counts as farthest; ties go by the tee order). -1 if nobody is left to throw.
+// counts as farthest; ties go by the tee order), the skipped ones (later) only once nobody else is
+// left. -1 if nobody is left to throw.
 function roomNextTurn(st) {
-	var best = -1, bestD = -1;
-	for (var i = 0; i < st.order.length; i++) {
-		var s = st.order[i], p = st.players[s];
-		if (!p || p.gone || p.done) continue;
-		var d = p.dist === null ? 1e9 : p.dist;
-		if (d > bestD) { best = s; bestD = d; }
+	for (var pass = 0; pass < 2; pass++) {
+		var best = -1, bestD = -1;
+		for (var i = 0; i < st.order.length; i++) {
+			var s = st.order[i], p = st.players[s];
+			if (!p || p.gone || p.done || !!p.later !== (pass === 1)) continue;
+			var d = p.dist === null ? 1e9 : p.dist;
+			if (d > bestD) { best = s; bestD = d; }
+		}
+		if (best >= 0) return best;
 	}
-	return best;
+	return -1;
 }
 
 // Everyone still in the room has finished the hole
@@ -92,7 +99,7 @@ function roomAdvance(st, now) {
 		st.hole = h + 1;
 		for (i = 0; i < st.players.length; i++) {
 			var p = st.players[i];
-			p.cur = 0; p.lie = null; p.dist = null; p.done = false;
+			p.cur = 0; p.lie = null; p.dist = null; p.done = false; p.later = false;
 		}
 	}
 	st.turn = st.over ? -1 : roomNextTurn(st);
@@ -136,6 +143,7 @@ function roomApply(st, slot, me, last, now) {
 	}
 	p.cur = me.cur;
 	p.done = done;
+	p.later = false;               // back from a skip: they're throwing again
 	p.lie = done ? null : { x: Math.round(me.lie.x * 100) / 100, y: Math.round(me.lie.y * 100) / 100 };
 	p.dist = done ? 0 : Math.round(me.dist * 100) / 100;
 	if (done) p.strokes[st.hole] = p.cur;
@@ -151,6 +159,21 @@ function roomLeave(st, slot, now) {
 	if (!p || p.gone) return st;
 	p.gone = true;
 	return roomAdvance(st, now);
+}
+
+// The player whose turn it is took too long (the server checks how long): the first time on a hole
+// they go to the back of the line, keeping their lie; the second time they're out until they rejoin.
+// Either way their clock starts again, so a turn that comes straight back gets its full time.
+// Returns "later" or "out".
+function roomSkip(st, slot, now) {
+	var p = st.players[slot];
+	if (!p || p.gone) return "";
+	var how = p.later ? "out" : "later";
+	if (how === "out") { p.later = false; p.gone = true; }
+	else p.later = true;
+	roomAdvance(st, now);
+	st.turnAt = now || 0;
+	return how;
 }
 
 // A player who left comes back by rejoining: they play on from the next hole
@@ -173,5 +196,5 @@ function roomTotals(st, slot) {
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = { ROOM_MAX_PLAYERS: ROOM_MAX_PLAYERS, ROOM_MAX_THROWS: ROOM_MAX_THROWS, ROOM_SKIP_MS: ROOM_SKIP_MS,
 		roomNewState: roomNewState, roomNextTurn: roomNextTurn, roomAdvance: roomAdvance, roomApply: roomApply,
-		roomLeave: roomLeave, roomRejoin: roomRejoin, roomTotals: roomTotals, roomCleanLine: roomCleanLine };
+		roomLeave: roomLeave, roomSkip: roomSkip, roomRejoin: roomRejoin, roomTotals: roomTotals, roomCleanLine: roomCleanLine };
 }

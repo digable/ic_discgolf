@@ -10,6 +10,7 @@
 //   POST /api/games/:code/start     host: { hostId, course, holes, rules, winds }
 //   POST /api/games/:code/leave     { playerId }
 //   POST /api/games/:code/skip      { playerId }: skip whoever's turn it is, if they've taken over 3 minutes
+//                                   (to the back of the line, or out if skipped already) -> { skipped: "later" | "out" }
 //
 // Who throws when, and whether a throw adds up, is decided here with the same rules every player
 // runs (room.js), never taken from what a player sends. BBS players are named by their BBS alias:
@@ -247,12 +248,13 @@ async function skip(req, res, code) {
     if (st.turn === slot || st.turn < 0) return { status: 409, error: "It's your turn" };
     const waited = Date.now() - st.turnAt;
     if (waited < ROOM.ROOM_SKIP_MS) return { status: 409, error: "Give them " + Math.ceil((ROOM.ROOM_SKIP_MS - waited) / 1000) + " more seconds" };
-    ROOM.roomLeave(st, st.turn, Date.now());
+    // the first skip on a hole sends them to the back of the line; a second one, out (room.js)
+    const how = ROOM.roomSkip(st, st.turn, Date.now());
     await save(q, code, { state: JSON.stringify(st), status: st.over ? "done" : "playing" });
-    return {};
+    return { how };
   });
   if (out.error) return err(res, out.status, out.error);
-  return send(res, 200, { ok: true });
+  return send(res, 200, { ok: true, skipped: out.how });
 }
 
 module.exports = async function handler(req, res) {

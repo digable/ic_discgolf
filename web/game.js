@@ -367,17 +367,20 @@
 		$("againBtn").focus({ preventScroll: true });
 	}
 	// The scorecard partway through a hole, with a way out of the round (it takes a second tap)
+	// Online it opens while the others throw too, so you can leave whenever (your seat goes, your scores stay).
 	function openCard() {
-		if (!R || (phase !== "aim" && phase !== "putt")) return;
+		if (!R || cardOpen) return;
+		if (phase !== "aim" && phase !== "putt" && !(on && (phase === "wait" || phase === "watch"))) return;
 		cardOpen = true; $("cardBtn").setAttribute("aria-expanded", "true");
 		openSheet("<h2>Scorecard</h2>" + scorecardHtml() +
 			"<div class='row'><button class='go' id='closeCard' type='button'>Back to the hole</button>" +
-			"<button class='tg quit' id='quitBtn' type='button'>Quit round</button></div>");
+			"<button class='tg quit' id='quitBtn' type='button'>" + (on ? "Leave the round" : "Quit round") + "</button></div>");
 		$("closeCard").addEventListener("click", closeCard);
 		$("quitBtn").addEventListener("click", function () {
 			var b = $("quitBtn");
 			if (b.classList.contains("sure")) return leaveRound();
-			b.classList.add("sure"); b.textContent = "Tap again to quit";
+			b.classList.add("sure");
+			b.textContent = on ? "Tap again to leave: your scores stay, the others play on" : "Tap again to quit";
 		});
 		$("closeCard").focus({ preventScroll: true });
 	}
@@ -529,7 +532,7 @@
 		if (K === "M") { mulligan(); return; }
 		if (k === " " || k === "Enter") { if (e.target.tagName === "BUTTON" && k === "Enter") return; e.preventDefault(); if (!e.repeat) press(e.timeStamp); return; }
 		if (K === "V" && (phase === "aim" || phase === "meter" || phase === "putt")) { toggleView(); return; }
-		if (K === "C" && (phase === "aim" || phase === "putt")) { openCard(); return; }
+		if (K === "C") { openCard(); return; }   // (it says when it can open: online, while the others throw too)
 		if (phase === "aim" && view === "pov") {
 			var step = POVW.FOV / MAP_W;   // one of the door's columns
 			if (k === "ArrowLeft") { povAim(pov.ang - step * (e.shiftKey ? 5 : 1)); e.preventDefault(); return; }
@@ -775,8 +778,11 @@
 			return;
 		}
 		var late = onlineTurnAge(st) > ROOM_SKIP_MS;
-		var lead = me.done ? (me.strokes && me.strokes[st.hole] ? "You're in. " : "You're back from the next hole. ") : "";
-		$("mLabel").innerHTML = lead + "Waiting for <b>" + html(onlineName(st, st.turn)) + "</b>…" +
+		var lead = me.done ? (me.strokes && me.strokes[st.hole] ? "You're in. " : "You're back from the next hole. ")
+			: (me.later ? "<span class='c-y hi'>Skipped:</span> you'll throw after the others. " : "");
+		// the skipped players who throw once everyone else is in (you're said above)
+		var then_ = onlineLater(st).filter(function (i) { return i !== ONLINE.slot; }).map(function (i) { return "<b>" + html(onlineShortName(onlineName(st, i))) + "</b>"; });
+		$("mLabel").innerHTML = lead + "Waiting for <b>" + html(onlineName(st, st.turn)) + "</b>" + (then_.length ? ", then " + then_.join(", ") + " (skipped)" : "") + "…" +
 			(late ? " <button type='button' class='link' id='skipBtn'>skip them</button>" : "");
 	}
 	// Your throw, to the room. It's tried again until it goes through; then(): what comes next here.
@@ -803,8 +809,9 @@
 					// the turn was taken from you meanwhile (skipped for taking too long): the throw doesn't count
 					if (gs && gs.turn !== me.slot) {
 						sendFails = 0; ONLINE.st = gs; ONLINE.seen = gs.seq;
-						R.strokes[holeIdx] = gs.players[me.slot].strokes[holeIdx] || 0;
-						say("\x01h\x01yYou were skipped\x01n for taking too long: that throw didn't count.");
+						onlineResync(gs);   // back where the room has you (bbs/lib/online.js)
+						lastPath = null;
+						say(onlineSkippedMsg(gs, true));
 						phase = "wait";
 						return afterState();
 					}
@@ -854,7 +861,7 @@
 			if ((st.turn === ONLINE.slot && st.hole === holeIdx && !st.over) || phase === "fly" || phase === "rolling") { hud(); return; }
 			// still aiming, but the turn was taken from you (skipped for taking too long)
 			if (relief) cancelRelief();
-			say("\x01h\x01yYou were skipped\x01n for taking too long.");
+			say(onlineSkippedMsg(st, false));
 		}
 		if (st.hole !== holeIdx || st.over) return holeEnded();
 		if (st.turn === ONLINE.slot) readyToThrow(); else waitTurn();
@@ -862,6 +869,7 @@
 	// Everyone's in: the hole's scores, then on to the next tee
 	function holeEnded() {
 		phase = "holeDone";
+		cardOpen = false; $("cardBtn").setAttribute("aria-expanded", "false");   // the hole's sheet takes the card's place
 		R.strokes[holeIdx] = ONLINE.st.players[ONLINE.slot].strokes[holeIdx] || R.strokes[holeIdx];
 		holeSheet = "<h2>Hole " + (holeIdx + 1) + " done</h2>";
 		refreshHoleSheet();
@@ -885,6 +893,7 @@
 	function onlineDone() {
 		stopPoll();
 		phase = "roundDone";
+		cardOpen = false; $("cardBtn").setAttribute("aria-expanded", "false");
 		var st = ONLINE.st, rows = st.players.map(function (p, i) { var t = roomTotals(st, i); return { name: p.name, t: t.total, n: t.holes, i: i, gone: p.gone }; });
 		rows.sort(function (a, b) { return (a.n === b.n ? a.t - b.t : b.n - a.n); });
 		var par = 0; R.holes.forEach(function (hh) { par += hh.par; });
@@ -909,7 +918,7 @@
 		setHtml(el, st.players.map(function (p, i) {
 			// their total so far, then this hole: a tick once they're in, or the throws taken
 			var t = roomTotals(st, i), total = t.holes ? String(t.total) : "";
-			var here = p.done ? "✓" : (p.cur ? p.cur + (p.cur === 1 ? " throw" : " throws") : "");
+			var here = p.done ? "✓" : (p.cur ? p.cur + (p.cur === 1 ? " throw" : " throws") : "") + (p.later ? (p.cur ? " · " : "") + "skipped" : "");
 			var small = total && here ? total + (p.done ? " " : " · ") + here : total || here;
 			return "<span class='who" + (i === st.turn ? " up" : "") + (p.gone ? " gone" : "") + "'><i class='seat s" + i + "'></i>" + html(onlineShortName(p.name)) +
 				(small ? " <small>" + small + "</small>" : "") + "</span>";
