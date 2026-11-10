@@ -94,6 +94,21 @@ const ready = driver.exec(`
   );
   CREATE INDEX IF NOT EXISTS rate_limit_hits_key     ON rate_limit_hits (key, hit_at);
   CREATE INDEX IF NOT EXISTS rate_limit_hits_expires ON rate_limit_hits (expires_at);
+
+  -- Online rooms (api/games): the same shape as IC Zombies' sessions
+  CREATE TABLE IF NOT EXISTS sessions (
+    code             TEXT    PRIMARY KEY,              -- 4 characters, as IC Zombies
+    host_id          TEXT    NOT NULL,                 -- the host's secret: only they can start the round
+    created_by_ip    TEXT    NOT NULL,
+    status           TEXT    NOT NULL CHECK (status IN ('lobby', 'playing', 'done')),
+    players          TEXT    NOT NULL DEFAULT '[]',    -- JSON [{ id, name, bbs, deviceId }] in slot order
+    course           INTEGER,                          -- the COURSES index the host picked (in the lobby)
+    state            TEXT,                             -- JSON room state once playing (bbs/lib/room.js)
+    created_at       INTEGER NOT NULL,
+    last_activity_at INTEGER NOT NULL,
+    expires_at       INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS sessions_expires ON sessions (expires_at);
 `).then(async () => {
   // Databases made before house rules: add the column
   const cols = await driver.all("PRAGMA table_info(players)");
@@ -160,6 +175,7 @@ function playerFromRow(row) {
 function sweep() {
   return serial(async () => {
     await q.run("DELETE FROM rate_limit_hits WHERE expires_at <= ?", [Date.now()]);
+    await q.run("DELETE FROM sessions WHERE expires_at <= ?", [Date.now()]);
   }).catch((e) => console.error("db: sweep failed", e.message));
 }
 sweep();
@@ -174,4 +190,32 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
   });
 }
 
-module.exports = { db, playerFromRow, driverName: driver.name };
+// --- rooms ------------------------------------------------------------------------
+
+// Turns a sessions row into the shape the handlers use
+function sessionFromRow(row) {
+  if (!row) return null;
+  return {
+    code: row.code,
+    hostId: row.host_id,
+    createdByIp: row.created_by_ip,
+    status: row.status,
+    players: JSON.parse(row.players),
+    course: row.course == null ? null : Number(row.course),
+    state: row.state == null ? null : JSON.parse(row.state),
+    lastActivityAt: Number(row.last_activity_at)
+  };
+}
+
+// Unexpired room by code, or null. Pass a transaction's q to read inside it.
+async function getSession(code, conn = db) {
+  const row = await conn.get("SELECT * FROM sessions WHERE code = ? AND expires_at > ?", [code, Date.now()]);
+  return sessionFromRow(row);
+}
+
+// A room is deleted after this long with no activity (as IC Zombies: every join, start or throw
+// pushes the deadline out again)
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const expiresFrom = (now) => now + SESSION_TTL_MS;
+
+module.exports = { db, playerFromRow, getSession, expiresFrom, SESSION_TTL_MS, driverName: driver.name };

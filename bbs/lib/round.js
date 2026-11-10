@@ -8,19 +8,28 @@ function playHole(idx) {
 	var H = startHole(idx).H;
 	V = { view: null, pov: null, marks: null, showAim: true, lastMsg: "\x01n" + H.def.note };
 	if (S.found.length) V.lastMsg = "\x01h\x01gWashed up here: " + discList(S.found) + "!\x01n " + (S.found.length > 1 ? "They're" : "It's") + " back in your bag.";
-	var needDraw = true;
-
 	for (;;) {
-		if (inPuttRange()) {
-			var made = putt();
-			if (made === null) return null;
-			if (made) return S.strokes;
-			if (inPuttRange()) continue;
+		var r = holeTurn();
+		if (r !== "turn") return r;
+	}
+}
+
+// One turn on the hole: the keys before a throw or putt, and then it. Returns the strokes once
+// it's in the basket, null to quit the round, or "turn" when the throw is done and it isn't in
+// (an online round pushes it then: see online.js). Relief, a mulligan or the scorecard stay in the turn.
+function holeTurn() {
+	var H = S.H, needDraw = true;
+	if (inPuttRange()) {
+		var made = putt();
+		if (made === null) return null;
+		if (made) return S.strokes;
+		if (!inPuttRange()) {
 			S.aim = { x: H.basket.x, y: H.basket.y };
 			V.view = null; V.pov = null;
-			needDraw = true;
-			continue;
 		}
+		return "turn";
+	}
+	for (;;) {
 		if (needDraw) {
 			if (!V.view) { V.view = lieInTrees() ? "pov" : "map"; V.pov = null; }
 			if (V.view === "pov" && V.lastMsg.indexOf("trees") < 0 && !V.pov)
@@ -31,10 +40,10 @@ function playHole(idx) {
 		var k = key(), ku = k.toUpperCase(), oldAim = { x: S.aim.x, y: S.aim.y };
 		if (k === " ") {
 			var r = throwShot();
-			if (r === "in") return S.strokes;              // "mulligan": back where it was thrown from
+			if (r === "in") return S.strokes;
 			V.view = null; V.pov = null;
-			needDraw = true;
-			continue;
+			if (r === "mulligan") { needDraw = true; continue; }   // back where it was thrown from
+			return "turn";
 		}
 		if (ku >= "1" && ku <= "9" && Number(ku) <= bagDiscs().length) S.disc = Number(ku) - 1;
 		else if (ku === "D") S.disc = (S.disc + 1) % bagDiscs().length;
@@ -79,12 +88,13 @@ var CARD_MAX = 11;
 function scorecard(cur, final) {
 	cls();
 	var n = R.holes.length, nb = Math.ceil(n / CARD_MAX), per = Math.ceil(n / nb), b;
+	var rows = cardRows(), tall = rows.length > 4;
 	put(3, 2, "\x01h\x01w" + upperName(R.course.name) + "  \x01n\x01k\x01h" + R.course.where, 76);
 	put(3, 3, "\x01n\x01k\x01h" + (final ? "Final scorecard" : "Scorecard"), 76);
-	var gap = nb === 1 ? 2 : 1;                          // one block: roomy rows, as before
-	for (b = 0; b < nb; b++) scoreBlock(b * per, Math.min(n, (b + 1) * per), b === nb - 1, cur, (nb === 1 ? 6 : 5 + b * 5), gap);
+	var gap = nb === 1 && !tall ? 2 : 1;                 // one block: roomy rows, as before
+	for (b = 0; b < nb; b++) scoreBlock(b * per, Math.min(n, (b + 1) * per), b === nb - 1, cur, (nb === 1 ? 6 : 5 + b * (rows.length + 1)), gap, rows);
 	var rel = roundToPar();
-	var y = nb === 1 ? 15 : 5 + nb * 5;
+	var y = nb === 1 ? (tall ? 7 + rows.length : 15) : 5 + nb * (rows.length + 1);
 	put(3, y, "\x01h\x01wTo par: " + (rel === 0 ? "E" : (rel > 0 ? "\x01r+" + rel : "\x01g" + rel)) +
 		(R.rules.mulligans ? "\x01n\x01k\x01h    Mulligans used: \x01n" + R.mullTotal : ""), 60);
 	var hr = houseRows(R.rules, 76);                    // the rules this round is played by, if not standard
@@ -124,20 +134,36 @@ function lostLines(y) {
 	if (line) put(3, y, "\x01n\x01r" + line, 76);
 }
 
+// The card's rows: [label, color, strokes per hole (score rows only)]. An online round has a row
+// for everyone in the room (yours in cyan); with more than two, the FEET row makes room for them.
+function cardRows() {
+	var rows = [["HOLE", "\x01h"], ["FEET", "\x01n\x01k\x01h"], ["PAR", "\x01n"]];
+	var room = typeof ONLINE !== "undefined" && ONLINE && ONLINE.st ? ONLINE.st : null;
+	if (!room) return rows.concat([[player.name || "YOU", "\x01h\x01c", R.strokes]]);
+	if (room.players.length > 2) rows.splice(1, 1);
+	for (var i = 0; i < room.players.length; i++) {
+		var p = room.players[i], me = i === ONLINE.slot;
+		rows.push([onlineShortName(p.name), me ?"\x01h\x01c" : (p.gone ? "\x01n\x01k\x01h" : "\x01n\x01w"), me ? R.strokes : p.strokes]);
+	}
+	return rows;
+}
+
 // One block of the card: holes a..z-1, at screen row y, gap rows apart
-function scoreBlock(a, z, last, cur, y, gap) {
-	var rows = [["HOLE", "\x01h"], ["FEET", "\x01n\x01k\x01h"], ["PAR", "\x01n"], [player.name || "YOU", "\x01h\x01c"]];
-	var i0 = last ? 0 : a, i, ft_ = 0, par = 0, tot = 0;
-	for (i = i0; i < z; i++) { ft_ += R.holes[i].ft; par += R.holes[i].par; tot += R.strokes[i] || 0; }
+function scoreBlock(a, z, last, cur, y, gap, rows) {
+	var i0 = last ? 0 : a, i, ft_ = 0, par = 0;
+	for (i = i0; i < z; i++) { ft_ += R.holes[i].ft; par += R.holes[i].par; }
 	for (var r = 0; r < rows.length; r++) {
+		var tot = 0, sc = rows[r][2];
+		if (sc) for (i = i0; i < z; i++) tot += sc[i] || 0;
 		var line = rows[r][1] + pad(rows[r][0].substr(0, 8), 9);
 		for (i = a; i < z; i++) {
 			var v;
-			if (r === 0) v = String(i + 1);
-			else if (r === 1) v = String(R.holes[i].ft);
-			else if (r === 2) v = String(R.holes[i].par);
+			var lab = rows[r][0];
+			if (lab === "HOLE" && !sc) v = String(i + 1);
+			else if (lab === "FEET" && !sc) v = String(R.holes[i].ft);
+			else if (lab === "PAR" && !sc) v = String(R.holes[i].par);
 			else {
-				var st = R.strokes[i];
+				var st = sc[i];
 				if (!st) v = i === cur ? "\x01n\x01k\x01h.." : "";
 				else {
 					var dd = st - R.holes[i].par;
@@ -147,7 +173,7 @@ function scoreBlock(a, z, last, cur, y, gap) {
 			var vis = v.replace(/\x01./g, "");
 			line += blank(5 - vis.length) + v + rows[r][1];
 		}
-		var tv = r === 0 ? (last ? "TOT" : "OUT") : (r === 1 ? String(ft_) : (r === 2 ? String(par) : (tot ? String(tot) : "")));
+		var tv = sc ? (tot ? String(tot) : "") : (rows[r][0] === "HOLE" ? (last ? "TOT" : "OUT") : (rows[r][0] === "FEET" ? String(ft_) : String(par)));
 		line += "  " + blank(5 - tv.length) + tv;
 		put(3, y + r * gap, line, 77);
 	}

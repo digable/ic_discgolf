@@ -26,12 +26,65 @@ meter. The same game script runs in two places:
 - **On the web** you type the name you'll play under (the same rules as a new BBS
   alias: up to 25 characters, starting with a letter, no double spaces or trailing
   space). Web settings aren't saved.
-- **Shared games** (cross-play, coming later): web players' names are tagged so they
-  can't pass for a BBS player: "Digable (web)", then "Digable (web01)", "Digable
-  (web02)" for more web players with the same name (`webName()` in `api/_names.js`).
+- **Online rounds** (see [Online rounds](#online-rounds)): web and terminal players' names
+  are tagged so they can't pass for a BBS player: "Digable (web)", then "Digable (web01)",
+  "Digable (web02)" for more web players with the same name (`webName()` in `api/_names.js`).
 
 Saves are kept by the save service (`server.js`), in SQLite, keyed by the BBS alias
 like IC Zombies' saves. See [The save service](#the-save-service).
+
+## Online rounds
+
+Up to 6 players play one round together, on the BBS, in the terminal version and on the web
+version, all in the same rooms. It works like IC Zombies' online games:
+
+1. **Host:** on the BBS or in the terminal, **Play online with others** (Up/Down and ENTER, or the
+   letters), then **Host a round** and pick the course. On the web, the **Online** tab: type your
+   name and **Host**. You get a random 4-character room code that no other open room has (as
+   IC Zombies: no 0, O, 1, I or B). Every lobby also shows the web invite link,
+   `https://discgolf.sodamachine.net/web/?join=CODE` (**Copy invite link** on the web).
+2. **Join:** **Join a round with its code** on the BBS or in the terminal, or the code (or the
+   link) on the web. Anyone can join until the host starts. (Opening the terminal version with
+   `?join=CODE` also joins straight away, though the lobby only shows the code for it.)
+3. **Start:** the host presses ENTER (BBS, terminal) or **Start the round** (web). The host can
+   change the course in the lobby (C, or the course list on the web).
+
+**How a round is played.** The host's course and house rules are played, except mulligans
+(a throw taken back would change whose turn it was). Each player throws with their own bag;
+if the host's rules allow a smaller bag, yours is cut to fit for the round and comes back
+after. Everyone plays the same wind on each hole (the host rolls them all at the start).
+Turn order is the real game's:
+
+- **On the tee:** the order players joined on hole 1; after that, **honors**: the best score
+  on the last hole tees off first (ties keep the order they were in).
+- **After the tee shots:** whoever is **farthest from the basket** throws next, putts too.
+- Once you're in the basket you watch the others finish. When everyone's in, the scorecard
+  shows every player's row and the next hole starts.
+
+While someone else throws you see their flight drawn on your map, what happened ("Digable:
+Buzzz 312 ft. Lying in the fairway..."), and where everyone lies (on the BBS map, each
+player's first letter in their colour; on the web, coloured dots and a scores strip at the
+top). Every player polls the room every 1.5 seconds. The scorecard on the BBS and in the terminal, and
+the web's scores strip, leave off the "(web)" tag to fit: "Digable (web)" is "Digable", and "Digable (web01)",
+the second web Digable, is "Digable 2".
+
+**Leaving and coming back.** Quit (Q on the BBS, **Quit round** on the web) or hanging up
+gives up your seat: your scores stay on the card, and the others play on without you. Join
+the same room again (the same BBS alias, or the same browser) and you're back in from the
+next hole. Reloading the web page rejoins the room by itself. If a player takes more than 3
+minutes over a throw, anyone else can **skip** them (K on the BBS, **skip them** on the web):
+they're out from then on, unless they rejoin (R on the BBS, **rejoin** on the web, or joining
+the room again) and play on from the next hole. A throw they were still taking when skipped
+doesn't count. A hole stops counting at 30 throws. Rooms are deleted after a day with nobody
+playing, as in IC Zombies.
+
+**Who decides what.** The server (`api/games.js`) keeps each room in SQLite and decides whose
+turn it is, with the same rules every player runs (`bbs/lib/room.js`): a throw is only taken
+from the player whose turn it is, and its count has to add up. Each player's own game
+works out their throws (the flight, the putt, the water) and sends the result: where they
+lie, how far from the basket, and the throw's path and wording for the others to watch.
+BBS players join under their alias only through the door (its key, from the BBS machine
+itself); anyone else gets "(web)" after their name.
 
 ## Your bag
 
@@ -557,7 +610,7 @@ discs, weights, wind, water and house rules are the same as on the BBS.
 | Path | What it is |
 |---|---|
 | `bbs/` | The game: the Synchronet door (`discgolf.js`) and its `lib/` files. The web page plays these same files. See [`bbs/README.md`](bbs/README.md). |
-| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks) and what goes over it (the aim, the flight, the players), and holds the colours both views share; `pov.js` the view from the lie (the door's POV in 3D), `menu.js` the menu (Play, Setup, Bag, House rules), `text.js` the door's wording as HTML, `game.js` is the screens, meter, aiming and input, `style.css` the look, `fonts/` the two typefaces (Inter and Space Grotesk, SIL Open Font License). See [Web version](#web-version). |
+| `web/` | The web version (`/web/` on the site): the same game drawn for the browser. `index.html` loads the game's rule files straight from `bbs/lib/` (no copies), `draw.js` draws the hole (a tree crown over every trunk the flight checks) and what goes over it (the aim, the flight, the players), and holds the colours both views share; `pov.js` the view from the lie (the door's POV in 3D), `menu.js` the menu (Play, Setup, Bag, House rules, Online), `rooms.js` the Online tab (hosting, joining and the lobby), `text.js` the door's wording as HTML, `game.js` is the screens, meter, aiming and input, `style.css` the look, `fonts/` the two typefaces (Inter and Space Grotesk, SIL Open Font License). See [Web version](#web-version). |
 | `index.html` | The browser version's page: the terminal, the connection settings and the on-screen keys. |
 | `styles/` | The page's CSS: `base.css` (colors, fonts), `layout.css` (page layout), `components.css` (terminal, keys, panels). |
 | `scripts/` | The emulator, as ES modules (listed below). |
@@ -565,7 +618,7 @@ discs, weights, wind, water and house rules are the same as on the BBS.
 | `vendor/acorn-LICENSE.txt` | acorn's license. |
 | `server.js` | The disc golf service: serves the game files and the BBS door's save API (Node built-ins only). See "The save service". Text files go out gzipped (the web page is about 80 KB instead of 357 KB), and every file has a version tag the browser checks on each load, so an unchanged file costs a "not modified" reply and a deployed change shows up right away. |
 | `tools/check-web-scripts.js` | `npm run check`: makes sure `web/index.html` loads the door's rule files in the door's order and that they load cleanly. Run it after changing which `bbs/lib` files the web page uses, or the order `bbs/discgolf.js` loads them in. |
-| `api/` | The service's routes and database: `players.js` (the save API), `_db.js` (SQLite: players, rate limits), `_names.js` (player name rules and web-name tags), `_helpers.js` (door check, client address), `_rateLimit.js`. |
+| `api/` | The service's routes and database: `players.js` (the save API), `games.js` (online rooms: create, join, poll, throw, start, leave, skip), `_db.js` (SQLite: players, rooms, rate limits), `_names.js` (player name rules and web-name tags), `_helpers.js` (door check, client address), `_rateLimit.js`. |
 | `package.json` | `npm start` runs `server.js`; `npm run check` runs the web page's load-order check. No dependencies. |
 | `LICENSE` | MIT license. |
 | `deploy/update-discgolf.sh` | The script digiweb runs to publish a push (see "Automatic deploys"). |
@@ -686,10 +739,13 @@ once cross-play adds public game routes.
    ```sh
    KEY=$(openssl rand -hex 32)
    echo "DOOR_KEY=$KEY" | sudo tee /etc/ic-discgolf.env >/dev/null && sudo chmod 600 /etc/ic-discgolf.env
-   printf '[api]\nurl = http://127.0.0.1:3002\nkey = %s\n' "$KEY" | sudo tee /sbbs/ctrl/discgolf.ini >/dev/null
+   printf '[api]\nurl = http://127.0.0.1:3002\nkey = %s\nsite = https://discgolf.sodamachine.net\n' "$KEY" | sudo tee /sbbs/ctrl/discgolf.ini >/dev/null
    sudo chown sbbs /sbbs/ctrl/discgolf.ini && sudo chmod 600 /sbbs/ctrl/discgolf.ini
    ```
-   (Use your Synchronet `ctrl` folder and BBS user if they differ.)
+   (Use your Synchronet `ctrl` folder and BBS user if they differ.) The door uses the same
+   key and address for online rounds; `site` is the address it shows in invite links (the
+   default is `https://discgolf.sodamachine.net`, so an existing file without it is fine; the
+   terminal version always shows the default).
 4. The service: `sudo cp /srv/src/ic_discgolf/deploy/ic-discgolf.service /etc/systemd/system/`,
    then `sudo systemctl daemon-reload && sudo systemctl enable --now ic-discgolf`.
    Check it with `curl -s http://127.0.0.1:3002/ | head -3`; the log

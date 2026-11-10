@@ -31,13 +31,29 @@ function bigText(str, x, y, colors) {
 // A message for the next title screen ("Saved for next time."), shown once
 var notice = "";
 
-var TITLE_ITEMS = ["~Play a round", "Player ~setup", "Your ~bag & disc catalog", "House ~rules", "~How to play", "~Quit"];
+var TITLE_ITEMS = ["~Play a round", "Play ~online with others", "Player ~setup", "Your ~bag & disc catalog", "House ~rules", "~How to play", "~Quit"];
 var titleSel = 0;           // stays where it was when you come back to the title screen
 
-// One menu row: highlighted like the setup screen's answers, with its hotkey when it isn't
-function drawTitleItem(i, on) {
-	var lab = " " + TITLE_ITEMS[i] + " ";
-	out(moveTo(16, 15 + i) + text(on ? ">" : " ", 14) + text(" ", 7) + ca(on ? lab.replace("~", "") : lab, on ? 0x4F : 7)[0] + setAttr(7));
+// One menu row at column x, row y: highlighted like the setup screen's answers, with its hotkey when it isn't
+function drawMenuItem(label, on, x, y) {
+	var lab = " " + label + " ";
+	out(moveTo(x, y) + text(on ? ">" : " ", 14) + text(" ", 7) + ca(on ? lab.replace("~", "") : lab, on ? 0x4F : 7)[0] + setAttr(7));
+}
+function drawTitleItem(i, on) { drawMenuItem(TITLE_ITEMS[i], on, 16, 15 + i); }
+
+// A menu's keys: Up/Down move the highlight (sel), ENTER or SPACE picks it, a letter picks its item straight
+// away. draw(i, on) draws row i. Returns the picked item's letter, or "" on a hang-up.
+function menuPick(items, sel, draw) {
+	for (;;) {
+		var k = key(), ku = k.toUpperCase(), old = sel.i, n = items.length, i;
+		if (!k) return "";
+		if (k === "\r" || k === " ") return hotkeyOf(items[sel.i]);
+		for (i = 0; i < n; i++) if (hotkeyOf(items[i]) === ku) { sel.i = i; return ku; }
+		if (k === "\x1b") return "\x1b";
+		if (isUp(k)) sel.i = (sel.i + n - 1) % n;
+		else if (isDown(k)) sel.i = (sel.i + 1) % n;
+		if (sel.i !== old) { draw(old, false); draw(sel.i, true); }
+	}
 }
 
 // Up/Down moves and ENTER or SPACE picks; the letters pick straight away. Returns the item's letter.
@@ -55,14 +71,11 @@ function titleScreen() {
 	for (i = 0; i < hr.length; i++) put(3, 23 + i, hr[i], 76);
 	if (notice) { put(17, 14, notice, 62); notice = ""; }
 	put(19, 22, "\x01n\x01hUp/Down\x01n move   \x01hENTER\x01n choose");
+	var sel = { i: titleSel };
 	for (;;) {
-		var k = key(), ku = k.toUpperCase(), old = titleSel;
-		if (!k) return "";                                   // hung up: back to the main loop
-		if (k === "\r" || k === " ") return hotkeyOf(TITLE_ITEMS[titleSel]);
-		for (i = 0; i < n; i++) if (hotkeyOf(TITLE_ITEMS[i]) === ku) { titleSel = i; return ku; }
-		if (isUp(k)) titleSel = (titleSel + n - 1) % n;
-		else if (isDown(k)) titleSel = (titleSel + 1) % n;
-		if (titleSel !== old) { drawTitleItem(old, false); drawTitleItem(titleSel, true); }
+		var got = menuPick(TITLE_ITEMS, sel, drawTitleItem);   // "" if hung up: back to the main loop
+		titleSel = sel.i;
+		if (got !== "\x1b") return got;                         // ESC does nothing here
 	}
 }
 

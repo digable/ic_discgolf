@@ -273,9 +273,11 @@ function putt() {
 	if (isTapIn()) {
 		status("Tap-in range. \x01hSPACE\x01n to drop it in.");
 		for (;;) { var k0 = key(); if (k0 === " ") break; }
+		var tapFrom = { x: S.lie.x, y: S.lie.y };
 		tapIn();
 		puttFlight("made", 0, 0);
 		msg("\x01h\x01gDrop-in.");
+		V.lastShot = { kind: "tap", path: [tapFrom, { x: S.H.basket.x, y: S.H.basket.y }], line: "\x01h\x01gDrop-in." };
 		return true;
 	}
 	status("\x01hSPACE\x01n to start your putt");
@@ -293,14 +295,17 @@ function putt() {
 		if (ku === "Q") { if (confirmQuit("\x01hSPACE\x01n to start your putt")) return null; continue; }
 		if (k === " ") break;
 	}
-	var p = takePutt(swingMeter(R.lag)), line = puttLine(p);
+	var pdist = PT.dist, p = takePutt(swingMeter(R.lag)), line = puttLine(p);
+	V.lastShot = { kind: "putt", path: onlinePuttPath(p, pdist), line: line };   // for an online round's others (online.js)
 	puttFlight(p.kind === "spit" ? "miss" : p.kind, p.along, p.endLat);
 	if (p.ob) {
-		msg(line + " \x01h\x01r" + (p.ob === "W" ? "In the water!" : "Out of bounds!") + "\x01n " + penaltyText(R.rules.obPenalty ? 1 : 0) + ", putt again from your spot.");
+		V.lastShot.line = line + " \x01h\x01r" + (p.ob === "W" ? "In the water!" : "Out of bounds!") + "\x01n " + penaltyText(R.rules.obPenalty ? 1 : 0) + ", putt again from your spot.";
+		msg(V.lastShot.line);
 		waitKey("Press any key");
 		return false;
 	}
-	msg(line + (p.made ? "" : "\x01n  " + ft(pinDist()) + " ft away.  \x01k\x01h" + puttWhy(p.kind, p.need, p.thrown, p.over)));
+	V.lastShot.line = line + (p.made ? "" : "\x01n  " + ft(pinDist()) + " ft away.  \x01k\x01h" + puttWhy(p.kind, p.need, p.thrown, p.over));
+	msg(V.lastShot.line);
 	waitKey("Press any key");
 	return p.made;
 }

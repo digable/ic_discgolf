@@ -26,6 +26,7 @@ var NO_MARKS = { rc: null, path: {} };
 function cellGlyph(c, r, lc, ac, m) {
 	var t = S.H.grid[r][c], rc = m.rc, p = m.path[c + "," + r];
 	if (c === lc.c && r === lc.r) return ["\xFE", 15];
+	if (V.others && V.others[c + "," + r]) return V.others[c + "," + r];   // an online round: the others' lies (online.js)
 	if (ac && c === ac.c && r === ac.r) {
 		if (ac.past) return [ac.past < 0 ? "^" : "v", 13 | terrainBg(t)];   // aimed past the edge: an arrow
 		return t === "B" ? ["\xE8", 11 | 0x50] : ["+", 13];

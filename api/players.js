@@ -87,3 +87,6 @@ module.exports = async function handler(req, res) {
     return err(res, 500, "Internal server error");
   }
 };
+
+// The house rules check, also used for an online round's rules (api/games.js)
+module.exports.houseFrom = houseFrom;

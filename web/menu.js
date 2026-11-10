@@ -30,12 +30,12 @@ var MENU = (function () {
 	}
 
 	// ---- tabs -----------------------------------------------------------------------------------
-	function show() {
+	function show(startTab) {
 		$("menu").hidden = false;
 		var last = baseOf(player.course);
 		if (last !== player.course) courseTraced[last] = true;   // last played the traced version: start on it
 		pick.sel = COURSES[last] && !COURSES[last].of ? last : courseOrder()[0];
-		setTab("play");
+		setTab(startTab || (ROOMS.inRoom() ? "online" : "play"));
 	}
 	function setTab(t) {
 		if (tab === "house" && t !== "house") leaveHouse();
@@ -53,6 +53,7 @@ var MENU = (function () {
 		else if (tab === "setup") body.innerHTML = formHtml(setupRows(), "setup");
 		else if (tab === "house") body.innerHTML = formHtml(HOUSE_FORM.rows, "house");
 		else if (tab === "bag") { body.innerHTML = bagHtml(); bagParts(); }
+		else if (tab === "online") body.innerHTML = ROOMS.html();
 	}
 	// Leaving the house rules: the bag is cut down to the size they allow, as on the BBS
 	function leaveHouse() {
@@ -223,6 +224,7 @@ var MENU = (function () {
 		body.addEventListener("click", function (e) {
 			var t = e.target.closest("button, li[data-i]");
 			if (!t) return;
+			if (tab === "online" && ROOMS.click(t)) return;
 			if (t.id === "pickBtn") return pick.open ? closePicker(true) : openPicker();
 			if (t.dataset.i !== undefined) return choose(+t.dataset.i);
 			if (t.id === "playBtn") {
@@ -256,8 +258,10 @@ var MENU = (function () {
 		body.addEventListener("change", function (e) {
 			if (e.target.id === "pickSort") { setSort(courseSort, e.target.value); fillPicker(true); }
 			if (e.target.id === "bagSort") { setSort(bagSort, e.target.value); bagParts(); }
+			if (tab === "online") ROOMS.change(e.target);
 		});
 		body.addEventListener("keydown", function (e) {
+			if (tab === "online" && ROOMS.key(e)) { e.preventDefault(); return; }
 			if (e.target.id !== "pickQ") return;
 			if (e.key === "ArrowDown" || e.key === "ArrowUp") {
 				pick.hi = clamp(pick.hi + (e.key === "ArrowDown" ? 1 : -1), 0, Math.max(0, pick.list.length - 1));
@@ -269,5 +273,5 @@ var MENU = (function () {
 		document.addEventListener("pointerdown", function (e) { if (pick.open && !e.target.closest("#picker")) closePicker(false); });
 	}
 
-	return { init: init, show: show, save: save };
+	return { init: init, show: show, save: save, render: function () { if (!$("menu").hidden) render(); } };
 })();

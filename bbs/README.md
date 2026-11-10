@@ -24,6 +24,7 @@ BBS. Keep the split: a rule goes in a rules file, never in a door loop.
 | `lib/state.js` | The game state (`R` the round, `S` the hole being played, `PT` the putt), house rules, wind, disc range and the automatic disc pick. |
 | `lib/flight.js` | Disc flight: how a throw curves, and where it ends up. |
 | `lib/rules.js` | Playing it: start a round or hole, aim, throw, take a mulligan or relief, putt. Each changes the state and returns what happened. |
+| `lib/room.js` | An online round's rules (turn order: honors on the tee, then farthest from the basket; when a hole and the round end; leaving and rejoining). No screen or network: the server (`api/games.js`) runs the same file. |
 | **The door** | |
 | `lib/screen.js` | The clock, raw ANSI output (tracks cursor and color) and key input. |
 | `lib/meter.js` | Lag measurement and the 3-click swing meter. |
@@ -35,6 +36,7 @@ BBS. Keep the split: a rule goes in a rules file, never in a door loop.
 | `lib/putt.js` | Putting: overhead and from-the-player views. |
 | `lib/round.js` | Playing a hole, the scorecard and a full round. |
 | `lib/menus.js` | Title screen, signing in (BBS alias or a typed web name, welcome back), player setup, house rules, bag and how to play. |
+| `lib/online.js` | Online rounds: setting a round up from a room (the web version uses this part too), then the door's screens (host, join, lobby, watching the others, sending your throw) and its calls to the room server (Synchronet's `HTTPRequest`, or the terminal version's `http_call`). See [Online rounds](../README.md#online-rounds). |
 
 ## How the files fit together
 

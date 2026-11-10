@@ -11,13 +11,15 @@
 	var $ = function (id) { return document.getElementById(id); };
 	var cv = $("map"), g = cv.getContext("2d"), dpr = 1;
 	var pic = null, vw = null, box = null;   // the hole's picture, the map's view of it, and the box it's drawn in
-	var phase = "menu";        // menu, aim, meter, fly, putt, rolling, holeDone, roundDone
+	var phase = "menu";        // menu, aim, meter, fly, putt, rolling, holeDone, roundDone; online also wait, watch, send
 	var holeIdx = 0, anim = null, meter = null, lastPath = null;
 	var reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 	var view = "map";          // throwing: "map", or "pov" (the view from the lie)
 	var pov = null;            // the view from the lie: { ang, drag }
 	var puttCam = null;        // where a putt is seen from (it stays put while the putt flies)
 	var cardOpen = false;      // the scorecard is open over the hole
+	var on = false;            // an online round (ONLINE, bbs/lib/online.js, has the room)
+	var watchSlot = -1;        // online: whose throw is being replayed
 
 	// ---- text (text.js: the door's wording as HTML) ------------------------------------------------
 	var esc = TEXT.esc, cp = TEXT.cp, html = TEXT.html, ctrlA = TEXT.ctrlA;
@@ -73,19 +75,23 @@
 		readyToThrow();
 	}
 	function readyToThrow() {
+		if (on && ONLINE.st.turn !== ONLINE.slot) return waitTurn();
 		if (inPuttRange()) {
 			puttSetup();
 			// a tap-in: inside 4 ft the disc is dropped in (one more throw), not putted. Say so, so a hole
 			// that ends without a throw going in doesn't look like it did.
 			if (isTapIn()) {
-				var from = Math.max(1, ft(PT.dist));
+				var from = Math.max(1, ft(PT.dist)), lieWas = { x: S.lie.x, y: S.lie.y };
 				tapIn();
-				return holeOut("\x01h\x01gTap-in.\x01n It stopped " + from + " ft from the basket, so you dropped it in \x01k\x01h(+1 throw)\x01n.");
+				var tapMsg = "\x01h\x01gTap-in.\x01n It stopped " + from + " ft from the basket, so you dropped it in \x01k\x01h(+1 throw)\x01n.";
+				if (on) return sendThrow("tap", [lieWas, S.H.basket], "\x01h\x01gTap-in\x01n from " + from + " ft.", true, function () { holeOut(tapMsg); });
+				return holeOut(tapMsg);
 			}
 			phase = "putt";
 		}
 		else phase = "aim";
 		relief = null;
+		$("throwBtn").disabled = false;
 		view = "map"; pov = null;
 		puttCam = phase === "putt" ? { from: { x: S.lie.x, y: S.lie.y }, ang: Math.atan2(-PT.by, -PT.bx) } : null;
 		if (phase === "aim" && lieInTrees()) startPov();
@@ -96,7 +102,9 @@
 		anim = null; meter = null; cardOpen = false; pov = null; puttCam = null; relief = null;
 		$("cardBtn").setAttribute("aria-expanded", "false");
 		$("reliefBtn").hidden = $("mullBtn").hidden = true;
-		endRound(); S = null; pic = null; vw = null;
+		if (on) { stopPoll(); onlineEndRound(); ROOMS.leave(); on = false; $("roomChip").hidden = true; $("throwBtn").disabled = false; }
+		else endRound();
+		S = null; pic = null; vw = null;
 		$("gapChip").hidden = true;
 		showMenu();
 		kick();
@@ -113,6 +121,7 @@
 		$("hThrowLabel").textContent = done ? "score" : "throw";
 		$("hThrow").textContent = done ? S.strokes : S.strokes + 1;
 		$("hRound").textContent = relText(roundToPar());
+		if (on) roomChip();
 		$("dName").textContent = pd.name; $("dWeight").textContent = (pd.g || MAX_G) + "g";
 		setHtml($("dNums"), pd.n.map(function (n) { return "<span>" + n + "</span>"; }).join(""));
 		$("dRange").textContent = putting ? "putting · " + puttAimText("")
@@ -250,6 +259,7 @@
 		lastPath = [shot.from].concat(f.path);
 		flyAlong(lastPath, 900 + shot.dist * 9, function () {
 			say(line);
+			if (on) return sendThrow("throw", lastPath, line, shot.outcome === "in", shot.outcome === "in" ? holeOut : readyToThrow);
 			if (shot.outcome === "in") return holeOut();
 			readyToThrow();
 		});
@@ -281,6 +291,7 @@
 		lastPath = pts;
 		flyAlong(pts, 700 + dist * 40, function () {
 			say(puttLine(res) + why + (res.ob ? " \x01h\x01rOB " + obWhere(res.ob) + "!" : ""));
+			if (on) return sendThrow("putt", pts, puttLine(res) + why + (res.ob ? " \x01h\x01rOB " + obWhere(res.ob) + "!" : ""), res.made, res.made ? holeOut : readyToThrow);
 			if (res.made) return holeOut();
 			readyToThrow();
 		});
@@ -293,20 +304,22 @@
 	// The hole's done. The screen repeats how it ended (the last result), and then: a tap-in's note, that it
 	// was dropped in rather than thrown in
 	function holeOut(then) {
-		var how = lastSaid;
+		var how = on && then ? "" : lastSaid;   // online, the last thing said may be someone else's throw
 		if (then) say(then);
 		R.strokes[holeIdx] = S.strokes;
 		phase = "holeDone";
 		var last = holeIdx === R.holes.length - 1;
 		hud();
 		var ending = [how, then].filter(function (s) { return s; }).map(ctrlA).join("<br>");
-		openSheet("<h2>" + ctrlA(scoreName(S.strokes, S.H.par)) + "</h2>" + (ending ? "<p class='how'>" + ending + "</p>" : "") +
+		holeSheet = "<h2>" + ctrlA(scoreName(S.strokes, S.H.par)) + "</h2>" + (ending ? "<p class='how'>" + ending + "</p>" : "") +
 			"<p class='label'>" + S.strokes + " on a par " + S.H.par +
-			" · round " + (roundToPar() === 0 ? "even" : relText(roundToPar())) + "</p>" + scorecardHtml() +
-			"<button class='go' id='goBtn' type='button'>" + (last ? "Finish" : "Hole " + (holeIdx + 2) + " →") + "</button>");
+			" · round " + (roundToPar() === 0 ? "even" : relText(roundToPar())) + "</p>";
+		openSheet(holeSheet + scorecardHtml() + "<button class='go' id='goBtn' type='button'>" + (on ? goLabel() : (last ? "Finish" : "Hole " + (holeIdx + 2) + " →")) + "</button>");
 		$("goBtn").addEventListener("click", nextHole);
+		if (on) $("doneIn").scrollTop = 0;
 		$("goBtn").focus({ preventScroll: true });
 	}
+	var holeSheet = "";        // the top of the hole-done sheet (online, it's drawn again as the others finish)
 	function openSheet(h) { $("done").hidden = false; $("doneIn").innerHTML = h; }
 	// The scorecard: a column a hole, out and in on 18 holes, and the total. A sum covers the holes played so far.
 	function scorecardHtml() {
@@ -318,11 +331,11 @@
 		}
 		if (n === 18) cols.push({ label: "in", holes: range(9, 18), sum: true });
 		cols.push({ label: "total", holes: range(0, n), sum: true });
-		var cell = function (c, row) {
+		var cell = function (c, row, sc) {
 			var par = 0, you = 0, rel = 0, played = 0;
 			c.holes.forEach(function (j) {
 				par += R.holes[j].par;
-				if (R.strokes[j]) { you += R.strokes[j]; rel += R.strokes[j] - R.holes[j].par; played++; }
+				if (sc && sc[j]) { you += sc[j]; rel += sc[j] - R.holes[j].par; played++; }
 			});
 			var cls = c.sum ? "sum" : "";
 			if (row === "par") return "<td class='" + cls + "'>" + par + "</td>";
@@ -335,13 +348,16 @@
 		cols.forEach(function (c) { h += "<th scope='col'" + (c.sum ? " class='sum'" : "") + ">" + c.label + "</th>"; });
 		h += "</tr><tr><th scope='row'>par</th>";
 		cols.forEach(function (c) { h += cell(c, "par"); });
-		h += "</tr><tr><th scope='row'>you</th>";
-		cols.forEach(function (c) { h += cell(c, "you"); });
+		cardPlayers().forEach(function (p) {
+			h += "</tr><tr" + (p.gone ? " class='gone'" : "") + "><th scope='row'>" + (p.seat >= 0 ? "<i class='seat s" + p.seat + "'></i>" : "") + html(p.name) + "</th>";
+			cols.forEach(function (c) { h += cell(c, "you", p.strokes); });
+		});
 		return h + "</tr></table></div>";
 	}
 	function nextHole() {
 		if (phase !== "holeDone") return;
 		$("done").hidden = true;
+		if (on) return onlineNext();
 		if (holeIdx < R.holes.length - 1) { holeIdx++; return beginHole(); }
 		var total = R.strokes.reduce(function (a, b) { return a + b; }, 0), rel = roundToPar();
 		phase = "roundDone";
@@ -701,11 +717,222 @@
 		var A = animAt(now);
 		if (A) DRAW.trail(g, A, px);
 		DRAW.basket(g, S.H.basket, px);
-		DRAW.player(g, A && phase === "fly" ? lastPath[0] : S.lie, px);
-		if (A) DRAW.disc(g, A.at, Math.sin(A.t * Math.PI) * (phase === "fly" ? 6 : 1.5), px);
+		if (on) drawOthers(px);
+		var meDone = S.lie.x === S.H.basket.x && S.lie.y === S.H.basket.y;
+		if (!(on && meDone)) DRAW.player(g, A && phase === "fly" ? lastPath[0] : S.lie, px);
+		if (A) DRAW.disc(g, A.at, Math.sin(A.t * Math.PI) * (phase === "fly" || (phase === "watch" && watchFly) ? 6 : 1.5), px);
 	}
 
+	// ---- online rounds (rooms.js has the lobby; bbs/lib/online.js and room.js the rules) ----------------
+	var SEAT_COL = ["#5ec8ff", "#ff7ad9", "#7dff7a", "#ff6b6b", "#8f9bff", "#ffe066"];
+	var pollT = 0, watchFly = false, sendFails = 0;
+
+	// The scorecard's rows: you alone, or everyone in the room (seat: their colour)
+	function cardPlayers() {
+		if (!on) return [{ name: "you", strokes: R.strokes, seat: -1 }];
+		return ONLINE.st.players.map(function (p, i) {
+			return { name: i === ONLINE.slot ? onlineShortName(p.name) + " (you)" : p.name, strokes: i === ONLINE.slot ? R.strokes : p.strokes, seat: i, gone: p.gone };
+		});
+	}
+	// The room's round starts (or you came back to it): rooms.js calls this
+	function playOnline(st) {
+		$("menu").hidden = true; $("done").hidden = true;
+		on = true;
+		ONLINE.st = st; ONLINE.seen = st.seq;
+		ONLINE.slot = onlineSlotOf(st.players, ONLINE.name);
+		player.name = ONLINE.name;
+		onlineStartRound(st);
+		onlineHole();
+		startPoll();
+	}
+	function onlineHole() {
+		var st = ONLINE.st;
+		holeIdx = st.hole;
+		onlineStartHole(st);
+		pic = DRAW.holePicture(S.H);
+		layout();
+		var honors = holeIdx > 0 ? " \x01k\x01hHonors: \x01n" + onlineName(st, st.order[0]) + "." : "";
+		say("\x01h\x01wHole " + S.H.num + ".\x01n " + (S.H.def.note || "") + honors);
+		if (st.players[ONLINE.slot].done) return waitTurn();
+		readyToThrow();
+	}
+	// Someone else's throw: the throw button rests, and says whose it is
+	function waitTurn() {
+		var st = ONLINE.st;
+		phase = "wait"; meter = null; relief = null; view = "map"; pov = null; puttCam = null;
+		$("gapChip").hidden = true;
+		$("throwBtn").textContent = "WAIT"; $("throwBtn").disabled = true;
+		$("mark").style.left = pctOf(0); $("pressP").hidden = true;
+		waitLabel();
+		hud(); syncView(); kick();
+	}
+	function waitLabel() {
+		var st = ONLINE.st, me = st.players[ONLINE.slot] || {};
+		// skipped for taking too long: out until you rejoin (the page doesn't on its own, or a skip would never stick)
+		if (me.gone) {
+			$("mLabel").innerHTML = "<span class='c-y hi'>You were skipped</span> for taking too long. " +
+				"<button type='button' class='link' id='rejoinBtn'>rejoin</button> to play on from the next hole.";
+			return;
+		}
+		var late = onlineTurnAge(st) > ROOM_SKIP_MS;
+		var lead = me.done ? (me.strokes && me.strokes[st.hole] ? "You're in. " : "You're back from the next hole. ") : "";
+		$("mLabel").innerHTML = lead + "Waiting for <b>" + html(onlineName(st, st.turn)) + "</b>…" +
+			(late ? " <button type='button' class='link' id='skipBtn'>skip them</button>" : "");
+	}
+	// Your throw, to the room. It's tried again until it goes through; then(): what comes next here.
+	function sendThrow(kind, path, line, done, then) {
+		phase = "send";
+		$("throwBtn").disabled = true;
+		// at the room's limit of throws the hole stops counting (room.js): it's over for you
+		if (!done && S.strokes >= ROOM_MAX_THROWS) {
+			done = true;
+			S.lie = { x: S.H.basket.x, y: S.H.basket.y };
+			then = function () { holeOut("\x01h\x01y" + S.strokes + " throws:\x01n the hole stops counting there."); };
+		}
+		var me = ONLINE, body = { playerId: me.playerId, me: onlineMe(done), last: { kind: kind, path: onlinePath(path), line: line } };
+		if (done) R.strokes[holeIdx] = S.strokes;
+		(function attempt() {
+			ROOMS.call("POST", "/api/games/" + me.code, body).then(function (r) {
+				if (!on || ONLINE !== me) return;
+				if (ROOMS.ok(r)) { sendFails = 0; onlineClock(r.data); ONLINE.st = r.data.state; ONLINE.seen = r.data.state.seq; return then(); }
+				ROOMS.call("GET", "/api/games/" + me.code).then(function (g) {
+					if (!on || ONLINE !== me) return;
+					var gs = ROOMS.ok(g) && g.data.state;
+					// the first try may have got through with its answer lost: then the room already has it
+					if (gs && gs.players[me.slot].cur >= body.me.cur) { ONLINE.st = gs; ONLINE.seen = gs.seq; return then(); }
+					// the turn was taken from you meanwhile (skipped for taking too long): the throw doesn't count
+					if (gs && gs.turn !== me.slot) {
+						sendFails = 0; ONLINE.st = gs; ONLINE.seen = gs.seq;
+						R.strokes[holeIdx] = gs.players[me.slot].strokes[holeIdx] || 0;
+						say("\x01h\x01yYou were skipped\x01n for taking too long: that throw didn't count.");
+						phase = "wait";
+						return afterState();
+					}
+					sendFails++;
+					$("mLabel").innerHTML = "<span class='c-r hi'>Couldn't send your throw:</span> " + html(ROOMS.why(r)) + " Trying again…";
+					setTimeout(attempt, Math.min(8000, 1500 * sendFails));
+				});
+			});
+		})();
+	}
+	// Every 1.5 s, as IC Zombies: has the room moved on?
+	function startPoll() { stopPoll(); pollT = setTimeout(poll, ROOM_POLL_MS); }
+	function stopPoll() { clearTimeout(pollT); pollT = 0; }
+	function poll() {
+		var me = ONLINE;
+		ROOMS.call("GET", "/api/games/" + me.code).then(function (r) {
+			if (!on || ONLINE !== me) return;
+			pollT = setTimeout(poll, ROOM_POLL_MS);
+			if (!ROOMS.ok(r) || !r.data.state) return;
+			onlineClock(r.data);
+			var st = r.data.state;
+			if (st.seq !== ONLINE.st.seq && phase !== "send") takeState(st);
+			else if (phase === "wait") { waitLabel(); roomChip(); }
+		});
+	}
+	function takeState(st) {
+		var old = ONLINE.st, l = st.last;
+		ONLINE.st = st;
+		var news = l && l.seq > ONLINE.seen && l.slot !== ONLINE.slot;
+		ONLINE.seen = st.seq;
+		if (news) {
+			say("\x01h\x01w" + onlineName(st, l.slot) + ":\x01n " + l.line);
+			if (phase === "wait" && l.hole === holeIdx && l.path.length > 1 && !showingPov()) {
+				var pts = l.path.map(function (q) { return { x: q[0], y: q[1] }; }), d = hyp(pts[pts.length - 1].x - pts[0].x, pts[pts.length - 1].y - pts[0].y);
+				phase = "watch"; watchSlot = l.slot; watchFly = l.kind === "throw";
+				lastPath = pts;
+				return flyAlong(pts, l.kind === "throw" ? 900 + d * 9 : 700 + d * 40, function () { watchSlot = -1; afterState(); });
+			}
+		}
+		afterState();
+	}
+	function afterState() {
+		var st = ONLINE.st;
+		if (phase === "holeDone") return refreshHoleSheet();
+		if (phase !== "wait" && phase !== "watch") {
+			// your turn: the others just moved (a throw in the air is sent when it lands: sendThrow sorts it out)
+			if ((st.turn === ONLINE.slot && st.hole === holeIdx && !st.over) || phase === "fly" || phase === "rolling") { hud(); return; }
+			// still aiming, but the turn was taken from you (skipped for taking too long)
+			if (relief) cancelRelief();
+			say("\x01h\x01yYou were skipped\x01n for taking too long.");
+		}
+		if (st.hole !== holeIdx || st.over) return holeEnded();
+		if (st.turn === ONLINE.slot) readyToThrow(); else waitTurn();
+	}
+	// Everyone's in: the hole's scores, then on to the next tee
+	function holeEnded() {
+		phase = "holeDone";
+		R.strokes[holeIdx] = ONLINE.st.players[ONLINE.slot].strokes[holeIdx] || R.strokes[holeIdx];
+		holeSheet = "<h2>Hole " + (holeIdx + 1) + " done</h2>";
+		refreshHoleSheet();
+	}
+	function goLabel() {
+		var st = ONLINE.st;
+		if (st.over) return "Final scores";
+		if (st.hole !== holeIdx) return "Hole " + (st.hole + 1) + " →";
+		return "Watch the others";
+	}
+	function refreshHoleSheet() {
+		openSheet(holeSheet + scorecardHtml() + "<button class='go' id='goBtn' type='button'>" + goLabel() + "</button>");
+		$("goBtn").addEventListener("click", nextHole);
+	}
+	function onlineNext() {
+		var st = ONLINE.st;
+		if (st.over) return onlineDone();
+		if (st.hole !== holeIdx) return onlineHole();
+		waitTurn();
+	}
+	function onlineDone() {
+		stopPoll();
+		phase = "roundDone";
+		var st = ONLINE.st, rows = st.players.map(function (p, i) { var t = roomTotals(st, i); return { name: p.name, t: t.total, n: t.holes, i: i, gone: p.gone }; });
+		rows.sort(function (a, b) { return (a.n === b.n ? a.t - b.t : b.n - a.n); });
+		var par = 0; R.holes.forEach(function (hh) { par += hh.par; });
+		openSheet("<h2>Round done</h2><p class='label'>" + html(R.course.name) + "</p><ol class='standings'>" + rows.map(function (r) {
+			var rel = r.n === R.holes.length ? r.t - par : null;
+			return "<li><i class='seat s" + r.i + "'></i><b>" + html(r.name) + "</b> " + r.t + (rel !== null ? " <small>(" + (rel === 0 ? "even" : relText(rel)) + ")</small>" : " <small>(" + r.n + (r.n === 1 ? " hole" : " holes") + ")</small>") + "</li>";
+		}).join("") + "</ol>" + scorecardHtml() + "<button class='go' id='againBtn' type='button'>Back to the clubhouse</button>");
+		$("againBtn").addEventListener("click", leaveRound);
+	}
+	// The others on the hole: a dot in their seat's colour where they lie (the tee before they throw)
+	function drawOthers(px) {
+		var st = ONLINE.st;
+		st.players.forEach(function (p, i) {
+			if (i === ONLINE.slot || p.gone || p.done || i === watchSlot) return;
+			DRAW.player(g, p.lie || S.H.tee, px, SEAT_COL[i % SEAT_COL.length]);
+		});
+	}
+	// The room at the top: everyone's score so far, and whose throw it is
+	function roomChip() {
+		var st = ONLINE.st, el = $("roomChip");
+		el.hidden = false;
+		setHtml(el, st.players.map(function (p, i) {
+			// their total so far, then this hole: a tick once they're in, or the throws taken
+			var t = roomTotals(st, i), total = t.holes ? String(t.total) : "";
+			var here = p.done ? "✓" : (p.cur ? p.cur + (p.cur === 1 ? " throw" : " throws") : "");
+			var small = total && here ? total + (p.done ? " " : " · ") + here : total || here;
+			return "<span class='who" + (i === st.turn ? " up" : "") + (p.gone ? " gone" : "") + "'><i class='seat s" + i + "'></i>" + html(onlineShortName(p.name)) +
+				(small ? " <small>" + small + "</small>" : "") + "</span>";
+		}).join(""));
+	}
+	$("meterCard").addEventListener("click", function (e) {
+		if (e.target.id === "rejoinBtn" && on) {
+			// the same seat (this browser's device id): back in from the next hole
+			ROOMS.call("POST", "/api/games/" + ONLINE.code + "/join", { displayName: ONLINE.name.replace(/ \(web\d*\)$/, ""), deviceId: ROOMS.device() }).then(function (r) {
+				$("mLabel").textContent = ROOMS.ok(r) ? "Back in: you play on from the next hole." : ROOMS.why(r);
+			});
+			return;
+		}
+		if (e.target.id !== "skipBtn" || !on) return;
+		ROOMS.call("POST", "/api/games/" + ONLINE.code + "/skip", { playerId: ONLINE.playerId }).then(function (r) {
+			if (!ROOMS.ok(r)) $("mLabel").textContent = ROOMS.why(r);
+		});
+	});
+
 	MENU.init({ onPlay: play });
-	showMenu();
+	ROOMS.init({ onStart: playOnline, rerender: MENU.render });
+	var resumeTab = ROOMS.resume();   // an invite link (?join=CODE), or the room this browser was in
+	phase = "menu"; $("done").hidden = true;
+	MENU.show(resumeTab);
 	layout();
 })();

@@ -73,8 +73,10 @@ function throwShot() {
 	var how = shot.pitch ? "pitch-out" : (shot.style === "TH" ? "tomahawk" : "");
 	var line = "\x01h\x01c" + discLabel(shot.disc) + (how ? " " + how : "") + "\x01n " + (sw.whiff ? "\x01h\x01rshanked\x01n, " : "") + ft(shot.dist) + " ft. ";
 	if (sw.over) line = "\x01h\x01rOverswing! \x01n" + line;
+	V.lastShot = { kind: "throw", path: [shot.from].concat(f.path), line: line };   // for an online round's others (online.js)
 	if (shot.outcome === "in") {
-		msg(line + "\x01h\x01g" + (S.strokes === 1 ? "IN THE CHAINS - ACE!!" : "IN THE CHAINS!"));
+		V.lastShot.line = line + "\x01h\x01g" + (S.strokes === 1 ? "IN THE CHAINS - ACE!!" : "IN THE CHAINS!");
+		msg(V.lastShot.line);
 		header();
 		waitKey("Press any key");
 		return "in";
@@ -97,6 +99,7 @@ function throwShot() {
 	sb += drawCell(lc.c, lc.r) + drawCell(ac.c, ac.r);
 	out(sb);
 	msg(line);
+	V.lastShot.line = line;
 	header();
 	panel();
 	if (inPuttRange()) status("\x01hIn putting range.\x01n Press any key to line up your putt.");

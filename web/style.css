@@ -216,3 +216,21 @@ a { color: var(--accent); }
   .toggles .seg button { padding: 2px 6px; font-size: 11px; }
   .gapChip { font-size: 11px; padding: 4px 8px; }
 }
+
+/* ---- online rounds (rooms.js, game.js) ---- */
+.seat { display: inline-block; width: .7em; height: .7em; border-radius: 50%; margin-right: .35em; border: 2px solid #0b1020; vertical-align: -.05em; }
+.seat.s0 { background: #5ec8ff; } .seat.s1 { background: #ff7ad9; } .seat.s2 { background: #7dff7a; }
+.seat.s3 { background: #ff6b6b; } .seat.s4 { background: #8f9bff; } .seat.s5 { background: #ffe066; }
+.roomChip { gap: .7em; flex-wrap: wrap; max-width: 46vw; }
+.roomChip .who { white-space: nowrap; opacity: .8; }
+.roomChip .who.up { opacity: 1; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.roomChip .who.gone, tr.gone { opacity: .45; }
+.lobby { text-align: center; margin: .2em 0 1em; }
+.bigcode { font-family: "Space Grotesk", sans-serif; font-size: 3.2em; font-weight: 700; letter-spacing: .25em; padding-left: .25em; color: #ffd84d; line-height: 1.1; }
+.search.code { width: 6.5em; text-transform: uppercase; letter-spacing: .2em; font-weight: 700; }
+.plist.players { max-height: none; }
+.plist.players .crow { cursor: default; }
+.standings { margin: .4em 0 1em; padding-left: 1.4em; }
+.standings li { margin: .2em 0; }
+.scard th .seat { width: .6em; height: .6em; }
+.throw:disabled { opacity: .45; }

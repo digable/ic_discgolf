@@ -52,6 +52,25 @@ function cfmt(fmt) {
   });
 }
 
+// One call to the room server for the door: { code, data }, or null if it didn't answer
+async function roomFetch(method, path, body) {
+  if (!/^\/api\/games(\/|$)/.test(String(path))) return null;   // only the rooms
+  try {
+    const r = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, cache: "no-store" });
+    let data = null;
+    try { data = await r.json(); } catch (e) {}
+    return { code: r.status, data };
+  } catch (e) { return null; }
+}
+// The id this browser rejoins rooms with (kept, so a reload gets the same seat back)
+function deviceId() {
+  try {
+    let id = localStorage.getItem("icdg.termdevice");
+    if (!id) { id = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem("icdg.termdevice", id); }
+    return id;
+  } catch (e) { return ""; }
+}
+
 export function makeEnv() {
   const st = { dead: false, keys: [], replies: [], waiter: null, rwaiter: null, pend: 7, sentA: 7 };
   const sleep = (ms) => new Promise((res, rej) => setTimeout(() => (st.dead ? rej(ABORT) : res()), Math.max(0, ms)));
@@ -158,7 +177,11 @@ export function makeEnv() {
       require: () => ({}), load: () => ({}), exit: () => { throw EXIT; },
       ascii: (v) => (typeof v === "number" ? String.fromCharCode(v) : String(v).charCodeAt(0)),
       strip_ctrl: stripCtrlA, truncsp: (s) => String(s).replace(/\s+$/, ""), random: (n) => Math.floor(Math.random() * n),
-      time: () => Math.floor(Date.now() / 1000), file_exists: () => false
+      time: () => Math.floor(Date.now() / 1000), file_exists: () => false,
+      // Online rounds (bbs/lib/online.js): the door's room server calls go to this site's /api/games,
+      // the same rooms the web version and the BBS use. An async function, so the door waits for it.
+      http_call: roomFetch,
+      device_id: deviceId(), join_code: (new URLSearchParams(location.search).get("join") || "").toUpperCase()
     })
   };
 }

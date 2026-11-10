@@ -21,6 +21,7 @@
     <div class="grow"></div>
     <div class="chip"><small id="hThrowLabel">throw</small><span id="hThrow">1</span></div>
     <div class="chip"><small>round</small><span id="hRound">E</span></div>
+    <div class="chip roomChip" id="roomChip" hidden aria-live="polite"></div>
     <!-- Buttons (outlined in blue) as against the information chips above. Each shows its key (hidden on phones). -->
     <button class="chip btn" id="reliefBtn" type="button" title="Optional relief: move back along the line from the basket (R)" hidden><span class="v">relief</span><kbd class="key" aria-hidden="true">R</kbd></button>
     <button class="chip btn" id="mullBtn" type="button" title="Mulligan: take that throw back and throw it again (M)" hidden><span class="v">mulligan</span><kbd class="key" aria-hidden="true">M</kbd></button>
@@ -46,7 +47,7 @@
       </div>
     </div>
     <div class="card windCard"><div class="arrow" id="wArrow" aria-hidden="true">↑</div><div><div class="label">wind</div><div class="dname" id="wText">calm</div></div></div>
-    <div class="card meterCard">
+    <div class="card meterCard" id="meterCard">
       <div class="label" id="mLabel">Tap THROW (or press SPACE) to reach back</div>
       <div class="ticks" id="ticks"></div>
       <div class="bar" id="bar"><div class="over"></div><div class="snap" id="snap"></div><div class="p100" id="p100"></div>
@@ -61,7 +62,7 @@
       <h1 id="menuTitle">IC Disc Golf</h1>
       <p class="label">The same game as the <a href="../">terminal</a> and the BBS, drawn for the web. Your setup, bag and house rules are kept in this browser.</p>
       <div class="tabs" role="tablist" aria-label="Menu">
-        <button type="button" role="tab" data-tab="play">Play</button><button type="button" role="tab" data-tab="setup">Setup</button><button type="button" role="tab" data-tab="bag">Bag</button><button type="button" role="tab" data-tab="house">House rules</button>
+        <button type="button" role="tab" data-tab="play">Play</button><button type="button" role="tab" data-tab="setup">Setup</button><button type="button" role="tab" data-tab="bag">Bag</button><button type="button" role="tab" data-tab="house">House rules</button><button type="button" role="tab" data-tab="online">Online</button>
       </div>
       <div id="menuBody" role="tabpanel"></div>
     </div>
@@ -80,6 +81,7 @@
 <script src="../bbs/lib/state.js"></script>
 <script src="../bbs/lib/flight.js"></script>
 <script src="../bbs/lib/rules.js"></script>
+<script src="../bbs/lib/room.js"></script>   <!-- an online round's turn order (the server runs it too) -->
 <script src="../bbs/lib/meter.js"></script>
 <script src="../bbs/lib/saves.js"></script>  <!-- only its checks for saved settings (applySettings, currentSettings) -->
 <script src="../bbs/lib/pov.js"></script>    <!-- only its camera (POV) and the gap through the trees (povHits, gapInfo) -->
@@ -89,6 +91,8 @@
 <script src="text.js"></script>
 <script src="draw.js"></script>
 <script src="pov.js"></script>
+<script src="../bbs/lib/online.js"></script> <!-- only its round setup from a room (onlineStartRound, onlineStartHole...) -->
+<script src="rooms.js"></script>
 <script src="menu.js"></script>
 <script src="game.js"></script>
 </body>

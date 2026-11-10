@@ -25,6 +25,7 @@ load(js.exec_dir + "lib/holes.js");
 load(js.exec_dir + "lib/state.js");
 load(js.exec_dir + "lib/flight.js");
 load(js.exec_dir + "lib/rules.js");
+load(js.exec_dir + "lib/room.js");
 // The door: the ANSI screens and keys that play those rules on a BBS.
 load(js.exec_dir + "lib/screen.js");
 load(js.exec_dir + "lib/meter.js");
@@ -36,11 +37,13 @@ load(js.exec_dir + "lib/shot.js");
 load(js.exec_dir + "lib/putt.js");
 load(js.exec_dir + "lib/round.js");
 load(js.exec_dir + "lib/menus.js");
+load(js.exec_dir + "lib/online.js");
 
 // ---- Main ----------------------------------------------------------------------
 console.write("\x1b[?25l");
 try {
 	signIn();
+	onlineAutoJoin();                    // the terminal version opened with ?join=CODE
 	for (;;) {
 		if (!bbs.online || js.terminated) break;
 		var choice = titleScreen();
@@ -48,6 +51,7 @@ try {
 			var ci = courseMenu();
 			if (ci >= 0) { player.course = ci; playRound(COURSES[ci]); savePuttView(); }
 		}
+		else if (choice === "O") onlineMenu();
 		else if (choice === "S") { setup(false); saveSetup(); }
 		else if (choice === "B") { var before = player.bag.join("|"); bagScreen(); offerBagSave(before); }
 		else if (choice === "R") houseRules();
@@ -55,5 +59,6 @@ try {
 		else if (choice === "Q") break;
 	}
 } finally {
+	if (ONLINE) roomLeave();             // hung up in an online round or lobby: give up the seat
 	console.write("\x1b[0m\x1b[?25h\x1b[2J\x1b[H");
 }

@@ -12,7 +12,7 @@ var V = null;  // { view: "map" | "pov" | null (pick one), pov, marks, showAim, 
 function header(extra) {
 	var rel = roundToPar(), rs = rel === 0 ? "E" : (rel > 0 ? "+" + rel : String(rel));
 	var h = " " + upperName(R.course.name) + "   HOLE " + S.H.num + "   PAR " + S.H.par + "   " + S.H.ft + " FT" +
-		"   THROW " + (S.strokes + 1) + "   ROUND " + rs;
+		"   " + (S.lie.x === S.H.basket.x && S.lie.y === S.H.basket.y ? "SCORE " + S.strokes : "THROW " + (S.strokes + 1)) + "   ROUND " + rs;   // once it's in: the score
 	if (extra) h += "   " + extra;
 	else {
 		var e = Math.round(heightAt(S.H, S.H.basket) - heightAt(S.H, S.H.tee));

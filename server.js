@@ -4,7 +4,7 @@
 //   node server.js            (listens on 127.0.0.1:3002)
 //   PORT=8080 node server.js
 //
-// Player data is stored in SQLite at DB_FILE (/var/lib/ic-discgolf/saves.db on digiweb; data/discgolf.db
+// Online rooms (api/games.js) and player data are stored in SQLite at DB_FILE (/var/lib/ic-discgolf/saves.db on digiweb; data/discgolf.db
 // when trying it locally, see api/_db.js). The save routes only answer the BBS door: see api/players.js.
 
 const http = require("http");
@@ -15,11 +15,13 @@ const zlib = require("zlib");
 const PORT = Number(process.env.PORT) || 3002;
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
-const MAX_BODY_BYTES = 64 * 1024; // a player's settings are a few hundred bytes
+const MAX_BODY_BYTES = 64 * 1024; // a player's settings are a few hundred bytes; a throw a few KB
 
 // URL pattern -> handler file
 const routes = [
-  { pattern: /^\/api\/players\/([^/]+)\/?$/, file: "api/players.js" }
+  { pattern: /^\/api\/players\/([^/]+)\/?$/, file: "api/players.js", params: ["handle"] },
+  { pattern: /^\/api\/games\/?$/, file: "api/games.js", params: [] },
+  { pattern: /^\/api\/games\/([^/]+)(?:\/(join|course|start|leave|skip))?\/?$/, file: "api/games.js", params: ["code", "action"] }
 ].map((r) => ({ ...r, handler: require(path.join(ROOT, r.file)) }));
 
 const MIME = {
@@ -103,7 +105,7 @@ function readJsonBody(req) {
 async function handleApi(req, res, url, route, match) {
   decorate(res);
   req.query = Object.fromEntries(url.searchParams);
-  if (match[1]) req.query.handle = decodeURIComponent(match[1]);
+  route.params.forEach((name, i) => { if (match[i + 1]) req.query[name] = decodeURIComponent(match[i + 1]); });
   try {
     if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
       req.body = await readJsonBody(req);

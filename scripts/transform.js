@@ -188,7 +188,9 @@ export function transform(src, waits) {
         const lp = src.indexOf("(", c.property.end);
         if (lp > 0 && lp < node.end && src[node.end - 1] === ")") {
           ed.push({ pos: node.start, text: "__cb(", open: true, span: span - 0.5 });
-          ed.push({ pos: c.object.end, end: lp + 1, text: ', "' + c.property.name + '", [', open: true, span: 0 });
+          // from the "." (not the object's end, so a bracketed object, (a || b).map(...), keeps its ")")
+          const dot = src.lastIndexOf(".", c.property.start);
+          ed.push({ pos: dot > c.object.end ? dot : c.object.end, end: lp + 1, text: ', "' + c.property.name + '", [', open: true, span: 0 });
           ed.push({ pos: node.end - 1, end: node.end, text: "])", open: true, span: 0 });
         }
       }
